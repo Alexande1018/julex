@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ivory: #f7f5f0;
+  --color-paper: #fdfcf9;
+  --color-paper-2: #efebe2;
+  --color-ink: #16170f;
+  --color-ink-soft: #46473f;
+  --color-muted: #75756b;
+  --color-faint: #9c9c91;
+  --color-line: #ded9cd;
+  --color-line-soft: #eae5da;
+  --color-olive: #3e4a35;
+  --color-olive-soft: #5c6852;
+  --color-bronze: #8a6a46;
+  --color-clay: #a2553c;
+  --color-sage: #6e7b5f;
+  --color-sand: #cfc6b2;
+
+  --font-serif: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-ivory);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 450;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.024em;
+    font-variation-settings: "opsz" 72, "SOFT" 0, "WONK" 0;
+    text-wrap: balance;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: #3e4a3522;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-olive);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Los campos marcan el foco con el borde: el contorno doble se ve sucio. */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-faint);
+  }
+}
+
+@layer components {
+/* Grano de papel: casi invisible, pero quita el aire de plantilla. */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.032;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+
+/* Titular de portada: eje óptico grande, peso fino, interlineado cerrado. */
+.display {
+  font-family: var(--font-serif);
+  font-weight: 355;
+  font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 0;
+  letter-spacing: -0.025em;
+  line-height: 1.0;
+  text-wrap: balance;
+}
+
+.display-i {
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 0;
+}
+
+.eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.hairline {
+  height: 1px;
+  background: var(--color-line);
+  border: 0;
+}
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.rise {
+  animation: rise 0.26s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.fade {
+  animation: fade 0.2s ease-out both;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.live-dot {
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Barra de desplazamiento discreta en escritorio */
+@media (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #dcd8cd;
+    border-radius: 99px;
+    border: 3px solid var(--color-ivory);
+  }
+}
+
+:root {
+  /* Color de marca por barbería; se sobrescribe en línea. */
+  --brand: #3e4a35;
+}
+
+/* Trama de puntos, para fondos de sección. */
+.trama {
+  background-image: radial-gradient(currentColor 0.5px, transparent 0.6px);
+  background-size: 5px 5px;
+}
+
+/* Pie de foto editorial. */
+.pie-foto {
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  color: var(--color-faint);
+  text-transform: uppercase;
+}

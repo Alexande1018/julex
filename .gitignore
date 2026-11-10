@@ -1,0 +1,11 @@
+node_modules/
+dist/
+shots/
+.DS_Store
+*.local
+*.log
+
+# Local Netlify folder
+.netlify
+julex.zip
+.netlify/
