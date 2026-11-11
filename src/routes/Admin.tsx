@@ -1,14 +1,13 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Copy, Nfc, Plus, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Copy, Nfc, Plus, Search, Store } from 'lucide-react';
+import { haySupabase, supabase } from '../lib/supabase';
 import { useDb } from '../lib/store';
-import { haySupabase } from '../lib/supabase';
-import { crearLote } from '../lib/actions';
-import { cuotaMensual, resumenLlaveros } from '../lib/derive';
 import { fmtEuros, fmtFechaCorta } from '../lib/format';
 import {
   Btn,
   Eyebrow,
+  Field,
   Pill,
   Rule,
   Stat,
@@ -18,22 +17,129 @@ import {
   toast,
 } from '../components/ui';
 
+const CUOTA_MINIMA = 15;
+
+interface LlaveroAdmin {
+  id: string;
+  barberiaId: string;
+  codigoCorto: string;
+  token: string;
+  lote: string;
+  estado: 'sin_asignar' | 'activo' | 'retirado';
+  clienteId: string | null;
+}
+
+interface LocalAdmin {
+  id: string;
+  nombre: string;
+  slug: string;
+  llaveros: LlaveroAdmin[];
+  clientes: number;
+}
+
 type Filtro = 'todos' | 'activos' | 'libres' | 'retirados';
 
 export default function Admin() {
   const db = useDb();
+  const navegar = useNavigate();
+  const [locales, setLocales] = useState<LocalAdmin[] | null>(null);
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [q, setQ] = useState('');
-  const [creando, setCreando] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const [nuevo, setNuevo] = useState(false);
+  const [form, setForm] = useState({ nombre: '', email: '', password: '', color: '#3E4A35' });
+  const [nombres, setNombres] = useState<Record<string, string>>({});
 
-  const cuotas = db.barberias.map((b) => ({ b, ...cuotaMensual(db, b.id) }));
-  const facturacion = cuotas.reduce((s, c) => s + c.cuota, 0);
-  const activos = db.llaveros.filter((l) => l.estado === 'activo');
-  const libres = db.llaveros.filter((l) => l.estado === 'sin_asignar');
-  const retirados = db.llaveros.filter((l) => l.estado === 'retirado');
+  const cargar = useCallback(async () => {
+    if (!haySupabase) {
+      setLocales(
+        db.barberias.map((b) => ({
+          id: b.id,
+          nombre: b.nombre,
+          slug: b.slug,
+          clientes: db.clientes.filter((c) => c.barberiaId === b.id).length,
+          llaveros: db.llaveros
+            .filter((l) => l.barberiaId === b.id)
+            .map((l) => ({
+              id: l.id,
+              barberiaId: l.barberiaId,
+              codigoCorto: l.codigoCorto,
+              token: l.token,
+              lote: l.lote,
+              estado: l.estado,
+              clienteId: l.clienteId,
+            })),
+        })),
+      );
+      return;
+    }
 
-  const nombreCliente = (id: string | null) =>
-    id ? db.clientes.find((c) => c.id === id)?.nombre ?? '—' : null;
+    const sb = supabase!;
+    const [loc, lla, cli] = await Promise.all([
+      sb.from('barberias').select('id, nombre, slug').order('creado_en'),
+      sb.from('llaveros').select('id, barberia_id, codigo_corto, token, lote, estado, cliente_id'),
+      sb.from('clientes').select('id, nombre, barberia_id'),
+    ]);
+    if (loc.error) {
+      toast('No se pudieron leer los locales', 'aviso');
+      setLocales([]);
+      return;
+    }
+
+    const nombresPorId: Record<string, string> = {};
+    for (const c of cli.data ?? []) nombresPorId[c.id as string] = c.nombre as string;
+    setNombres(nombresPorId);
+
+    const porLocal = new Map<string, LlaveroAdmin[]>();
+    for (const l of lla.data ?? []) {
+      const clave = l.barberia_id as string;
+      if (!porLocal.has(clave)) porLocal.set(clave, []);
+      porLocal.get(clave)!.push({
+        id: l.id as string,
+        barberiaId: clave,
+        codigoCorto: l.codigo_corto as string,
+        token: l.token as string,
+        lote: (l.lote as string) ?? '',
+        estado: l.estado as LlaveroAdmin['estado'],
+        clienteId: (l.cliente_id as string) ?? null,
+      });
+    }
+
+    setLocales(
+      (loc.data ?? []).map((b) => ({
+        id: b.id as string,
+        nombre: b.nombre as string,
+        slug: b.slug as string,
+        clientes: (cli.data ?? []).filter((c) => c.barberia_id === b.id).length,
+        llaveros: porLocal.get(b.id as string) ?? [],
+      })),
+    );
+  }, [db]);
+
+  useEffect(() => {
+    if (!haySupabase) {
+      void cargar();
+      return;
+    }
+    // Esta consola es del administrador. Un barbero tiene su propio panel.
+    void (async () => {
+      const { data } = await supabase!.rpc('soy_admin');
+      if (data !== true) {
+        navegar('/barbero/cola', { replace: true });
+        return;
+      }
+      await cargar();
+    })();
+  }, [cargar, navegar]);
+
+  const todos = useMemo(() => (locales ?? []).flatMap((l) => l.llaveros), [locales]);
+  const activos = todos.filter((l) => l.estado === 'activo');
+  const libres = todos.filter((l) => l.estado === 'sin_asignar');
+  const retirados = todos.filter((l) => l.estado === 'retirado');
+  const facturacion = (locales ?? []).reduce((s, l) => {
+    const n = l.llaveros.filter((x) => x.estado === 'activo').length;
+    return s + Math.max(CUOTA_MINIMA, n);
+  }, 0);
 
   const lista = useMemo(() => {
     const base =
@@ -43,14 +149,15 @@ export default function Admin() {
           ? libres
           : filtro === 'retirados'
             ? retirados
-            : db.llaveros;
+            : todos;
     const t = q.trim().toLowerCase();
     if (!t) return base;
     return base.filter((l) => {
-      const dueno = nombreCliente(l.clienteId) ?? '';
-      return `${l.codigoCorto} ${l.lote} ${dueno}`.toLowerCase().includes(t);
+      const dueno = l.clienteId ? nombres[l.clienteId] ?? '' : '';
+      const local = locales?.find((x) => x.id === l.barberiaId)?.nombre ?? '';
+      return `${l.codigoCorto} ${l.lote} ${dueno} ${local}`.toLowerCase().includes(t);
     });
-  }, [db.llaveros, db.clientes, filtro, q]);
+  }, [todos, activos, libres, retirados, filtro, q, nombres, locales]);
 
   const copiar = async (token: string) => {
     try {
@@ -61,18 +168,55 @@ export default function Admin() {
     }
   };
 
-  const generar = async () => {
-    const b = db.barberias[0];
-    if (!b || creando) return;
-    setCreando(true);
-    const lote = `L-${String(db.llaveros.length + 1).padStart(3, '0')}`;
+  const crearLocal = async () => {
+    if (!haySupabase || ocupado) return;
+    setOcupado(true);
     try {
-      const nuevos = await crearLote(15, b.id, lote);
-      if (nuevos.length === 15) toast(`Lote ${lote}: 15 llaveros creados`, 'ok');
-      else if (nuevos.length > 0) toast(`Lote ${lote}: ${nuevos.length} llaveros`, 'ok');
-      else toast('No se pudo crear el lote', 'aviso');
+      const { data, error } = await supabase!.rpc('crear_local_admin', {
+        p_nombre: form.nombre.trim(),
+        p_slug: form.nombre.trim(),
+        p_email: form.email.trim(),
+        p_password: form.password,
+        p_color: form.color,
+      });
+      if (error) {
+        const m = error.message.includes('email_en_uso')
+          ? 'Ese correo ya tiene cuenta'
+          : error.message.includes('password_corta')
+            ? 'La contraseña necesita 6 caracteres'
+            : error.message.includes('solo_admin')
+              ? 'Tu cuenta no es de administrador'
+              : error.message.slice(0, 60);
+        toast(m, 'aviso');
+        return;
+      }
+      const slug = (data as { slug?: string })?.slug ?? '';
+      toast(`Local creado · /${slug}`, 'ok');
+      setNuevo(false);
+      setForm({ nombre: '', email: '', password: '', color: '#3E4A35' });
+      await cargar();
     } finally {
-      setCreando(false);
+      setOcupado(false);
+    }
+  };
+
+  const anadirLlaveros = async (barberiaId: string, cantidad: number, nombre: string) => {
+    if (!haySupabase || ocupado) return;
+    setOcupado(true);
+    try {
+      const { data, error } = await supabase!.rpc('crear_lote_admin', {
+        p_barberia: barberiaId,
+        p_cantidad: cantidad,
+        p_lote: '',
+      });
+      if (error) {
+        toast(error.message.includes('solo_admin') ? 'Tu cuenta no es de administrador' : 'No se pudo crear el lote', 'aviso');
+        return;
+      }
+      toast(`${nombre}: ${data} llaveros añadidos`, 'ok');
+      await cargar();
+    } finally {
+      setOcupado(false);
     }
   };
 
@@ -90,15 +234,16 @@ export default function Admin() {
             Panel del administrador
           </h1>
           <p className="mt-1.5 max-w-[52ch] text-[12px] leading-relaxed text-ivory/55">
-            Locales, inventario de llaveros y facturación. Aquí se ve cada llavero y de quién es.
+            Todos los locales, su inventario y lo que se factura. Cada barbería sigue viendo solo la
+            suya.
           </p>
         </div>
       </header>
 
       <div className="mx-auto w-full max-w-3xl px-5 pb-16 pt-6">
         <section className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
-          <Stat valor={db.barberias.length} etiqueta="Locales" />
-          <Stat valor={activos.length} etiqueta="Llaveros activos" nota={`de ${db.llaveros.length}`} />
+          <Stat valor={locales?.length ?? 0} etiqueta="Locales" />
+          <Stat valor={activos.length} etiqueta="Llaveros activos" nota={`de ${todos.length}`} />
           <Stat valor={libres.length} etiqueta="Sin asignar" />
           <Stat valor={fmtEuros(facturacion)} etiqueta="Cuota mensual" nota="Suma de mínimos" />
         </section>
@@ -107,37 +252,121 @@ export default function Admin() {
 
         {/* LOCALES */}
         <section>
-          <Eyebrow>Locales</Eyebrow>
-          <div className="mt-2">
-            {cuotas.map(({ b, activos: n, cuota, minimo }) => {
-              const resumen = resumenLlaveros(db, b.id);
-              const clientes = db.clientes.filter((c) => c.barberiaId === b.id).length;
+          <div className="flex items-baseline justify-between">
+            <Eyebrow>Locales</Eyebrow>
+            <button
+              onClick={() => setNuevo((v) => !v)}
+              className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+            >
+              {nuevo ? 'Cancelar' : 'Nuevo local'}
+            </button>
+          </div>
+
+          {nuevo && (
+            <div className="mt-3 rounded-[4px] border border-line bg-paper px-4 py-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Nombre del local">
+                  <input
+                    value={form.nombre}
+                    onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                    placeholder="Barbería Centro"
+                    className={inputClases}
+                  />
+                </Field>
+                <Field label="Correo del barbero">
+                  <input
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="barbero@correo.com"
+                    className={inputClases}
+                  />
+                </Field>
+                <Field label="Contraseña inicial">
+                  <input
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="mínimo 6 caracteres"
+                    className={inputClases}
+                  />
+                </Field>
+                <Field label="Color">
+                  <input
+                    type="color"
+                    value={form.color}
+                    onChange={(e) => setForm({ ...form, color: e.target.value })}
+                    className="h-9 w-full rounded-[2px] border border-line bg-paper"
+                  />
+                </Field>
+              </div>
+              <Btn
+                v="primary"
+                t="md"
+                className="mt-3 w-full"
+                onClick={() => void crearLocal()}
+                disabled={ocupado || !form.nombre.trim() || !form.email.trim() || form.password.length < 6}
+              >
+                <Plus size={13} /> {ocupado ? 'Creando…' : 'Crear local y su barbero'}
+              </Btn>
+              <p className="mt-2 text-[10.5px] text-faint">
+                Se crea la barbería con su cuenta, sus tres servicios, su horario y su primera silla.
+                El barbero entra con ese correo y contraseña; después puede cambiarla.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-3">
+            {(locales ?? []).map((l) => {
+              const act = l.llaveros.filter((x) => x.estado === 'activo').length;
+              const cuota = Math.max(CUOTA_MINIMA, act);
               return (
-                <div
-                  key={b.id}
-                  className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line py-3.5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-serif text-[16px] leading-tight text-ink">{b.nombre}</p>
-                    <p className="mt-0.5 text-[11px] text-muted">
-                      /{b.slug} · {clientes} clientes · {resumen.total} llaveros
-                    </p>
+                <div key={l.id} className="border-b border-line py-3.5">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-1.5 truncate font-serif text-[16px] leading-tight text-ink">
+                        <Store size={12} className="shrink-0 text-faint" />
+                        {l.nombre}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted">
+                        /{l.slug} · {l.clientes} clientes · {l.llaveros.length} llaveros
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="num text-[13px] font-semibold text-ink">{fmtEuros(cuota)}</p>
+                      <p className="text-[10px] text-faint">
+                        {act < CUOTA_MINIMA ? `mínimo (${act} activos)` : `${act} activos`}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="num text-[13px] font-semibold text-ink">{fmtEuros(cuota)}</p>
-                    <p className="text-[10px] text-faint">
-                      {minimo ? `mínimo (${n} activos)` : `${n} activos`}
-                    </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Btn
+                      v="outline"
+                      t="sm"
+                      onClick={() => void anadirLlaveros(l.id, 15, l.nombre)}
+                      disabled={ocupado || !haySupabase}
+                    >
+                      <Plus size={12} /> 15 llaveros
+                    </Btn>
+                    <Btn
+                      v="quiet"
+                      t="sm"
+                      onClick={() => void anadirLlaveros(l.id, 1, l.nombre)}
+                      disabled={ocupado || !haySupabase}
+                    >
+                      +1
+                    </Btn>
+                    <Link
+                      to={`/cita/${l.slug}`}
+                      className="text-[10.5px] font-semibold text-muted underline decoration-line underline-offset-4 hover:text-ink"
+                    >
+                      Ver reservas
+                    </Link>
                   </div>
-                  <Link
-                    to={`/cita/${b.slug}`}
-                    className="text-[10.5px] font-semibold text-muted underline decoration-line underline-offset-4 hover:text-ink"
-                  >
-                    Ver reservas
-                  </Link>
                 </div>
               );
             })}
+            {locales?.length === 0 && (
+              <p className="mt-2 text-[12px] text-muted">Todavía no hay locales.</p>
+            )}
           </div>
         </section>
 
@@ -155,7 +384,7 @@ export default function Admin() {
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {(
               [
-                ['todos', 'Todos', db.llaveros.length],
+                ['todos', 'Todos', todos.length],
                 ['activos', 'Con dueño', activos.length],
                 ['libres', 'Sin asignar', libres.length],
                 ['retirados', 'Retirados', retirados.length],
@@ -185,14 +414,15 @@ export default function Admin() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por código, lote o cliente"
+              placeholder="Buscar por código, lote, cliente o local"
               className={cn(inputClases, 'pl-9')}
             />
           </div>
 
           <div className="mt-3 overflow-hidden rounded-[4px] border border-line">
             {lista.slice(0, 80).map((l) => {
-              const dueno = nombreCliente(l.clienteId);
+              const dueno = l.clienteId ? nombres[l.clienteId] : null;
+              const local = locales?.find((x) => x.id === l.barberiaId)?.nombre ?? '';
               return (
                 <div
                   key={l.id}
@@ -214,10 +444,12 @@ export default function Admin() {
                       {dueno ? (
                         <>
                           <span className="font-semibold text-ink-soft">{dueno}</span>
-                          <span className="text-faint"> · lote {l.lote}</span>
+                          <span className="text-faint"> · {local} · lote {l.lote}</span>
                         </>
                       ) : (
-                        <span className="text-faint">sin asignar · lote {l.lote}</span>
+                        <span className="text-faint">
+                          {local} · sin asignar · lote {l.lote}
+                        </span>
                       )}
                     </p>
                   </div>
@@ -242,9 +474,7 @@ export default function Admin() {
               );
             })}
             {lista.length === 0 && (
-              <p className="bg-paper px-3 py-4 text-[12px] text-muted">
-                Nada con ese filtro.
-              </p>
+              <p className="bg-paper px-3 py-4 text-[12px] text-muted">Nada con ese filtro.</p>
             )}
           </div>
           {lista.length > 80 && (
@@ -252,15 +482,6 @@ export default function Admin() {
               Mostrando 80 de {lista.length}. Afina con el buscador.
             </p>
           )}
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Btn v="outline" t="md" onClick={() => void generar()} disabled={creando}>
-              <Plus size={13} /> {creando ? 'Generando…' : 'Generar lote de 15'}
-            </Btn>
-            <Link to="/" className={btnClases('quiet', 'md')}>
-              Volver al inicio
-            </Link>
-          </div>
         </section>
 
         <Rule className="my-7" />
@@ -271,7 +492,6 @@ export default function Admin() {
             <Eyebrow>Mensajes</Eyebrow>
             <span className="num text-[11px] text-faint">{db.mensajes.length}</span>
           </div>
-
           {db.mensajes.length === 0 ? (
             <p className="mt-2 text-[12px] text-muted">Todavía no se ha registrado ninguno.</p>
           ) : (
@@ -290,9 +510,6 @@ export default function Admin() {
                           {fmtFechaCorta(m.fecha)}
                         </span>
                       </div>
-                      <p className="mt-0.5 truncate text-[10.5px] text-muted">
-                        {m.tipo} · {m.canal}
-                      </p>
                     </li>
                   );
                 })}
@@ -304,9 +521,14 @@ export default function Admin() {
           <Eyebrow>Límite de privacidad</Eyebrow>
           <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
             Esta consola no muestra «cómo corta», notas, historial de visitas, teléfonos completos ni
-            ingresos de la barbería. Es logística y facturación: el contenido de las fichas pertenece a
-            la barbería y a sus clientes.
+            ingresos de las barberías. Es logística y facturación.
           </p>
+        </div>
+
+        <div className="mt-6">
+          <Link to="/" className={btnClases('quiet', 'md')}>
+            Volver al inicio
+          </Link>
         </div>
       </div>
     </div>
