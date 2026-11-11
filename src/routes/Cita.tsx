@@ -5,6 +5,8 @@ import {
   cargarDestinoReserva,
   huecosPublicos,
   pedirCita,
+  pinDeSesion,
+  recordarPin,
   type LocalPublico,
 } from '../lib/publico';
 import {
@@ -20,6 +22,7 @@ import {
 import { Btn, Check as CheckBox, Eyebrow, Pill, Rule, cn, inputClases, toast } from '../components/ui';
 import { Logotipo } from '../components/Logotipo';
 import { Salir } from '../components/Salir';
+import { Candado } from '../components/Candado';
 
 interface Destino {
   local: LocalPublico;
@@ -32,6 +35,8 @@ export default function Cita() {
   const navegar = useNavigate();
 
   const [destino, setDestino] = useState<Destino | null>(null);
+  const [cerrada, setCerrada] = useState<'denegada' | 'bloqueada' | null>(null);
+  const [pin, setPin] = useState<string | null>(() => (token ? pinDeSesion(token) : null));
   const [cargando, setCargando] = useState(true);
   const [servicioId, setServicioId] = useState('');
   const [dia, setDia] = useState<Date>(startOfDay(new Date()));
@@ -46,14 +51,22 @@ export default function Cita() {
   /* Quién reserva: el local, y el cliente si viene de su tarjeta. */
   useEffect(() => {
     let vivo = true;
-    cargarDestinoReserva(token, slug)
+    setCargando(true);
+    cargarDestinoReserva(token, slug, pin)
       .then((d) => {
         if (!vivo) return;
-        setDestino(d);
-        if (d) {
-          setServicioId(d.local.servicios[0]?.id ?? '');
-          setNombre(d.cliente ?? '');
-          setAcepta(!!d.cliente);
+        if (d && d.tipo === 'protegida') {
+          setCerrada(d.estado);
+          setDestino(null);
+          return;
+        }
+        setCerrada(null);
+        const ok = d && d.tipo === 'ok' ? d : null;
+        setDestino(ok);
+        if (ok) {
+          setServicioId(ok.local.servicios[0]?.id ?? '');
+          setNombre(ok.cliente ?? '');
+          setAcepta(!!ok.cliente);
         }
       })
       .catch(() => undefined)
@@ -63,7 +76,7 @@ export default function Cita() {
     return () => {
       vivo = false;
     };
-  }, [token, slug]);
+  }, [token, slug, pin]);
 
   const local = destino?.local ?? null;
   const servicios = local?.servicios ?? [];
@@ -127,6 +140,19 @@ export default function Cita() {
     );
   }
 
+  if (cerrada && token) {
+    return (
+      <Candado
+        token={token}
+        estado={cerrada}
+        onAbierto={(p) => {
+          recordarPin(token, p);
+          setPin(p);
+        }}
+      />
+    );
+  }
+
   if (!local) {
     return (
       <div className="grain flex min-h-dvh flex-col items-center justify-center bg-ivory px-6 text-center">
@@ -159,6 +185,7 @@ export default function Cita() {
         telefono,
         token: destino?.token,
         origen: destino?.token ? 'qr' : 'web',
+        pin,
       });
       setHecho({ dia, hora });
     } catch (e) {

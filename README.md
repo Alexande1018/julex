@@ -84,6 +84,28 @@ valor aleatorio por cliente. La ruta pública es `/c/<token>` y la reserva `/c/<
 numérico se queda como referencia interna de la barbería. Probado: `/c/P-0004` responde «esta tarjeta
 no existe». Los enlaces se generan desde `cliente.tokenPublico`.
 
+### El PIN de la tarjeta
+
+El enlace de la tarjeta la abre sin pedir nada: quien lo tenga ve el nombre, el teléfono, las visitas
+y la próxima cita. Si el cliente no quiere eso, desde **Mis datos → Poner un PIN** la protege con 4 a
+6 cifras. A partir de ahí el enlace solo dice «tarjeta protegida»; ni el nombre, ni el teléfono, ni el
+historial salen del servidor hasta que el PIN es correcto.
+
+- **Cómo se guarda.** Nunca en claro: `clientes_pin.hash` es un bcrypt de `pgcrypto`. La tabla tiene
+  RLS encendida y **sin políticas**, así que ni el barbero la lee; solo la tocan las funciones
+  `security definer`. En el modo demo, que no tiene servidor, el PIN vive en el navegador y sirve
+  para probar el flujo, no para proteger nada.
+- **Intentos.** Cinco fallos seguidos bloquean la tarjeta quince minutos, y el bloqueo aguanta aunque
+  después se acierte. Sin ese límite un PIN de cuatro cifras se rompe por fuerza bruta desde la
+  consola del navegador: el bloqueo no es un extra, es lo que hace que el PIN sirva.
+- **Acciones.** No solo la ficha: cancelar la cita, cambiar teléfono y preferencias, pedir la baja y
+  reservar desde el enlace piden el mismo PIN.
+- **Olvido.** El cliente no puede recuperarlo, y el barbero tampoco puede leerlo: desde la ficha del
+  cliente se lo quita y vuelve a entrar con el enlace.
+- **Alcance.** Es opcional por tarjeta y protege el enlace, no el móvil del barbero: con sesión
+  abierta en el local, el llavero sigue abriendo la ficha sin PIN. El PIN se recuerda solo en la
+  pestaña donde se escribió (`sessionStorage`).
+
 ---
 
 ## Pruebas
@@ -99,9 +121,10 @@ npm run test:e2e
 Si tienes `.env.local`, `npm run build` compila en **modo real** y la suite, que da por hechos los
 datos de demostración, no sirve: usa `build:demo`/`preview:demo` para probar.
 
-Veintinueve comprobaciones sobre los flujos que importan: portada, ruta protegida, acceso, cierre de un
+Treinta y siete comprobaciones sobre los flujos que importan: portada, ruta protegida, acceso, cierre de un
 servicio (con el contador de visitas), alta de cliente, tarjeta por token, el código enumerable
-rechazado, reserva, salida con y sin sesión, service worker, manifest y consola limpia. Cada
+rechazado, reserva, el PIN de la tarjeta (ponerlo, cerrarla, negarlo, abrirla y quitarlo), salida con
+y sin sesión, service worker, manifest y consola limpia. Cada
 ejecución abre un navegador nuevo (sin sesión y sin datos), así que no toca tu navegador de trabajo.
 
 Usa el Chrome del sistema (`channel: 'chrome'`): no descarga navegadores. Si prefieres los de
@@ -115,10 +138,10 @@ npm run test:esquema
 
 Levanta un **PostgreSQL 18 real en WASM** (PGlite), crea los roles y los esquemas `auth`/`storage`
 que Supabase ya trae, aplica las migraciones tal cual y comprueba las reglas del negocio:
-56 comprobaciones sobre el alta del local, las sillas, la coherencia de los llaveros, `atender_cola()` en
+69 comprobaciones sobre el alta del local, las sillas, la coherencia de los llaveros, `atender_cola()` en
 transacción, la recompensa que salta exactamente en la meta, el canje que no borra historial, la
 ficha pública, la disponibilidad real (horario, descansos y bloqueos), la reserva sin dobles, la
-cancelación con sus reglas y la baja del cliente.
+cancelación con sus reglas, la baja del cliente y el PIN de la tarjeta (hash, intentos y bloqueo).
 
 Es la forma de saber que el SQL es válido **antes** de tocar el proyecto real. Única adaptación: el
 test quita la línea de `pgcrypto` porque en PG 18 `gen_random_uuid()` es nativo; en Supabase la

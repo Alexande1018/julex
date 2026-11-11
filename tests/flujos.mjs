@@ -118,6 +118,43 @@ try {
   );
   ok(cancelada, 'El cliente cancela su cita');
 
+  /* 5d. El cliente protege su tarjeta con un PIN */
+  await page.getByRole('button', { name: /mis datos/i }).click();
+  await page.getByRole('button', { name: /poner un pin/i }).click();
+  const hojaPin = page.getByRole('dialog', { name: 'Poner un PIN' });
+  ok(await visible(hojaPin), 'La tarjeta ofrece poner un PIN');
+  const camposPin = hojaPin.locator('input');
+  await camposPin.nth(0).fill('4821');
+  await camposPin.nth(1).fill('4821');
+  await hojaPin.getByRole('button', { name: /guardar pin/i }).click();
+  const guardado = await esperarEstado((d) => d.clientes.find((c) => c.codigo === 'P-0004')?.pin === '4821');
+  ok(guardado, 'El PIN queda guardado en la tarjeta');
+
+  /* Sin el PIN en la pestaña, la tarjeta se cierra */
+  await page.evaluate(() => sessionStorage.clear());
+  await page.reload({ waitUntil: 'networkidle' });
+  ok(await visible(page.getByText('Tarjeta protegida')), 'Con PIN, la tarjeta pide el PIN');
+
+  const campoCandado = page.getByLabel('PIN de la tarjeta');
+  await campoCandado.fill('0000');
+  await page.getByRole('button', { name: /abrir tarjeta/i }).click();
+  ok(await visible(page.getByText('Ese PIN no es.')), 'Un PIN equivocado no abre la tarjeta');
+  ok(!(await visible(page.getByText('Hola, Pablo.'), 1200)), 'Y no se cuela ningún dato del cliente');
+
+  await campoCandado.fill('4821');
+  await page.getByRole('button', { name: /abrir tarjeta/i }).click();
+  ok(await visible(page.getByText('Hola, Pablo.')), 'El PIN correcto abre la tarjeta');
+
+  /* Y se puede quitar para dejarla como estaba */
+  await page.getByRole('button', { name: /mis datos/i }).click();
+  await page.getByRole('button', { name: /quitar el pin/i }).click();
+  const sinPin = await esperarEstado((d) => !d.clientes.find((c) => c.codigo === 'P-0004')?.pin);
+  ok(sinPin, 'El cliente puede quitar el PIN');
+  await page.getByRole('button', { name: /cerrar/i }).first().click().catch(() => undefined);
+  await page.evaluate(() => sessionStorage.clear());
+  await page.reload({ waitUntil: 'networkidle' });
+  ok(await visible(page.getByText('Hola, Pablo.')), 'Sin PIN vuelve a abrirse con el enlace');
+
   /* 6. El código enumerable ya no abre la tarjeta */
   await page.goto(`${BASE}/c/P-0004`, { waitUntil: 'networkidle' });
   ok(

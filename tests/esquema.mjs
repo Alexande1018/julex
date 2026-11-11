@@ -10,6 +10,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
+import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 
 const DIR = 'supabase/migrations';
 let fallos = 0;
@@ -21,7 +22,9 @@ function ok(condicion, titulo, detalle = '') {
   console.log(`${condicion ? '  ok  ' : ' FALLO'} ${titulo}${detalle ? ` — ${detalle}` : ''}`);
 }
 
-const db = new PGlite();
+// pgcrypto sí, porque el PIN de la tarjeta se guarda con bcrypt y hay que
+// comprobar contra Postgres que el hash y el bloqueo por intentos funcionan.
+const db = new PGlite({ extensions: { pgcrypto } });
 
 /* Entorno mínimo que Supabase ya trae: roles, auth y storage. */
 async function preparar() {
@@ -53,6 +56,10 @@ async function preparar() {
       language sql stable as $$
         select nullif(current_setting('test.uid', true), '')::uuid;
       $$;
+
+    -- En Supabase las extensiones viven aquí; se replica para probar lo mismo.
+    create schema extensions;
+    create extension pgcrypto schema extensions;
 
     create schema storage;
     create table storage.buckets (
@@ -425,6 +432,88 @@ async function main() {
   );
   const t = trasCanje.rows[0];
   ok(t.aplicadas === 1 && t.canjes === 1 && t.visitas === 2, 'Canjear no borra el historial', JSON.stringify(t));
+
+  /* ------------------------------------------------------------------ */
+  /* La tarjeta con PIN                                                  */
+  /* ------------------------------------------------------------------ */
+
+  const pinToken = token;
+
+  /* Sin PIN, la tarjeta se abre como siempre */
+  let fPin = await db.query(`select ficha_publica($1) as f`, [pinToken]);
+  ok(fPin.rows[0].f?.estado === 'abierta', 'Sin PIN, la tarjeta se abre con el enlace');
+
+  /* Un PIN fuera de 4-6 cifras no entra */
+  let corto = false;
+  try {
+    await db.query(`select pin_poner($1, '12')`, [pinToken]);
+  } catch {
+    corto = true;
+  }
+  ok(corto, 'Se rechaza un PIN de menos de cuatro cifras');
+
+  /* Se pone el PIN */
+  const puesto = await db.query(`select pin_poner($1, '4821') as ok`, [pinToken]);
+  fPin = await db.query(`select ficha_publica($1) as f`, [pinToken]);
+  ok(puesto.rows[0].ok === true, 'pin_poner() guarda el PIN');
+  ok(
+    fPin.rows[0].f?.estado === 'denegada' && !fPin.rows[0].f?.cliente,
+    'Con PIN, el enlace solo no devuelve ningún dato',
+  );
+
+  /* El PIN guardado no es el PIN: es un hash bcrypt */
+  const guardado = await db.query(`select hash from clientes_pin where cliente_id = $1`, [clienteId]);
+  ok(
+    /^\$2[aby]\$/.test(guardado.rows[0].hash) && !guardado.rows[0].hash.includes('4821'),
+    'El PIN se guarda cifrado, nunca en claro',
+  );
+
+  /* Un PIN equivocado no abre; el bueno sí */
+  const malo = await db.query(`select ficha_publica($1, '0000') as f`, [pinToken]);
+  const bueno = await db.query(`select ficha_publica($1, '4821') as f`, [pinToken]);
+  ok(malo.rows[0].f?.estado === 'denegada', 'Un PIN equivocado no abre la tarjeta');
+  ok(
+    bueno.rows[0].f?.estado === 'abierta' && bueno.rows[0].f?.cliente?.nombre === 'Cliente Uno',
+    'El PIN correcto abre la tarjeta',
+  );
+
+  /* Las acciones de la tarjeta también lo piden */
+  const sinPinActualizar = await db.query(
+    `select actualizar_mis_datos($1, '699000000', null, null, null) as ok`,
+    [pinToken],
+  );
+  const conPinActualizar = await db.query(
+    `select actualizar_mis_datos($1, '699000000', null, null, null, '4821') as ok`,
+    [pinToken],
+  );
+  ok(
+    sinPinActualizar.rows[0].ok === false && conPinActualizar.rows[0].ok === true,
+    'Editar los datos exige el PIN',
+  );
+
+  /* Cinco fallos seguidos bloquean quince minutos */
+  for (let i = 0; i < 5; i++) {
+    await db.query(`select ficha_publica($1, '0000') as f`, [pinToken]);
+  }
+  const bloqueada = await db.query(`select ficha_publica($1, '4821') as f`, [pinToken]);
+  ok(bloqueada.rows[0].f?.estado === 'bloqueada', 'Cinco fallos bloquean la tarjeta, aun con el PIN bueno');
+
+  /* El barbero ve que hay PIN y puede quitarlo, pero no leerlo */
+  const estadoBarbero = await db.query(`select pin_barbero_estado($1) as e`, [clienteId]);
+  const quitado = await db.query(`select pin_barbero_quitar($1) as q`, [clienteId]);
+  const trasQuitar = await db.query(`select ficha_publica($1) as f`, [pinToken]);
+  ok(estadoBarbero.rows[0].e === true, 'El barbero ve que la tarjeta está protegida');
+  ok(quitado.rows[0].q === true && trasQuitar.rows[0].f?.estado === 'abierta',
+     'Y puede quitar el PIN; la tarjeta vuelve a abrirse con el enlace');
+
+  /* Un barbero de otro local no toca esta tarjeta */
+  const otroDueno = '22222222-2222-2222-2222-222222222222';
+  await db.query(`insert into auth.users (id) values ($1)`, [otroDueno]);
+  await db.query(`select set_config('test.uid', $1, false)`, [otroDueno]);
+  await db.query(`select crear_local('Barbería Otra', 'barberia-otra')`);
+  await db.query(`select pin_poner($1, '1357')`, [pinToken]); // sin PIN previo: cualquiera con el enlace
+  const ajeno = await db.query(`select pin_barbero_quitar($1) as q, pin_barbero_estado($1) as e`, [clienteId]);
+  ok(ajeno.rows[0].q === false && ajeno.rows[0].e === false, 'Otro local no puede tocar el PIN de esta tarjeta');
 
   await db.close();
 }

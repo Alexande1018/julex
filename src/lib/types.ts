@@ -52,6 +52,11 @@ export interface Cliente {
   preferencias: string;
   consentimientos: Consentimientos;
   creadoEn: Iso;
+  /**
+   * Solo demo: PIN de la tarjeta guardado en el navegador. En modo real no
+   * existe aquí: vive cifrado en `clientes_pin` y no sale del servidor.
+   */
+  pin?: string;
 }
 
 export type EstadoLlavero = 'sin_asignar' | 'activo' | 'retirado';

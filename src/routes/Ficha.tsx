@@ -22,6 +22,7 @@ import {
   ultimaVisita,
   visitasDe,
 } from '../lib/derive';
+import { estadoPin, quitarPinComoBarbero } from '../lib/publico';
 import { fmtFechaCorta, fmtDuracion, fmtEuros, fmtHora, telefonoBonito, ultimaVisitaTexto } from '../lib/format';
 import { Shell } from '../components/Shell';
 import { Sellos } from '../components/Timer';
@@ -53,6 +54,8 @@ export default function Ficha() {
   const [nuevaCola, setNuevaCola] = useState(false);
   const [servicioElegido, setServicioElegido] = useState<string>('');
   const [retirar, setRetirar] = useState(false);
+  const [claveQuitar, setClaveQuitar] = useState(false);
+  const [conPin, setConPin] = useState(false);
   const [premio, setPremio] = useState(false);
   const [verTodo, setVerTodo] = useState(false);
 
@@ -66,6 +69,21 @@ export default function Ficha() {
   useEffect(() => {
     setNotas(notasActuales);
   }, [notasActuales]);
+
+  // El PIN no viaja con el cliente: se pregunta aparte, y solo dice si lo hay.
+  const clienteId = cliente?.id;
+  useEffect(() => {
+    if (!clienteId) return;
+    let vivo = true;
+    estadoPin(clienteId)
+      .then((hay) => {
+        if (vivo) setConPin(hay);
+      })
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, [clienteId]);
 
   if (!cliente) {
     return (
@@ -85,6 +103,7 @@ export default function Ficha() {
   const enSillon = cola.sillon?.clienteId === cliente.id ? cola.sillon : null;
   const fidelidad = fidelidadDe(db, cliente);
   const llavero = llaveroDeCliente(db, cliente.id);
+
   const visitas = visitasDe(db, cliente.id);
   const ultima = ultimaVisita(db, cliente.id);
   const servicios = serviciosDe(db, barberia.id);
@@ -351,6 +370,31 @@ export default function Ficha() {
         )}
       </section>
 
+      {/* TARJETA DEL CLIENTE */}
+      <section className="mt-5 rounded-[4px] border border-line bg-paper px-4 py-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <Eyebrow>Tarjeta del cliente</Eyebrow>
+            <p className="mt-1.5 text-[13px] font-semibold text-ink">
+              {conPin ? 'Protegida con PIN' : 'Abierta con el enlace'}
+            </p>
+            <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted">
+              {conPin
+                ? 'Quien tenga el enlace sin el PIN no ve su nombre, su teléfono ni su historial. Aquí no se puede leer, solo quitar.'
+                : 'El enlace de su tarjeta la abre sin pedir nada. El cliente puede ponerle un PIN desde «Mis datos».'}
+            </p>
+          </div>
+        </div>
+        {conPin && (
+          <button
+            onClick={() => setClaveQuitar(true)}
+            className="mt-2.5 text-[10.5px] font-medium text-faint underline decoration-line underline-offset-4 hover:text-clay"
+          >
+            Quitar el PIN al cliente
+          </button>
+        )}
+      </section>
+
       {/* FIDELIZACIÓN */}
       <section className="mt-5">
         <div className="flex items-baseline justify-between">
@@ -518,6 +562,26 @@ export default function Ficha() {
           })}
         </div>
       </Sheet>
+
+      <Confirmar
+        open={claveQuitar}
+        titulo="¿Quitar el PIN de la tarjeta?"
+        texto="La tarjeta vuelve a abrirse con su enlace. El cliente podrá poner otro PIN cuando quiera."
+        etiquetaConfirmar="Quitar PIN"
+        nota={null}
+        onClose={() => setClaveQuitar(false)}
+        onConfirm={() => {
+          void (async () => {
+            try {
+              const hecho = await quitarPinComoBarbero(cliente.id);
+              setConPin(!hecho);
+              toast(hecho ? 'PIN quitado' : 'No se pudo quitar el PIN', hecho ? 'ok' : 'aviso');
+            } catch {
+              toast('No se pudo quitar el PIN', 'aviso');
+            }
+          })();
+        }}
+      />
 
       <Confirmar
         open={retirar}

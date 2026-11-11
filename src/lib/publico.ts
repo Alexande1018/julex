@@ -12,6 +12,7 @@ import { servicioDe } from './derive';
 import type { Consentimientos, EstadoCita } from './types';
 
 export interface FichaPublica {
+  estado: 'abierta';
   local: {
     nombre: string;
     slug: string;
@@ -53,6 +54,37 @@ export interface ServicioPublico {
   minutos: number;
 }
 
+/** La tarjeta está protegida con un PIN y no se ha abierto. */
+export interface FichaCerrada {
+  estado: 'denegada' | 'bloqueada';
+}
+
+export type ResultadoFicha = FichaPublica | FichaCerrada;
+
+/**
+ * El PIN viaja en cada llamada y se recuerda solo en esta pestaña
+ * (`sessionStorage`): al cerrar el navegador se vuelve a pedir, y el
+ * navegador del barbero no lo guarda por haber abierto una tarjeta.
+ */
+const CLAVE_PIN = 'julex.pin.';
+
+export function pinDeSesion(token: string): string | null {
+  try {
+    return sessionStorage.getItem(CLAVE_PIN + token);
+  } catch {
+    return null;
+  }
+}
+
+export function recordarPin(token: string, pin: string | null): void {
+  try {
+    if (pin) sessionStorage.setItem(CLAVE_PIN + token, pin);
+    else sessionStorage.removeItem(CLAVE_PIN + token);
+  } catch {
+    // Sin almacenamiento: se pedirá otra vez al recargar. No es un fallo.
+  }
+}
+
 export interface LocalPublico {
   id: string;
   nombre: string;
@@ -69,10 +101,15 @@ export interface LocalPublico {
 /* Fuente local                                                        */
 /* ------------------------------------------------------------------ */
 
-export function fichaLocal(token: string): FichaPublica | null {
+export function fichaLocal(token: string, pin: string | null = null): ResultadoFicha | null {
   const db = store.read();
   const c = db.clientes.find((x) => x.tokenPublico === token);
   if (!c) return null;
+
+  // En la demo el PIN se guarda en el propio navegador: sirve para probar el
+  // flujo, no para proteger nada. El bloqueo por intentos solo existe en el
+  // servidor, que es donde se puede contar de verdad.
+  if (c.pin && c.pin !== pin) return { estado: 'denegada' };
 
   const b = db.barberias.find((x) => x.id === c.barberiaId);
   if (!b) return null;
@@ -100,6 +137,7 @@ export function fichaLocal(token: string): FichaPublica | null {
   const servicioProxima = proxima ? servicioDe(db, proxima.servicioId) : undefined;
 
   return {
+    estado: 'abierta',
     local: {
       nombre: b.nombre,
       slug: b.slug,
@@ -156,20 +194,29 @@ export function fichaLocal(token: string): FichaPublica | null {
 /* Fuente real                                                         */
 /* ------------------------------------------------------------------ */
 
-export async function cargarFicha(token: string): Promise<FichaPublica | null> {
-  if (!haySupabase) return fichaLocal(token);
+export async function cargarFicha(
+  token: string,
+  pin: string | null = null,
+): Promise<ResultadoFicha | null> {
+  if (!haySupabase) return fichaLocal(token, pin);
   if (!supabase) return null;
 
-  const { data, error } = await supabase.rpc('ficha_publica', { p_token: token });
+  const { data, error } = await supabase.rpc('ficha_publica', { p_token: token, p_pin: pin });
   if (error) throw new Error(error.message);
   if (!data) return null;
 
   const r = data as Record<string, any>;
+
+  // Con PIN puesto y sin acertarlo, el servidor devuelve solo el estado.
+  if (r.estado === 'denegada' || r.estado === 'bloqueada') {
+    return { estado: r.estado as 'denegada' | 'bloqueada' };
+  }
   const meta = Number(r.local?.fidelidad_meta ?? 10);
   const cortes = Number(r.cortes ?? 0);
   const disponibles = Number(r.recompensas?.disponibles ?? 0);
 
   return {
+    estado: 'abierta',
     local: {
       nombre: String(r.local?.nombre ?? ''),
       slug: String(r.local?.slug ?? ''),
@@ -229,14 +276,22 @@ export async function cargarFicha(token: string): Promise<FichaPublica | null> {
 /* Acciones del cliente                                                */
 /* ------------------------------------------------------------------ */
 
-export async function cancelarCitaPublica(token: string, citaId: string): Promise<boolean> {
+export async function cancelarCitaPublica(
+  token: string,
+  citaId: string,
+  pin: string | null = null,
+): Promise<boolean> {
   if (haySupabase) {
-    const { data, error } = await supabase!.rpc('cancelar_cita', { p_token: token, p_cita: citaId });
+    const { data, error } = await supabase!.rpc('cancelar_cita', {
+      p_token: token,
+      p_cita: citaId,
+      p_pin: pin,
+    });
     if (error) throw new Error(error.message);
     return data === true;
   }
-  const f = fichaLocal(token);
-  if (!f || !f.proxima || f.proxima.id !== citaId) return false;
+  const f = fichaLocal(token, pin);
+  if (!f || f.estado !== 'abierta' || !f.proxima || f.proxima.id !== citaId) return false;
   await cambiarEstadoCita(citaId, 'cancelada');
   return true;
 }
@@ -244,6 +299,7 @@ export async function cancelarCitaPublica(token: string, citaId: string): Promis
 export async function guardarMisDatos(
   token: string,
   datos: { telefono: string; preferencias: string; avisos: boolean; marketing: boolean },
+  pin: string | null = null,
 ): Promise<boolean> {
   if (haySupabase) {
     const { data, error } = await supabase!.rpc('actualizar_mis_datos', {
@@ -252,6 +308,7 @@ export async function guardarMisDatos(
       p_preferencias: datos.preferencias,
       p_avisos: datos.avisos,
       p_marketing: datos.marketing,
+      p_pin: pin,
     });
     if (error) throw new Error(error.message);
     return data === true;
@@ -260,6 +317,7 @@ export async function guardarMisDatos(
   const db = store.read();
   const c = db.clientes.find((x) => x.tokenPublico === token);
   if (!c) return false;
+  if (c.pin && c.pin !== pin) return false;
   await actualizarCliente(c.id, {
     telefono: datos.telefono.trim(),
     preferencias: datos.preferencias.trim(),
@@ -268,9 +326,9 @@ export async function guardarMisDatos(
   return true;
 }
 
-export async function pedirBaja(token: string): Promise<boolean> {
+export async function pedirBaja(token: string, pin: string | null = null): Promise<boolean> {
   if (haySupabase) {
-    const { data, error } = await supabase!.rpc('solicitar_baja', { p_token: token });
+    const { data, error } = await supabase!.rpc('solicitar_baja', { p_token: token, p_pin: pin });
     if (error) throw new Error(error.message);
     return data === true;
   }
@@ -278,9 +336,85 @@ export async function pedirBaja(token: string): Promise<boolean> {
   const db = store.read();
   const c = db.clientes.find((x) => x.tokenPublico === token);
   if (!c) return false;
+  if (c.pin && c.pin !== pin) return false;
   await actualizarCliente(c.id, {
     consentimientos: { ...c.consentimientos, avisos: false, marketing: false },
   });
+  return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* El PIN de la tarjeta                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Pone o cambia el PIN. La primera vez basta con tener el enlace; a partir
+ * de ahí hace falta el actual, o cualquiera que lea el QR podría cambiarlo.
+ */
+export async function ponerPin(
+  token: string,
+  nuevo: string,
+  actual: string | null = null,
+): Promise<boolean> {
+  if (!/^[0-9]{4,6}$/.test(nuevo)) throw new Error('El PIN tiene que ser de 4 a 6 cifras.');
+  if (haySupabase) {
+    const { data, error } = await supabase!.rpc('pin_poner', {
+      p_token: token,
+      p_pin_nuevo: nuevo,
+      p_pin_actual: actual,
+    });
+    if (error) {
+      if (error.message.includes('pin_invalido')) {
+        throw new Error('El PIN tiene que ser de 4 a 6 cifras.');
+      }
+      throw new Error(error.message);
+    }
+    return data === true;
+  }
+  const db = store.read();
+  const c = db.clientes.find((x) => x.tokenPublico === token);
+  if (!c) return false;
+  if (c.pin && c.pin !== actual) return false;
+  await actualizarCliente(c.id, { pin: nuevo });
+  return true;
+}
+
+export async function quitarPin(token: string, actual: string | null = null): Promise<boolean> {
+  if (haySupabase) {
+    const { data, error } = await supabase!.rpc('pin_quitar', { p_token: token, p_pin: actual });
+    if (error) throw new Error(error.message);
+    return data === true;
+  }
+  const db = store.read();
+  const c = db.clientes.find((x) => x.tokenPublico === token);
+  if (!c) return false;
+  if (c.pin && c.pin !== actual) return false;
+  await actualizarCliente(c.id, { pin: undefined });
+  return true;
+}
+
+/* El barbero, desde la ficha: no puede leer el PIN, solo quitarlo. */
+
+export async function estadoPin(clienteId: string): Promise<boolean> {
+  if (haySupabase) {
+    const { data, error } = await supabase!.rpc('pin_barbero_estado', { p_cliente: clienteId });
+    if (error) return false;
+    return data === true;
+  }
+  const db = store.read();
+  return Boolean(db.clientes.find((c) => c.id === clienteId)?.pin);
+}
+
+export async function quitarPinComoBarbero(clienteId: string): Promise<boolean> {
+  if (haySupabase) {
+    const { data, error } = await supabase!.rpc('pin_barbero_quitar', { p_cliente: clienteId });
+    if (error) throw new Error(error.message);
+    return data === true;
+  }
+  const db = store.read();
+  const c = db.clientes.find((x) => x.id === clienteId);
+  if (!c) return false;
+  await actualizarCliente(c.id, { pin: undefined });
   return true;
 }
 
@@ -336,19 +470,26 @@ export async function cargarLocal(slug: string): Promise<LocalPublico | null> {
 }
 
 /** Quien reserva: cliente con token, o local público por slug. */
+export type DestinoReserva =
+  | { tipo: 'ok'; local: LocalPublico; cliente: string | null; token: string | null }
+  /** La tarjeta viene protegida: antes de reservar hay que abrirla. */
+  | { tipo: 'protegida'; estado: 'denegada' | 'bloqueada' };
+
 export async function cargarDestinoReserva(
   token: string | undefined,
   slug: string | undefined,
-): Promise<{ local: LocalPublico; cliente: string | null; token: string | null } | null> {
+  pin: string | null = null,
+): Promise<DestinoReserva | null> {
   if (token) {
-    const f = await cargarFicha(token);
+    const f = await cargarFicha(token, pin);
     if (!f) return null;
-    return { local: localDesdeFicha(f), cliente: f.cliente.nombre, token };
+    if (f.estado !== 'abierta') return { tipo: 'protegida', estado: f.estado };
+    return { tipo: 'ok', local: localDesdeFicha(f), cliente: f.cliente.nombre, token };
   }
   if (!slug) return null;
   const local = await cargarLocal(slug);
   if (!local) return null;
-  return { local, cliente: null, token: null };
+  return { tipo: 'ok', local, cliente: null, token: null };
 }
 
 const APERTURA = 10 * 60;
@@ -410,6 +551,7 @@ export async function pedirCita(input: {
   telefono: string;
   token?: string | null;
   origen: 'qr' | 'web';
+  pin?: string | null;
 }): Promise<string> {
   if (haySupabase) {
     const { data, error } = await supabase!.rpc('solicitar_cita', {
@@ -420,10 +562,14 @@ export async function pedirCita(input: {
       p_telefono: input.telefono,
       p_token: input.token ?? null,
       p_origen: input.origen,
+      p_pin: input.pin ?? null,
     });
     if (error) {
       if (error.message.includes('horario_ocupado')) {
         throw new Error('Ese hueco se acaba de ocupar. Elige otro, por favor.');
+      }
+      if (error.message.includes('tarjeta_protegida')) {
+        throw new Error('Esa tarjeta pide un PIN. Ábrela desde su enlace y reserva desde ahí.');
       }
       throw new Error(error.message);
     }

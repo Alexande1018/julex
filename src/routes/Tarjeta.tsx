@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowRight, CalendarPlus, Download, ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, CalendarPlus, Download, Lock, ShieldCheck, X } from 'lucide-react';
 import {
   cancelarCitaPublica,
   cargarFicha,
-  fichaLocal,
   guardarMisDatos,
   pedirBaja,
-  type FichaPublica,
+  pinDeSesion,
+  ponerPin,
+  quitarPin,
+  recordarPin,
+  type ResultadoFicha,
 } from '../lib/publico';
-import { haySupabase } from '../lib/supabase';
+import { Candado } from '../components/Candado';
 import {
   etiquetaDia,
   fmtFechaCorta,
@@ -37,20 +40,26 @@ import {
 
 export default function Tarjeta() {
   const { token } = useParams();
-  const [ficha, setFicha] = useState<FichaPublica | null>(() =>
-    !haySupabase && token ? fichaLocal(token) : null,
-  );
-  const [cargando, setCargando] = useState(haySupabase);
+  const [pin, setPin] = useState<string | null>(() => (token ? pinDeSesion(token) : null));
+  const [ficha, setFicha] = useState<ResultadoFicha | null>(null);
+  const [cargando, setCargando] = useState(true);
   const [datos, setDatos] = useState(false);
   const [cancelar, setCancelar] = useState(false);
   const [borrar, setBorrar] = useState(false);
   const [telefono, setTelefono] = useState('');
   const [preferencias, setPreferencias] = useState('');
+  const [clave, setClave] = useState(false);
+  const [nuevoPin, setNuevoPin] = useState('');
+  const [repetirPin, setRepetirPin] = useState('');
 
   useEffect(() => {
-    if (!haySupabase || !token) return;
+    if (!token) {
+      setCargando(false);
+      return;
+    }
     let vivo = true;
-    cargarFicha(token)
+    setCargando(true);
+    cargarFicha(token, pin)
       .then((f) => {
         if (vivo) setFicha(f);
       })
@@ -61,17 +70,17 @@ export default function Tarjeta() {
     return () => {
       vivo = false;
     };
-  }, [token]);
+  }, [token, pin]);
 
   useEffect(() => {
-    if (!ficha) return;
+    if (ficha?.estado !== 'abierta') return;
     setTelefono(ficha.cliente.telefono);
     setPreferencias(ficha.cliente.preferencias);
   }, [ficha]);
 
   const recargar = async () => {
     if (!token) return;
-    setFicha(haySupabase ? await cargarFicha(token) : fichaLocal(token));
+    setFicha(await cargarFicha(token, pin));
   };
 
   if (cargando) {
@@ -95,6 +104,19 @@ export default function Tarjeta() {
           Volver al inicio
         </Link>
       </div>
+    );
+  }
+
+  if (ficha.estado !== 'abierta') {
+    return (
+      <Candado
+        token={token ?? ''}
+        estado={ficha.estado}
+        onAbierto={(p) => {
+          if (token) recordarPin(token, p);
+          setPin(p);
+        }}
+      />
     );
   }
 
@@ -122,7 +144,7 @@ export default function Tarjeta() {
   const cancelarLaCita = async () => {
     if (!token || !citas) return;
     try {
-      const hecha = await cancelarCitaPublica(token, citas.id);
+      const hecha = await cancelarCitaPublica(token, citas.id, pin);
       toast(hecha ? 'Cita cancelada' : 'Ya no se puede cancelar desde aquí', hecha ? 'info' : 'aviso');
       await recargar();
     } catch (e) {
@@ -133,12 +155,16 @@ export default function Tarjeta() {
   const guardarDatos = async () => {
     if (!token) return;
     try {
-      await guardarMisDatos(token, {
-        telefono,
-        preferencias,
-        avisos: cliente.consentimientos.avisos,
-        marketing: cliente.consentimientos.marketing,
-      });
+      await guardarMisDatos(
+        token,
+        {
+          telefono,
+          preferencias,
+          avisos: cliente.consentimientos.avisos,
+          marketing: cliente.consentimientos.marketing,
+        },
+        pin,
+      );
       await recargar();
       setDatos(false);
       toast('Datos guardados', 'ok');
@@ -150,12 +176,16 @@ export default function Tarjeta() {
   const cambiarConsentimiento = async (campo: 'avisos' | 'marketing', valor: boolean) => {
     if (!token) return;
     try {
-      await guardarMisDatos(token, {
-        telefono: cliente.telefono,
-        preferencias: cliente.preferencias,
-        avisos: campo === 'avisos' ? valor : cliente.consentimientos.avisos,
-        marketing: campo === 'marketing' ? valor : cliente.consentimientos.marketing,
-      });
+      await guardarMisDatos(
+        token,
+        {
+          telefono: cliente.telefono,
+          preferencias: cliente.preferencias,
+          avisos: campo === 'avisos' ? valor : cliente.consentimientos.avisos,
+          marketing: campo === 'marketing' ? valor : cliente.consentimientos.marketing,
+        },
+        pin,
+      );
       await recargar();
       toast(valor ? 'Consentimiento activado' : 'Consentimiento retirado', 'ok');
     } catch (e) {
@@ -166,11 +196,54 @@ export default function Tarjeta() {
   const solicitarBaja = async () => {
     if (!token) return;
     try {
-      await pedirBaja(token);
+      await pedirBaja(token, pin);
       await recargar();
       toast('Solicitud registrada. La barbería te contactará.', 'info');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'No se pudo registrar la baja', 'aviso');
+    }
+  };
+
+  const guardarClave = async () => {
+    if (!token) return;
+    if (!/^[0-9]{4,6}$/.test(nuevoPin)) {
+      toast('El PIN tiene que ser de 4 a 6 cifras', 'aviso');
+      return;
+    }
+    if (nuevoPin !== repetirPin) {
+      toast('Los dos PIN no son iguales', 'aviso');
+      return;
+    }
+    try {
+      const hecho = await ponerPin(token, nuevoPin, pin);
+      if (!hecho) {
+        toast('No se pudo poner el PIN', 'aviso');
+        return;
+      }
+      recordarPin(token, nuevoPin);
+      setPin(nuevoPin);
+      setClave(false);
+      setNuevoPin('');
+      setRepetirPin('');
+      toast('PIN puesto. A partir de ahora la tarjeta lo pedirá.', 'ok');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo poner el PIN', 'aviso');
+    }
+  };
+
+  const sacarClave = async () => {
+    if (!token) return;
+    try {
+      const hecho = await quitarPin(token, pin);
+      if (!hecho) {
+        toast('No se pudo quitar el PIN', 'aviso');
+        return;
+      }
+      recordarPin(token, null);
+      setPin(null);
+      toast('PIN quitado: la tarjeta se abre con el enlace', 'info');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo quitar el PIN', 'aviso');
     }
   };
 
@@ -477,6 +550,40 @@ export default function Tarjeta() {
 
           <div className="rounded-[3px] border border-line bg-paper px-3.5 py-3">
             <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink">
+              <Lock size={13} /> PIN de la tarjeta
+            </p>
+            <p className="mt-1 text-[10.5px] leading-relaxed text-muted">
+              {pin
+                ? 'Esta tarjeta pide un PIN. Quien tenga el enlace sin él no ve tu nombre, tu teléfono ni tus visitas.'
+                : 'Con el enlace, cualquiera que lo tenga ve tu tarjeta. Con un PIN de 4 a 6 cifras, no.'}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <button
+                onClick={() => {
+                  setNuevoPin('');
+                  setRepetirPin('');
+                  setClave(true);
+                }}
+                className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-ink-soft underline underline-offset-4 hover:text-ink"
+              >
+                <Lock size={11} /> {pin ? 'Cambiar el PIN' : 'Poner un PIN'}
+              </button>
+              {pin && (
+                <button
+                  onClick={() => void sacarClave()}
+                  className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-clay underline underline-offset-4"
+                >
+                  <X size={11} /> Quitar el PIN
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-faint">
+              Si se te olvida, en la barbería pueden quitártelo. No pueden leerlo.
+            </p>
+          </div>
+
+          <div className="rounded-[3px] border border-line bg-paper px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink">
               <ShieldCheck size={13} /> Tus derechos
             </p>
             <p className="mt-1 text-[10.5px] leading-relaxed text-muted">
@@ -508,6 +615,47 @@ export default function Tarjeta() {
             </div>
           </div>
 
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={clave}
+        onClose={() => setClave(false)}
+        titulo={pin ? 'Cambiar el PIN' : 'Poner un PIN'}
+        descripcion="De 4 a 6 cifras. Quien tenga el enlace sin el PIN no verá nada de tu tarjeta."
+        pie={
+          <Btn className="w-full" onClick={() => void guardarClave()}>
+            Guardar PIN
+          </Btn>
+        }
+      >
+        <div className="space-y-3">
+          <label className="block">
+            <Eyebrow>PIN nuevo</Eyebrow>
+            <input
+              value={nuevoPin}
+              onChange={(e) => setNuevoPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className={cn(inputClases, 'num mt-1.5 text-center text-[20px] tracking-[0.3em]')}
+              inputMode="numeric"
+              autoComplete="new-password"
+              placeholder="••••"
+              autoFocus
+            />
+          </label>
+          <label className="block">
+            <Eyebrow>Repite el PIN</Eyebrow>
+            <input
+              value={repetirPin}
+              onChange={(e) => setRepetirPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className={cn(inputClases, 'num mt-1.5 text-center text-[20px] tracking-[0.3em]')}
+              inputMode="numeric"
+              autoComplete="new-password"
+              placeholder="••••"
+            />
+          </label>
+          {repetirPin.length > 0 && nuevoPin !== repetirPin && (
+            <p className="text-[11.5px] text-clay">Los dos PIN no son iguales.</p>
+          )}
         </div>
       </Sheet>
 
