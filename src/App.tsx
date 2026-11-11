@@ -19,6 +19,7 @@ import Admin from './routes/Admin';
 import AdminLocal from './routes/AdminLocal';
 import Legal from './routes/Legal';
 import AltaNegocio from './routes/AltaNegocio';
+import Funciones from './routes/Funciones';
 import { AvisoLegal, Cookies, Privacidad } from './routes/legal/proveedor';
 import { Condiciones, Encargo } from './routes/legal/contratos';
 import { Accesibilidad, Creditos } from './routes/legal/varios';
@@ -132,6 +133,7 @@ export default function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/local/:id" element={<AdminLocal />} />
         <Route path="/alta" element={<AltaNegocio />} />
+        <Route path="/funciones" element={<Funciones />} />
         <Route path="/legal" element={<Legal />} />
         <Route path="/aviso-legal" element={<AvisoLegal />} />
         <Route path="/privacidad" element={<Privacidad />} />

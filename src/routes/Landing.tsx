@@ -68,6 +68,12 @@ export default function Landing() {
         <header className="flex items-center justify-between">
           <Wordmark />
           <div className="flex items-center gap-3">
+            <Link
+              to="/funciones"
+              className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted hover:text-ink"
+            >
+              Funciones
+            </Link>
             <span className="hidden text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:inline">
               Barbería · peluquería · uñas · tatuaje
             </span>
