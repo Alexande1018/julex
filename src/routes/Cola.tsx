@@ -228,6 +228,28 @@ export default function Cola() {
             >
               Terminar
             </Btn>
+
+            {sillas.length > 1 && (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-ivory/35">
+                  Mover a
+                </span>
+                {sillas
+                  .filter((x) => x.id !== sillaActual?.id && !ocupada(x.id))
+                  .map((x) => (
+                    <button
+                      key={x.id}
+                      onClick={() => void cambiarSilla(sillón.id, x.id)}
+                      className="rounded-[3px] border border-ivory/25 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-ivory/80 transition-colors hover:border-ivory/60 hover:text-ivory"
+                    >
+                      {x.nombre}
+                    </button>
+                  ))}
+                {sillas.filter((x) => x.id !== sillaActual?.id && !ocupada(x.id)).length === 0 && (
+                  <span className="text-[10px] text-ivory/40">no queda otra libre</span>
+                )}
+              </div>
+            )}
           </div>
         </section>
       ) : cola.esperando.length > 0 ? (
