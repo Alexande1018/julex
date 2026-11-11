@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, Nfc as NfcIcon, Search } from 'lucide-react';
 import { useDb } from '../lib/store';
+import { haySupabase } from '../lib/supabase';
 import { anadirACola, asignarLlavero, registrarToque } from '../lib/actions';
 import {
   clienteDe,
@@ -107,7 +108,7 @@ export default function Nfc() {
         <div className="mx-auto w-full max-w-md px-5 pb-12 pt-6">
           <div className="flex items-center justify-between">
             <span className="text-[9.5px] font-bold uppercase tracking-[0.24em] text-faint">JULEX</span>
-            <Pill tono="warn">Simulado</Pill>
+            {!haySupabase && <Pill tono="warn">Simulado</Pill>}
           </div>
 
           <div className="mt-8">
