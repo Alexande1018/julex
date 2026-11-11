@@ -410,9 +410,9 @@ la revierte el barrido.
 
 **Clientes perdidos.** El panel lista a quien lleva más de 60 días sin venir. Cada uno tiene dos
 salidas: **«Baja»** manda una petición al administrador (`peticiones_admin`) para que retire el
-llavero —el local no puede retirarlo solo—, y **«Mensaje»** abre la aplicación de SMS del móvil con el
-texto y el enlace de reserva ya escritos; en el ordenador copia el texto. El mensaje solo se ofrece si
-el cliente aceptó promociones, y queda registrado en `mensajes_log`. No hay proveedor de SMS: el
+llavero —el local no puede retirarlo solo—, y **«Mensaje»** ofrece SMS (abre la app de mensajes del móvil) o WhatsApp
+(`wa.me`, con el número en formato internacional), con el texto y el enlace de reserva ya escritos. El mensaje solo se ofrece si
+el cliente aceptó promociones, y queda registrado en `mensajes_log`. No hay proveedor de mensajería: el
 mensaje sale del número del propio local.
 
 **Pendiente, y no es código:** aceptar y conservar los DPA de Supabase y Cloudflare, revisar los

@@ -56,6 +56,24 @@ export default function Panel() {
   const mensajeCita = (c: Cliente) =>
     `En ${barberia.nombre} te están esperando. ¿Quieres apartar tu cita? Pide la tuya aquí: ${enlaceCita}`;
 
+  /** WhatsApp necesita el número en formato internacional, sin signos. */
+  const telInternacional = (tel: string) => {
+    const d = tel.replace(/\D/g, '');
+    if (d.startsWith('34') && d.length >= 11) return d;
+    if (d.startsWith('0')) return `34${d.slice(1)}`;
+    if (d.length === 9) return `34${d}`;
+    return d;
+  };
+
+  const abrirWhatsapp = (c: Cliente) => {
+    const tel = telInternacional(c.telefono);
+    if (tel.length < 9) {
+      toast('Este cliente no tiene un teléfono válido', 'aviso');
+      return;
+    }
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensajeCita(c))}`, '_blank', 'noopener');
+  };
+
   const abrirSms = (c: Cliente) => {
     const texto = mensajeCita(c);
     const tel = c.telefono.replace(/[^\d+]/g, '');
@@ -273,29 +291,53 @@ export default function Panel() {
             : ''
         }
         pie={
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Btn
+                v="outline"
+                className="flex-1"
+                onClick={() => {
+                  if (!clienteRecordar) return;
+                  abrirSms(clienteRecordar);
+                  registrarMensaje({
+                    clienteId: clienteRecordar.id,
+                    tipo: 'reactivacion',
+                    canal: 'sms',
+                    texto: mensajeCita(clienteRecordar),
+                  });
+                  setRecordar(null);
+                }}
+              >
+                SMS
+              </Btn>
+              <Btn
+                className="flex-1"
+                onClick={() => {
+                  if (!clienteRecordar) return;
+                  abrirWhatsapp(clienteRecordar);
+                  registrarMensaje({
+                    clienteId: clienteRecordar.id,
+                    tipo: 'reactivacion',
+                    canal: 'whatsapp',
+                    texto: mensajeCita(clienteRecordar),
+                  });
+                  setRecordar(null);
+                }}
+              >
+                WhatsApp
+              </Btn>
+            </div>
             <Btn
-              v="outline"
-              className="flex-1"
-              onClick={() => setRecordar(null)}
-            >
-              Cancelar
-            </Btn>
-            <Btn
-              className="flex-1"
+              v="quiet"
               onClick={() => {
                 if (!clienteRecordar) return;
-                abrirSms(clienteRecordar);
-                registrarMensaje({
-                  clienteId: clienteRecordar.id,
-                  tipo: 'reactivacion',
-                  canal: 'sms',
-                  texto: mensajeCita(clienteRecordar),
-                });
-                setRecordar(null);
+                void navigator.clipboard
+                  .writeText(mensajeCita(clienteRecordar))
+                  .then(() => toast('Texto copiado', 'info'))
+                  .catch(() => toast('No se pudo copiar', 'aviso'));
               }}
             >
-              Enviar SMS
+              Copiar el texto
             </Btn>
           </div>
         }
@@ -313,9 +355,9 @@ export default function Panel() {
               {enlaceCita}
             </p>
             <p className="text-[11px] leading-relaxed text-faint">
-              Abre la aplicación de mensajes del móvil con el texto y el enlace listos: se envía desde
-              tu número, y queda registrado aquí. Si lo abres desde el ordenador, se copia el texto
-              para que lo pegues.
+              SMS abre la aplicación de mensajes del móvil; WhatsApp abre el chat en la app o en
+              WhatsApp Web. En los dos casos el mensaje sale de tu número y queda registrado aquí. En
+              el ordenador, el SMS no puede abrirse: usa WhatsApp o «Copiar el texto».
             </p>
           </div>
         )}
