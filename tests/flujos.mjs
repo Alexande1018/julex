@@ -68,6 +68,10 @@ try {
     (await page.getByRole('link', { name: /soy cliente/i }).count()) === 0,
     'Y no hay puerta de cliente: su tarjeta llega por el llavero o el enlace',
   );
+  ok(
+    (await page.locator('img[src*="/img/oficios/"]').count()) === 4,
+    'La portada enseña los cuatro oficios con su foto',
+  );
 
   /* 2. Ruta protegida y acceso */
   await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });

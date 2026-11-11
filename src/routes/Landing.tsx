@@ -10,6 +10,37 @@ const ENTRADAS = [
   { titulo: 'Admin', to: '/admin' },
 ];
 
+const OFICIOS = [
+  {
+    nombre: 'Barbería',
+    imagen: '/img/oficios/barberia.webp',
+    alt: 'Barbero afeitando a un cliente en un sillón clásico',
+    texto:
+      'La cola, el sillón y cómo corta. El cliente entra en la cola, pasa al sillón y su ficha recuerda el degradado.',
+  },
+  {
+    nombre: 'Peluquería',
+    imagen: '/img/oficios/peluqueria.webp',
+    alt: 'Peluquera secando el pelo a una clienta con secador y cepillo',
+    texto:
+      'La agenda, el puesto y las preferencias de estilo. Cada cita con su servicio, su duración y su color.',
+  },
+  {
+    nombre: 'Salón de uñas',
+    imagen: '/img/oficios/unas.webp',
+    alt: 'Manicura pintando las uñas de una clienta con un pincel',
+    texto:
+      'Citas, mesas y el diseño de cada clienta. Manicura, pedicura o semipermanente, cada uno con su tiempo.',
+  },
+  {
+    nombre: 'Estudio de tatuaje',
+    imagen: '/img/oficios/tatuaje.webp',
+    alt: 'Tatuadora trabajando en el brazo de un cliente',
+    texto:
+      'Citas, estaciones y las notas del proyecto. Sesiones largas, retoques y el boceto siempre a mano.',
+  },
+];
+
 const PASOS = [
   {
     n: '01',
@@ -124,6 +155,34 @@ export default function Landing() {
             ))}
           </div>
         </details>
+
+        {/* OFICIOS */}
+        <section className="mt-12 lg:mt-16">
+          <div className="flex items-baseline justify-between gap-4">
+            <Eyebrow>Un mismo JULEX, cuatro oficios</Eyebrow>
+            <span className="num text-[10.5px] tracking-[0.14em] text-faint">01 — 04</span>
+          </div>
+          <p className="mt-3 max-w-[58ch] text-[12.5px] leading-relaxed text-muted">
+            Eliges el tipo al crear el local y JULEX cambia sus palabras y su manera de trabajar: la
+            cola o la agenda, el sillón o la mesa, cómo corta o el diseño del proyecto. Los servicios,
+            los precios y los puestos los pones tú; el oficio decide el vocabulario, no lo que puedes
+            hacer.
+          </p>
+
+          <div className="mt-6 grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+            {OFICIOS.map((o) => (
+              <figure key={o.nombre}>
+                <div className="aspect-[4/5] overflow-hidden rounded-[2px] bg-paper-2">
+                  <Foto src={o.imagen} alt={o.alt} />
+                </div>
+                <figcaption className="mt-2.5">
+                  <p className="font-serif text-[18px] leading-tight text-ink">{o.nombre}</p>
+                  <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{o.texto}</p>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
 
         {/* MANIFIESTO */}
         <section className="mt-12 lg:mt-16">
