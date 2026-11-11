@@ -1,9 +1,11 @@
 # Créditos de las imágenes
 
-Todas están reveladas en duotono (carbón / papel) para que formen un mismo sistema.
+Las de archivo están reveladas en duotono (carbón / papel) para que formen un mismo sistema;
+`portada.webp` se recortó y se reveló igual a partir de una ilustración generada con IA para JULEX.
 
 | Archivo | Original | Autoría | Licencia |
 |---|---|---|---|
+| `portada.webp` | *Cuaderno de citas y llavero JULEX* | Ilustración generada con IA para JULEX (recortada y revelada en duotono) | Propia; el original está en `design/portada-julex.webp` |
 | `tienda.webp` | *Pingpank Barber Shop, 413 Bleecker Street, Manhattan* | New York Public Library (fotografía de archivo) | Dominio público |
 | `manos.webp` | *Barber cutting hair with comb. Back view of man in barber shop* | Ver ficha en Wikimedia Commons | CC BY 2.0 |
 

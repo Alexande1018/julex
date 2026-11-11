@@ -81,9 +81,14 @@ export default function Legal() {
           <h2 className="text-[18px] leading-snug text-ink">6 · Créditos de las fotografías</h2>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
             Las imágenes de la portada, del acceso y de la tarjeta del cliente están reveladas en
-            duotono a partir de originales de Wikimedia Commons:
+            duotono. Las de archivo vienen de Wikimedia Commons; la de la portada es una ilustración
+            generada con IA para JULEX:
           </p>
           <ul className="mt-3 space-y-2 text-[12.5px] leading-relaxed text-ink-soft">
+            <li className="border-l border-line pl-3">
+              <span className="font-semibold text-ink">Cuaderno de citas y llavero</span> · ilustración
+              generada con IA para JULEX · propia.
+            </li>
             <li className="border-l border-line pl-3">
               <span className="font-semibold text-ink">August Pingpank, 413 Bleecker Street</span> ·
               New York Public Library · dominio público.

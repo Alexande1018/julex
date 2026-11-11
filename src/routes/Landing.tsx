@@ -105,15 +105,15 @@ export default function Landing() {
           <figure className="mt-9 lg:mt-0">
             <div className="relative aspect-[4/5] overflow-hidden rounded-[2px] bg-paper-2 lg:aspect-[3/4]">
               <Foto
-                src="/img/tienda.webp"
-                alt="Escaparate de una barbería de 1938 con su poste de barbero"
+                src="/img/portada.webp"
+                alt="Cuaderno de citas con un llavero JULEX, tijeras y un boceto de tatuaje"
                 prioridad
               />
               <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-ink/15" />
             </div>
             <figcaption className="mt-2 flex items-baseline justify-between gap-4">
-              <PieFoto>August Pingpank · 413 Bleecker Street, Nueva York, 1938</PieFoto>
-              <span className="pie-foto shrink-0">Archivo</span>
+              <PieFoto>JULEX · cuaderno de citas</PieFoto>
+              <span className="pie-foto shrink-0">Producto</span>
             </figcaption>
           </figure>
         </section>
