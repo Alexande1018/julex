@@ -20,6 +20,7 @@ import {
 } from '../components/ui';
 
 const CUOTA_MINIMA = 15;
+const CUOTA_MAXIMA = 40;
 
 interface FilaLlavero {
   id: string;
@@ -42,6 +43,8 @@ interface CuentaLocal {
   proximo_pago: string | null;
   nota_cobro: string;
   suspension_manual: boolean;
+  material_pendiente: number;
+  material_llaveros: number;
 }
 
 type Filtro = 'todos' | 'activos' | 'libres' | 'retirados';
@@ -131,7 +134,7 @@ export default function AdminLocal() {
   const activos = llaveros.filter((l) => l.estado === 'activo');
   const libres = llaveros.filter((l) => l.estado === 'sin_asignar');
   const retirados = llaveros.filter((l) => l.estado === 'retirado');
-  const cuota = Math.max(CUOTA_MINIMA, activos.length);
+  const cuota = Math.min(CUOTA_MAXIMA, Math.max(CUOTA_MINIMA, activos.length));
 
   const lista = useMemo(() => {
     const base =
@@ -323,6 +326,20 @@ export default function AdminLocal() {
             </p>
             {local.nota_cobro && <p>Nota: {local.nota_cobro}</p>}
             {local.suspension_manual && <p className="text-clay">Suspendido a mano.</p>}
+            <p>
+              Cuota:{' '}
+              <span className="text-ink-soft">
+                {fmtEuros(Math.min(CUOTA_MAXIMA, Math.max(CUOTA_MINIMA, activos.length)))}
+                {activos.length >= CUOTA_MAXIMA ? ' (tope)' : ''}
+              </span>
+            </p>
+            <p>
+              Material pendiente:{' '}
+              <span className={local.material_pendiente > 0 ? 'text-clay' : 'text-ink-soft'}>
+                {fmtEuros(Number(local.material_pendiente))}
+                {local.material_llaveros > 0 ? ` · ${local.material_llaveros} llaveros` : ''}
+              </span>
+            </p>
           </div>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -335,6 +352,13 @@ export default function AdminLocal() {
               placeholder="motivo de la suspensión"
               className={cn(inputClases, 'h-8 w-44 text-[11.5px]')}
             />
+            <Btn
+              v="quiet"
+              t="sm"
+              onClick={() => void accionCobro('marcar_material_cobrado', { p_local: local.id })}
+            >
+              Marcar material cobrado
+            </Btn>
             <Btn
               v="outline"
               t="sm"

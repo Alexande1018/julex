@@ -393,8 +393,10 @@ las suyas: `/local/<slug>/legal`, `/privacidad`, `/reservas` y `/fidelizacion`, 
 correo legales (se piden al crear el local y se editan en Ajustes).
 
 **Precio publicado.** Alta 30 € + IVA con 15 llaveros, que incluye el primer mes; cuota 15 €/mes +
-IVA desde el día 1 del mes siguiente; 1 € + IVA por cada llavero activo a partir del decimosexto, con
-el recuento tomado el día 1 de cada mes.
+IVA desde el día 1 del mes siguiente, con 1 € más por cada llavero activo a partir del decimoquinto y
+un **tope de 40 €/mes**. Por encima de 40 llaveros activos, cada uno cuesta **1 € una sola vez** y no
+sube la cuota; el cargo se apunta al vincularlo (`cargos_llavero`) y se marca cobrado desde la ficha
+del local.
 
 **Cobro.** Cada local tiene `proximo_pago` y un `estado_cobro` que avanza solo:
 `al_dia` → `pendiente` (venció hace menos de 8 días, todo sigue) → `lectura` (hasta 15 días: el local

@@ -21,6 +21,7 @@ import {
 } from '../components/ui';
 
 const CUOTA_MINIMA = 15;
+const CUOTA_MAXIMA = 40;
 
 interface LocalAdmin {
   id: string;
@@ -149,7 +150,10 @@ export default function Admin() {
   const totalActivos = (locales ?? []).reduce((s, l) => s + l.activos, 0);
   const totalLlaveros = (locales ?? []).reduce((s, l) => s + l.llaveros, 0);
   const libres = totalLlaveros - totalActivos;
-  const facturacion = (locales ?? []).reduce((s, l) => s + Math.max(CUOTA_MINIMA, l.activos), 0);
+  const facturacion = (locales ?? []).reduce(
+    (s, l) => s + Math.min(CUOTA_MAXIMA, Math.max(CUOTA_MINIMA, l.activos)),
+    0,
+  );
 
   const crearLocal = async () => {
     if (!haySupabase || ocupado) return;
@@ -328,7 +332,7 @@ export default function Admin() {
 
           <div className="mt-3 overflow-hidden rounded-[4px] border border-line">
             {(locales ?? []).map((l) => {
-              const cuota = Math.max(CUOTA_MINIMA, l.activos);
+              const cuota = Math.min(CUOTA_MAXIMA, Math.max(CUOTA_MINIMA, l.activos));
               return (
                 <Link
                   key={l.id}
@@ -352,7 +356,11 @@ export default function Admin() {
                   <div className="shrink-0 text-right">
                     <p className="num text-[13px] font-semibold text-ink">{fmtEuros(cuota)}</p>
                     <p className="text-[10px] text-faint">
-                      {l.activos < CUOTA_MINIMA ? `mínimo (${l.activos})` : `${l.activos} activos`}
+                      {l.activos < CUOTA_MINIMA
+                        ? `mínimo (${l.activos})`
+                        : l.activos >= CUOTA_MAXIMA
+                          ? `tope (${l.activos})`
+                          : `${l.activos} activos`}
                     </p>
                   </div>
                   <ChevronRight size={15} className="shrink-0 text-faint" />

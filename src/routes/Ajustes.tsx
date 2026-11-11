@@ -444,9 +444,16 @@ export default function Ajustes() {
             </div>
           </div>
           <p className="mt-2.5 text-[11px] leading-relaxed text-muted">
-            {cuota.minimo
-              ? `Mínimo de 15 €: se factura por los 15 llaveros incluidos en el alta, estén asignados o no.`
-              : `15 € de base más 1 € por cada llavero activo a partir del decimoquinto.`}
+            {cuota.tope ? (
+              <>
+                Has llegado al tope: la cuota no sube de 40 €. Los {cuota.extras} llaveros que pasan de
+                40 se cobran a 1 € una sola vez, no cada mes.
+              </>
+            ) : cuota.minimo ? (
+              'Mínimo de 15 €: se factura por los 15 llaveros incluidos en el alta, estén asignados o no.'
+            ) : (
+              '15 € de base más 1 € por cada llavero activo a partir del decimoquinto, hasta un tope de 40 €.'
+            )}
           </p>
           {llaveros.sinAsignar > 0 && (
             <p className="mt-1.5 text-[11px] text-bronze">

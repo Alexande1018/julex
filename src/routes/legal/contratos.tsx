@@ -29,18 +29,31 @@ export function Condiciones() {
       </Seccion>
 
       <Seccion titulo="Alta, precio y cuota">
+        <p className="font-serif text-[15px] leading-snug text-ink">
+          Una cuota que nunca supera los 40 €/mes. Incluye hasta 40 llaveros activos. A partir de ahí,
+          cada llavero nuevo cuesta 1 € una sola vez, sin aumentar la cuota mensual.
+        </p>
         <Tabla
           cabecera={['Concepto', 'Importe', 'Cuándo']}
           filas={[
             ['Alta', '30 € + IVA', 'Una vez, al contratar; incluye 15 llaveros y el primer mes'],
-            ['Cuota mínima', '15 €/mes + IVA', 'Desde el día 1 del mes siguiente al alta'],
             [
-              'Llavero activo adicional',
-              '1 €/mes + IVA por cada uno a partir del decimosexto',
-              'Se cuenta el día 1 de cada mes',
+              'Cuota mensual',
+              '15 €/mes + IVA como mínimo; 1 € más por cada llavero activo a partir del decimoquinto, hasta un tope de 40 €/mes',
+              'Desde el día 1 del mes siguiente al alta',
+            ],
+            [
+              'Llavero por encima de 40',
+              '1 € + IVA, una sola vez por llavero',
+              'Al vincularlo; no se repite ni sube la cuota',
             ],
           ]}
         />
+        <p>
+          Ejemplos: con 15 llaveros se pagan 15 €/mes; con 30, 30 €; con 40, 40 €. Con 50 llaveros se
+          siguen pagando 40 €/mes y se abonan 10 € una sola vez por los diez que pasan del tope. Con
+          100, 40 €/mes y 60 € una sola vez.
+        </p>
         <p>
           Los importes se facturan con el IVA que corresponda. La cuota se devenga por meses completos
           naturales y no se prorratea por días. El alta incluye el primer mes: la primera factura de
@@ -48,6 +61,7 @@ export function Condiciones() {
         </p>
         <p>
           El recuento de llaveros activos se toma el día 1 de cada mes. Un llavero retirado no cuenta.
+          Un llavero extra se cobra una sola vez, aunque después se desvincule y se vuelva a usar.
         </p>
       </Seccion>
 

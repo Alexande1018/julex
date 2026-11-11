@@ -239,12 +239,27 @@ export function resumenLlaveros(db: Db, barberiaId: ID) {
   };
 }
 
-/** La cuota que JULEX factura: mínimo 15 €/mes, 1 € por llavero activo. */
+/**
+ * La cuota que JULEX factura: 15 €/mes de mínimo, 1 € por llavero activo y
+ * un tope de 40 €/mes. Por encima del llavero 40, cada uno se cobra una sola
+ * vez (1 €) y no sube la cuota.
+ */
 export const CUOTA_MINIMA = 15;
+export const CUOTA_MAXIMA = 40;
+export const PRECIO_LLAVERO_EXTRA = 1;
 
-export function cuotaMensual(db: Db, barberiaId: ID): { activos: number; cuota: number; minimo: boolean } {
+export function cuotaMensual(
+  db: Db,
+  barberiaId: ID,
+): { activos: number; cuota: number; minimo: boolean; tope: boolean; extras: number } {
   const activos = llaverosActivos(db, barberiaId);
-  return { activos, cuota: Math.max(CUOTA_MINIMA, activos), minimo: activos < CUOTA_MINIMA };
+  return {
+    activos,
+    cuota: Math.min(CUOTA_MAXIMA, Math.max(CUOTA_MINIMA, activos)),
+    minimo: activos < CUOTA_MINIMA,
+    tope: activos >= CUOTA_MAXIMA,
+    extras: Math.max(0, activos - CUOTA_MAXIMA),
+  };
 }
 
 export function ingresosEntre(db: Db, barberiaId: ID, desde: Date, hasta: Date): number {

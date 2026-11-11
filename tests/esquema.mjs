@@ -748,6 +748,77 @@ async function main() {
   ok(tagPagado.rows[0].t === 'tokcobro', 'El mismo llavero abre otra vez, sin reasignarlo');
   await db.query(`delete from admins where user_id = $1`, [dueno]);
 
+  /* ------------------------------------------------------------------ */
+  /* Tope de cuota: el llavero que pasa de 40 se cobra una vez          */
+  /* ------------------------------------------------------------------ */
+
+  const tope = await db.query(
+    `insert into barberias (nombre, slug) values ('Prueba Tope', 'prueba-tope') returning id`,
+  );
+  const topeId = tope.rows[0].id;
+
+  await db.query(
+    `insert into clientes (barberia_id, codigo, nombre, token_publico)
+     select $1, 'C-' || g, 'Cliente ' || g, 'clitope' || g from generate_series(1, 42) g`,
+    [topeId],
+  );
+  await db.query(
+    `insert into llaveros (barberia_id, token, codigo_corto, estado, cliente_id, asignado_en)
+     select $1, 'tagtope' || g, 'T-' || g, 'activo', c.id, now()
+       from generate_series(1, 40) g
+       join clientes c on c.codigo = 'C-' || g and c.barberia_id = $1`,
+    [topeId],
+  );
+
+  const activos40 = await db.query(
+    `select count(*)::int n from llaveros where barberia_id = $1 and estado = 'activo'`,
+    [topeId],
+  );
+  const cargos40 = await db.query(
+    `select count(*)::int n from cargos_llavero where barberia_id = $1`,
+    [topeId],
+  );
+  ok(activos40.rows[0].n === 40, 'Cuarenta llaveros activos');
+  ok(cargos40.rows[0].n === 0, 'Los 40 primeros no generan cargo extra');
+
+  // El 41 y el 42 sí.
+  for (const g of [41, 42]) {
+    await db.query(
+      `insert into llaveros (barberia_id, token, codigo_corto, estado, cliente_id, asignado_en)
+       select $1, 'tagtope' || $2, 'T-' || $2, 'activo', c.id, now()
+         from clientes c where c.codigo = 'C-' || $2 and c.barberia_id = $1`,
+      [topeId, g],
+    );
+  }
+  const cargos42 = await db.query(
+    `select count(*)::int n, sum(importe)::numeric s from cargos_llavero where barberia_id = $1`,
+    [topeId],
+  );
+  ok(
+    cargos42.rows[0].n === 2 && Number(cargos42.rows[0].s) === 2,
+    'Pasando de 40, cada llavero nuevo apunta 1 €',
+    JSON.stringify(cargos42.rows[0]),
+  );
+
+  // Volver a activar el mismo no lo cobra otra vez.
+  await db.query(`update llaveros set estado = 'retirado' where token = 'tagtope41'`);
+  await db.query(`update llaveros set estado = 'activo' where token = 'tagtope41'`);
+  const cargoUnico = await db.query(
+    `select count(*)::int n from cargos_llavero where llavero_id = (select id from llaveros where token = 'tagtope41')`,
+    [],
+  );
+  ok(cargoUnico.rows[0].n === 1, 'Un llavero se cobra una sola vez, aunque se reactive');
+
+  // Cobrar el material.
+  await db.query(`insert into admins (user_id) values ($1) on conflict do nothing`, [dueno]);
+  const cobrado = await db.query(`select marcar_material_cobrado($1) as n`, [topeId]);
+  const pendiente = await db.query(
+    `select count(*)::int n from cargos_llavero where barberia_id = $1 and cobrado_en is null`,
+    [topeId],
+  );
+  ok(cobrado.rows[0].n === 2 && pendiente.rows[0].n === 0, 'El material se marca como cobrado');
+  await db.query(`delete from admins where user_id = $1`, [dueno]);
+
   await db.close();
 }
 
