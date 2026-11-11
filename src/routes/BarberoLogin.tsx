@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useDb } from '../lib/store';
 import { entrar as entrarLocal } from '../lib/actions';
@@ -18,7 +18,9 @@ function aSlug(texto: string): string {
 export default function BarberoLogin() {
   const [params] = useSearchParams();
   const next = params.get('next') || '/barbero/cola';
-  return haySupabase ? <AccesoReal next={next} /> : <AccesoLocal next={next} />;
+  /** La misma sesión, pero la puerta del administrador se anuncia distinto. */
+  const admin = params.get('rol') === 'admin' || next.startsWith('/admin');
+  return haySupabase ? <AccesoReal next={next} admin={admin} /> : <AccesoLocal next={next} />;
 }
 
 function AccesoLocal({ next }: { next: string }) {
@@ -71,7 +73,7 @@ function AccesoLocal({ next }: { next: string }) {
 /* Modo real: correo y contraseña                                      */
 /* ------------------------------------------------------------------ */
 
-function AccesoReal({ next }: { next: string }) {
+function AccesoReal({ next, admin = false }: { next: string; admin?: boolean }) {
   const navegar = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -106,10 +108,14 @@ function AccesoReal({ next }: { next: string }) {
 
   return (
     <Marco>
-      <Eyebrow>Acceso del barbero</Eyebrow>
-      <h1 className="mt-3 font-serif text-[30px] leading-[1.1] text-ink">Entra en tu barbería.</h1>
+      <Eyebrow>{admin ? 'Acceso del administrador' : 'Acceso del barbero'}</Eyebrow>
+      <h1 className="mt-3 font-serif text-[30px] leading-[1.1] text-ink">
+        {admin ? 'Entra en el panel de JULEX.' : 'Entra en tu barbería.'}
+      </h1>
       <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
-        La sesión se queda abierta. Es lo que permite que el llavero abra la ficha al acercarlo.
+        {admin
+          ? 'Barberías, llaveros y cuentas. Si la cuenta también es de una barbería, la sesión es la misma: al entrar irás al panel y desde ahí puedes volver a tu cola.'
+          : 'La sesión se queda abierta. Es lo que permite que el llavero abra la ficha al acercarlo.'}
       </p>
 
       <Rule className="my-7" />
@@ -164,8 +170,27 @@ function AccesoReal({ next }: { next: string }) {
       </form>
 
       <p className="mt-5 text-[10.5px] leading-relaxed text-faint">
-        Cada barbería se crea desde el panel de administración de JULEX. Si no tienes acceso, pídelo
-        al administrador.
+        {admin
+          ? 'Solo cuentas de la tabla de administradores. Un barbero que entre aquí acaba en su cola.'
+          : 'Cada barbería se crea desde el panel de administración de JULEX. Si no tienes acceso, pídelo al administrador.'}
+      </p>
+
+      <p className="mt-3 text-[10.5px] leading-relaxed text-faint">
+        {admin ? (
+          <Link
+            to="/barbero/login"
+            className="font-semibold text-ink-soft underline decoration-line underline-offset-4 hover:text-ink"
+          >
+            Soy de una barbería
+          </Link>
+        ) : (
+          <Link
+            to="/barbero/login?rol=admin&next=%2Fadmin"
+            className="font-semibold text-ink-soft underline decoration-line underline-offset-4 hover:text-ink"
+          >
+            Soy el administrador
+          </Link>
+        )}
       </p>
     </Marco>
   );

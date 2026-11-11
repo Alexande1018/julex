@@ -270,7 +270,7 @@ Para probar desde el móvil en la misma wifi, `npm run dev` ya escucha en toda l
 | `/barbero/*` | Barbero | Cola, ficha, clientes, agenda, panel, ajustes. Protegido: sin sesión redirige a `/barbero/login`. |
 | `/nfc/:token` | El llavero | Si está en blanco, pide a quién se lo das. Si ya es de alguien, abre su ficha. Si está retirado, página neutra. |
 | `/c/:codigo` · `/c/:codigo/cita` · `/cita/:slug` | Cliente | Su tarjeta, su fidelización, pedir cita. Sin cuenta. |
-| `/admin` | El administrador | Lista de locales, alta de local con su barbero, cuotas. Solo cuentas de la tabla `admins`; a un barbero lo devuelve a su cola. |
+| `/admin` | El administrador | Lista de locales, alta de local con su barbero, cuotas. Solo cuentas de la tabla `admins`; a un barbero lo devuelve a su cola. Sin sesión, lleva a la puerta del administrador (`/barbero/login?rol=admin&next=/admin`) y vuelve aquí al entrar. |
 | `/admin/local/:id` | El administrador | Ficha de un local: su cuenta (correo, contraseña, bloquear), sus llaveros y sus lotes. |
 
 Además: `/` (portada con el simulador de llavero) y `/legal` (textos de consentimiento).

@@ -102,6 +102,13 @@ export default function Admin() {
       return;
     }
     void (async () => {
+      // Sin sesión no es «no eres administrador»: es que hay que entrar por
+      // esta puerta, y al volver tiene que caer aquí, no en la cola.
+      const { data: sesion } = await supabase!.auth.getSession();
+      if (!sesion.session) {
+        navegar('/barbero/login?rol=admin&next=%2Fadmin', { replace: true });
+        return;
+      }
       const { data } = await supabase!.rpc('soy_admin');
       if (data !== true) {
         navegar('/barbero/cola', { replace: true });
