@@ -29,7 +29,14 @@ export async function crearCuentaLocal(datos: DatosAcceso & { local: string; slu
   await recargar();
 }
 
-export async function entrar(datos: DatosAcceso): Promise<'dentro' | 'sin_local'> {
+/**
+ * Dentro del local, cuenta sin local, o administrador.
+ *
+ * El administrador no está en `barberos`, así que `cargarTodo()` no le da
+ * nada; sin esta tercera respuesta el login le diría que no tiene barbería
+ * y no lo llevaría a ningún sitio.
+ */
+export async function entrar(datos: DatosAcceso): Promise<'dentro' | 'sin_local' | 'admin'> {
   const sb = exigirCliente();
   const { error } = await sb.auth.signInWithPassword({
     email: datos.email,
@@ -38,7 +45,10 @@ export async function entrar(datos: DatosAcceso): Promise<'dentro' | 'sin_local'
   if (error) throw new Error(traducir(error.message));
 
   const db = await cargarTodo();
-  if (!db) return 'sin_local';
+  if (!db) {
+    const { data: esAdmin } = await sb.rpc('soy_admin');
+    return esAdmin === true ? 'admin' : 'sin_local';
+  }
   store.hidratar(db);
   return 'dentro';
 }

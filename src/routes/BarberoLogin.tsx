@@ -86,6 +86,10 @@ function AccesoReal({ next }: { next: string }) {
     setError(null);
     try {
       const resultado = await entrarReal({ email, password });
+      if (resultado === 'admin') {
+        navegar('/admin', { replace: true });
+        return;
+      }
       if (resultado === 'sin_local') {
         setError(
           'Tu cuenta no tiene barbería asignada. Pídele al administrador que te cree el local.',
