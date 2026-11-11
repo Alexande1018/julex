@@ -6,6 +6,7 @@ import {
   aplicarRecompensa,
   atender,
   marcarNoVino,
+  cambiarSilla,
   pasarASillon,
   type ResultadoAtendido,
 } from '../lib/actions';
@@ -15,6 +16,7 @@ import {
   colaDelDia,
   fidelidadDe,
   servicioDe,
+  sillasDe,
 } from '../lib/derive';
 import { fmtFecha, fmtHora, fmtDuracion, haceCuanto } from '../lib/format';
 import { Shell } from '../components/Shell';
@@ -28,6 +30,7 @@ import {
   Rule,
   Sheet,
   btnClases,
+  cn,
   toast,
 } from '../components/ui';
 
@@ -38,11 +41,25 @@ export default function Cola() {
   const cola = colaDelDia(db, barberia.id);
 
   const [noVino, setNoVino] = useState<string | null>(null);
+  const sillas = sillasDe(db, barberia.id).filter((x) => x.activa);
+  const [sillaSel, setSillaSel] = useState<string | null>(null);
+  const porDefecto =
+    sillas.find((x) => cola.sillones.some((q) => q.sillaId === x.id)) ?? sillas[0] ?? null;
+  const sillaActual = sillas.find((x) => x.id === (sillaSel ?? porDefecto?.id ?? '')) ?? null;
+  const ocupada = (id: string | null) =>
+    id ? cola.sillones.some((q) => q.sillaId === id) : false;
   const [premio, setPremio] = useState<{ clienteId: string; nombre: string; resultado: ResultadoAtendido } | null>(
     null,
   );
 
-  const sillón = cola.sillon;
+  // Un cliente sin silla asignada (datos antiguos) se muestra en la primera.
+  const enSilla = (id: string | null | undefined) => {
+    if (!sillas.length) return null;
+    const conSilla = id ? cola.sillones.find((q) => q.sillaId === id) : undefined;
+    if (conSilla) return conSilla;
+    return id === sillas[0].id ? cola.sillones.find((q) => !q.sillaId) ?? null : null;
+  };
+  const sillón = sillaActual ? enSilla(sillaActual.id) : cola.sillon;
   const clienteSillon = sillón ? clienteDe(db, sillón.clienteId) : undefined;
   const servicioSillon = sillón ? servicioDe(db, sillón.servicioId) : undefined;
 
@@ -84,12 +101,42 @@ export default function Cola() {
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start lg:gap-x-10">
         <div>
+      {/* SELECTOR DE SILLA */}
+      {sillas.length > 1 && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {sillas.map((x) => {
+            const activa = sillaActual?.id === x.id;
+            const llena = ocupada(x.id);
+            return (
+              <button
+                key={x.id}
+                onClick={() => setSillaSel(x.id)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-[3px] border px-2.5 py-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] transition-colors',
+                  activa
+                    ? 'border-ink bg-ink text-ivory'
+                    : 'border-line text-muted hover:border-ink/30 hover:text-ink',
+                )}
+              >
+                <span
+                  className={cn(
+                    'size-1.5 rounded-full',
+                    llena ? (activa ? 'bg-ivory' : 'bg-clay') : activa ? 'bg-ivory/50' : 'bg-line',
+                  )}
+                />
+                {x.nombre}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* EN SILLÓN */}
       {sillón && clienteSillon ? (
         <section className="mt-4 overflow-hidden rounded-[4px] bg-ink text-ivory">
           <div className="flex items-center justify-between border-b border-ivory/12 px-4 py-2.5">
             <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-ivory/55">
-              En sillón
+              {sillaActual ? sillaActual.nombre : 'En sillón'}
             </span>
             <span className="num text-[11.5px] text-ivory/60">
               desde las {fmtHora(sillón.inicioEn ?? sillón.llegadaEn)}
@@ -130,6 +177,28 @@ export default function Cola() {
             >
               Terminar
             </Btn>
+
+            {sillas.length > 1 && (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-ivory/35">
+                  Mover a
+                </span>
+                {sillas
+                  .filter((x) => x.id !== sillaActual?.id && !ocupada(x.id))
+                  .map((x) => (
+                    <button
+                      key={x.id}
+                      onClick={() => void cambiarSilla(sillón.id, x.id)}
+                      className="rounded-[3px] border border-ivory/25 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-ivory/80 transition-colors hover:border-ivory/60 hover:text-ivory"
+                    >
+                      {x.nombre}
+                    </button>
+                  ))}
+                {sillas.filter((x) => x.id !== sillaActual?.id && !ocupada(x.id)).length === 0 && (
+                  <span className="text-[10px] text-ivory/40">no queda otra libre</span>
+                )}
+              </div>
+            )}
           </div>
         </section>
       ) : cola.esperando.length > 0 ? (
@@ -210,9 +279,9 @@ export default function Cola() {
                           'sm',
                           'shrink-0 px-3 text-[10px] uppercase tracking-[0.12em]',
                         )}
-                        onClick={() => pasarASillon(q.id)}
+                        onClick={() => void pasarASillon(q.id, sillaActual?.id)}
                       >
-                        Siguiente
+                        {sillas.length > 1 && sillaActual ? `A ${sillaActual.nombre}` : 'Siguiente'}
                       </button>
                     ) : !primero ? (
                       <button
@@ -239,9 +308,9 @@ export default function Cola() {
           </Btn>
         )}
 
-        {sillón && cola.esperando.length > 0 && (
+        {cola.esperando.length > 0 && sillas.length > 0 && sillas.every((x) => ocupada(x.id)) && (
           <p className="mt-2 text-center text-[10.5px] text-faint">
-            Termina el corte actual para pasar al siguiente.
+            Todas las sillas están ocupadas. Termina un corte para pasar al siguiente.
           </p>
         )}
       </section>

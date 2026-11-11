@@ -383,6 +383,7 @@ export function buildSeed(): Db {
       clienteId: c4,
       servicioId: 's_corte',
       estado: 'sillon',
+      sillaId: 'silla-1',
       llegadaEn: haceMinutos(41),
       inicioEn: haceMinutos(14),
       finEn: null,

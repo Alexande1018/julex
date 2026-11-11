@@ -12,7 +12,7 @@ import type {
 import { store } from './store';
 import { codigoCorto, siguienteCodigoCliente, tokenLlavero, uid } from './ids';
 import { addDays, startOfDay } from './format';
-import { sillaLibre } from './derive';
+import { sillaLibre, sillasDe } from './derive';
 import { haySupabase } from './supabase';
 import * as repo from './repo';
 import { salirRemoto } from './acceso';
@@ -311,20 +311,57 @@ export async function anadirACola(
   return item.id;
 }
 
-export async function pasarASillon(colaId: ID): Promise<void> {
+export async function pasarASillon(colaId: ID, sillaId?: ID): Promise<void> {
+  const db = store.get();
+  const barberiaId = db.sesion?.barberiaId ?? db.barberias[0].id;
+
+  // sin silla indicada: la primera libre; si están todas ocupadas, la primera
+  const ocupadas = new Set(db.cola.filter((q) => q.estado === 'sillon').map((q) => q.sillaId));
+  const libres = sillasDe(db, barberiaId).filter((s) => s.activa && !ocupadas.has(s.id));
+  const destino = sillaId ?? libres[0]?.id ?? null;
+
+  if (destino && ocupadas.has(destino)) {
+    const otra = libres[0];
+    if (!otra) {
+      toast('Todas las sillas están ocupadas', 'aviso');
+      return;
+    }
+    return pasarASillon(colaId, otra.id);
+  }
+
   if (haySupabase) {
-    if ((await intentar(() => repo.pasarASillon(colaId), 'pasar al sillón')) !== null) await refrescar();
+    if ((await intentar(() => repo.pasarASillon(colaId, destino), 'pasar al sillón')) !== null) {
+      await refrescar();
+    }
     return;
   }
-  store.mutate((db) => {
-    const barberiaId = db.sesion?.barberiaId ?? db.barberias[0].id;
-    const ocupado = db.cola.find((q) => q.barberiaId === barberiaId && q.estado === 'sillon');
-    if (ocupado) return;
-    const q = db.cola.find((x) => x.id === colaId);
+  store.mutate((d) => {
+    const q = d.cola.find((x) => x.id === colaId);
     if (!q) return;
     q.estado = 'sillon';
+    q.sillaId = destino;
     q.inicioEn = new Date().toISOString();
-    evento(db, 'cliente_sillon', q.barberiaId, q.clienteId);
+    evento(d, 'cliente_sillon', q.barberiaId, q.clienteId);
+  });
+}
+
+/** Mueve a un cliente que ya está en el sillón a otra silla libre. */
+export async function cambiarSilla(colaId: ID, sillaId: ID): Promise<void> {
+  const db = store.get();
+  const ocupada = db.cola.some((q) => q.estado === 'sillon' && q.sillaId === sillaId && q.id !== colaId);
+  if (ocupada) {
+    toast('Esa silla está ocupada', 'aviso');
+    return;
+  }
+  if (haySupabase) {
+    if ((await intentar(() => repo.cambiarSilla(colaId, sillaId), 'cambiar de silla')) !== null) {
+      await refrescar();
+    }
+    return;
+  }
+  store.mutate((d) => {
+    const q = d.cola.find((x) => x.id === colaId);
+    if (q) q.sillaId = sillaId;
   });
 }
 

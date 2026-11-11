@@ -150,6 +150,8 @@ export function llaveroPorToken(db: Db, token: string): Llavero | undefined {
 
 export interface ColaDia {
   sillon: ColaItem | null;
+  /** Un cliente por silla: con varias sillas puede haber varios a la vez. */
+  sillones: ColaItem[];
   esperando: ColaItem[];
   terminados: ColaItem[];
   noVino: ColaItem[];
@@ -165,8 +167,11 @@ export function colaDelDia(db: Db, barberiaId: ID): ColaDia {
     .filter((q) => q.estado === 'esperando')
     .sort((a, b) => toDate(a.llegadaEn).getTime() - toDate(b.llegadaEn).getTime());
 
+  const sillones = deHoy.filter((q) => q.estado === 'sillon');
+
   return {
-    sillon: deHoy.find((q) => q.estado === 'sillon') ?? null,
+    sillon: sillones[0] ?? null,
+    sillones,
     esperando,
     terminados: deHoy
       .filter((q) => q.estado === 'terminado')

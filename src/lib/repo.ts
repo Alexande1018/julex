@@ -237,14 +237,20 @@ export async function insertarEnCola(datos: {
   return data!.id as string;
 }
 
-export async function pasarASillon(id: ID): Promise<void> {
+export async function pasarASillon(id: ID, sillaId: string | null): Promise<void> {
   const sb = exigirCliente();
   const { error } = await sb
     .from('cola')
-    .update({ estado: 'sillon', inicio_en: new Date().toISOString() })
+    .update({ estado: 'sillon', inicio_en: new Date().toISOString(), silla_id: sillaId })
     .eq('id', id)
     .eq('estado', 'esperando');
   if (error) fallo('pasando al sillón', error);
+}
+
+export async function cambiarSilla(id: ID, sillaId: string | null): Promise<void> {
+  const sb = exigirCliente();
+  const { error } = await sb.from('cola').update({ silla_id: sillaId }).eq('id', id);
+  if (error) fallo('cambiando de silla', error);
 }
 
 export async function marcarNoVino(id: ID): Promise<void> {
