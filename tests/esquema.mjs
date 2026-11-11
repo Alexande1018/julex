@@ -515,6 +515,43 @@ async function main() {
   const ajeno = await db.query(`select pin_barbero_quitar($1) as q, pin_barbero_estado($1) as e`, [clienteId]);
   ok(ajeno.rows[0].q === false && ajeno.rows[0].e === false, 'Otro local no puede tocar el PIN de esta tarjeta');
 
+  /* ------------------------------------------------------------------ */
+  /* El llavero traduce a la tarjeta                                    */
+  /* ------------------------------------------------------------------ */
+
+  const puente = await db.query(`select llavero_tarjeta('tok_uno') as t`);
+  ok(
+    puente.rows[0].t === cliente.rows[0].token_publico,
+    'El llavero devuelve el token público de su cliente',
+  );
+
+  await db.query(
+    `insert into llaveros (barberia_id, token, codigo_corto) values ($1, 'tok_blanco', 'PBL-0900')`,
+    [barberiaId],
+  );
+  const enBlanco = await db.query(`select llavero_tarjeta('tok_blanco') as t`);
+  ok(enBlanco.rows[0].t === null, 'Un llavero en blanco no devuelve tarjeta');
+
+  await db.query(
+    `insert into llaveros (barberia_id, token, codigo_corto) values ($1, 'tok_retirado', 'PBL-0901')`,
+    [barberiaId],
+  );
+  await db.query(
+    `update llaveros set estado = 'activo', cliente_id = $1, asignado_en = now() where token = 'tok_retirado'`,
+    [clienteId],
+  );
+  await db.query(`update llaveros set estado = 'retirado' where token = 'tok_retirado'`);
+  const retirado = await db.query(`select llavero_tarjeta('tok_retirado') as t`);
+  ok(retirado.rows[0].t === null, 'Un llavero retirado ya no abre ninguna tarjeta');
+
+  const inventado = await db.query(`select llavero_tarjeta('no_existe') as t`);
+  ok(inventado.rows[0].t === null, 'Un token inventado no devuelve nada');
+
+  const permiso = await db.query(
+    `select has_function_privilege('anon', 'public.llavero_tarjeta(text)', 'execute') as p`,
+  );
+  ok(permiso.rows[0].p === true, 'El público anónimo puede llamarla');
+
   await db.close();
 }
 

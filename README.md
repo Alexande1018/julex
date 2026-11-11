@@ -300,10 +300,18 @@ Todo esto se ejecuta, muta datos y **sobrevive a recargar** (localStorage `julex
 - Al guardar: código único, opción de vincular un llavero del lote y añadir a la cola.
 
 **Llavero NFC (sin botón de leer)**
-- `/nfc/:token` resuelve el chip: vincular, abrir ficha o página neutra.
+- `/nfc/:token` resuelve el chip y abre **dos puertas con la misma URL**: con la sesión de la
+  barbería abre la ficha (vincular, ver, poner en cola); sin sesión —el móvil del propio cliente—
+  le lleva a **su tarjeta**, con sus sellos y su reserva ya personalizada.
+- El puente es una única función pública, `llavero_tarjeta(token)`, que devuelve **solo** el token
+  opaco de la tarjeta: ni nombre, ni teléfono, ni historial. Lo que se ve después lo decide la
+  tarjeta, con su PIN si lo tiene. La pantalla de la tarjeta, cuando llega desde un llavero, invita
+  a poner PIN y ofrece al barbero volver a entrar con `?next=/nfc/...`.
 - Funciona con la aplicación cerrada porque es una URL normal, como hará el sistema operativo.
-- Si no hay sesión, pide entrar y **vuelve a la operación pendiente** (`?next=/nfc/...`).
-- El llavero retirado muere para siempre y no revela a quién perteneció.
+- El llavero retirado muere para siempre: `llavero_tarjeta()` devuelve vacío y no revela a quién
+  perteneció.
+- Por eso **el llavero no necesita QR personal**: en su cara B basta el código corto (`PBL-7K4Q`)
+  para el inventario. El QR del local (`/cita/<slug>`) es aparte, para quien entra sin llavero.
 
 **Tarjeta del cliente**
 - Cabecera de socio con el color de la barbería, saludo, próxima cita (con cancelación), sellos, historial.

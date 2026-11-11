@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, Nfc as NfcIcon, Search } from 'lucide-react';
 import { useDb } from '../lib/store';
-import { haySupabase } from '../lib/supabase';
+import { haySupabase, supabase } from '../lib/supabase';
 import { anadirACola, asignarLlavero, registrarToque } from '../lib/actions';
 import {
   clienteDe,
@@ -31,10 +31,52 @@ export default function Nfc() {
   const navegar = useNavigate();
   const [q, setQ] = useState('');
   const registrado = useRef(false);
+  const [resolviendo, setResolviendo] = useState(haySupabase);
 
   const llavero = token ? llaveroPorToken(db, token) : undefined;
   const barberia = llavero ? db.barberias.find((b) => b.id === llavero.barberiaId) : undefined;
   const cliente = llavero?.clienteId ? clienteDe(db, llavero.clienteId) : undefined;
+
+  /**
+   * Sin sesión, este enlace no es del barbero: es el móvil del propio cliente.
+   * Se traduce el token del llavero al de su tarjeta y se le manda allí. Solo
+   * se pide ese texto opaco; lo que se ve lo decide la tarjeta, con su PIN.
+   */
+  useEffect(() => {
+    if (db.sesion || !token) {
+      setResolviendo(false);
+      return;
+    }
+    let vivo = true;
+
+    const buscar = async () => {
+      let tarjeta: string | null = null;
+
+      if (!haySupabase) {
+        const l = llaveroPorToken(db, token);
+        const c = l?.clienteId ? clienteDe(db, l.clienteId) : undefined;
+        tarjeta = l?.estado === 'activo' && c ? c.tokenPublico : null;
+      } else {
+        const { data } = await supabase!.rpc('llavero_tarjeta', { p_token: token });
+        tarjeta = typeof data === 'string' && data.length > 0 ? data : null;
+      }
+
+      if (!vivo) return;
+      if (tarjeta) {
+        navegar(`/c/${tarjeta}?desde=${encodeURIComponent(token)}`, { replace: true });
+      } else {
+        setResolviendo(false);
+      }
+    };
+
+    void buscar().catch(() => {
+      if (vivo) setResolviendo(false);
+    });
+
+    return () => {
+      vivo = false;
+    };
+  }, [db, token, navegar]);
 
   useEffect(() => {
     if (!llavero || !cliente || !db.sesion || registrado.current) return;
@@ -43,20 +85,20 @@ export default function Nfc() {
     registrarToque(llavero.id, cliente.id);
   }, [llavero, cliente, db.sesion]);
 
-  /* ------------------------- Llavero desconocido ------------------------- */
+  /* ------------------------- Resolviendo la tarjeta ------------------------- */
 
-  if (!llavero) {
+  if (resolviendo) {
     return (
-      <Neutro
-        titulo="Llavero no reconocido"
-        texto="Este enlace no corresponde a ningún llavero de JULEX. Si crees que es un error, pide uno nuevo en tu barbería."
-      />
+      <div className="grain flex min-h-dvh flex-col items-center justify-center gap-4 bg-ivory">
+        <span className="eyebrow">JULEX</span>
+        <p className="font-serif text-[19px] text-ink">Abriendo tu tarjeta…</p>
+      </div>
     );
   }
 
-  /* ------------------------- Retirado ------------------------- */
+  /* ------------------------- Retirado (se sabe en local) ------------------------- */
 
-  if (llavero.estado === 'retirado') {
+  if (llavero?.estado === 'retirado') {
     return (
       <Neutro
         titulo="Este llavero ya no está activo"
@@ -75,13 +117,18 @@ export default function Nfc() {
     );
   }
 
-  /* ------------------------- Sin sesión ------------------------- */
+  /* ------------------------- Sin sesión y sin tarjeta ------------------------- */
 
+  /*
+   * Si tuviera tarjeta, ya se habría redirigido arriba. Aquí solo caen los
+   * llaveros en blanco, los retirados y los inventados, y desde fuera no se
+   * distinguen a propósito.
+   */
   if (!db.sesion) {
     return (
       <Neutro
-        titulo="Entra para ver esta ficha"
-        texto="El llavero abre la ficha privada del cliente. Necesitas la sesión de la barbería; después volverás aquí automáticamente."
+        titulo="Este llavero aún no tiene tarjeta"
+        texto="Puede estar en blanco, retirado o no ser de esta barbería. Si eres de la barbería, entra y vuelve a acercarlo para asignarlo."
         pie={
           <Link
             to={`/barbero/login?next=${encodeURIComponent(`/nfc/${token}`)}`}
@@ -90,7 +137,18 @@ export default function Nfc() {
             Entrar en la barbería
           </Link>
         }
-        pie2={`Llavero ${llavero.codigoCorto}`}
+        pie2={llavero ? `Llavero ${llavero.codigoCorto}` : undefined}
+      />
+    );
+  }
+
+  /* ------------------------- Con sesión: llavero desconocido ------------------------- */
+
+  if (!llavero) {
+    return (
+      <Neutro
+        titulo="Llavero no reconocido"
+        texto="Este enlace no corresponde a ningún llavero de esta barbería. Si crees que es un error, revisa el inventario o pide uno nuevo."
       />
     );
   }

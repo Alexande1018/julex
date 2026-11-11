@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CalendarPlus, Download, Lock, ShieldCheck, X } from 'lucide-react';
 import {
   cancelarCitaPublica,
@@ -40,6 +40,9 @@ import {
 
 export default function Tarjeta() {
   const { token } = useParams();
+  const [params] = useSearchParams();
+  /** Si se llegó tocando un llavero, aquí viaja su token (para volver al entrar). */
+  const desdeLlavero = params.get('desde');
   const [pin, setPin] = useState<string | null>(() => (token ? pinDeSesion(token) : null));
   const [ficha, setFicha] = useState<ResultadoFicha | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -469,6 +472,19 @@ export default function Tarjeta() {
 
         <Rule className="my-7" />
 
+        {desdeLlavero && (
+          <p className="mt-8 text-center text-[10.5px] leading-relaxed text-faint">
+            ¿Eres de la barbería?{' '}
+            <Link
+              to={`/barbero/login?next=${encodeURIComponent(`/nfc/${desdeLlavero}`)}`}
+              className="font-semibold text-ink-soft underline decoration-line underline-offset-2 hover:text-ink"
+            >
+              Entra y vuelve a acercar el llavero
+            </Link>
+            .
+          </p>
+        )}
+
         <footer className="pb-4 text-center">
           <p className="text-[10px] leading-relaxed text-faint">
             {barberia.nombre} · {barberia.direccion}
@@ -555,7 +571,9 @@ export default function Tarjeta() {
             <p className="mt-1 text-[10.5px] leading-relaxed text-muted">
               {pin
                 ? 'Esta tarjeta pide un PIN. Quien tenga el enlace sin él no ve tu nombre, tu teléfono ni tus visitas.'
-                : 'Con el enlace, cualquiera que lo tenga ve tu tarjeta. Con un PIN de 4 a 6 cifras, no.'}
+                : desdeLlavero
+                  ? 'Tu llavero abre esta tarjeta. Si lo pierdes, quien lo encuentre la verá: ponle un PIN de 4 a 6 cifras y solo verá «tarjeta protegida».'
+                  : 'Con el enlace, cualquiera que lo tenga ve tu tarjeta. Con un PIN de 4 a 6 cifras, no.'}
             </p>
             <div className="mt-2 flex flex-wrap gap-3">
               <button

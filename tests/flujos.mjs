@@ -232,6 +232,21 @@ try {
     .catch(() => false);
   ok(salioDeLaTarjeta && Boolean((await db()).sesion), 'La tarjeta sale sin cerrar la sesión');
 
+  /* 8d. El mismo llavero, en el móvil del cliente sin sesión, abre su tarjeta */
+  await page.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('julex.demo.v1'));
+    d.sesion = null;
+    localStorage.setItem('julex.demo.v1', JSON.stringify(d));
+  });
+  const tagToken = (await db()).llaveros.find((l) => l.clienteId === pablo.id)?.token;
+  await page.goto(`${BASE}/nfc/${tagToken}`, { waitUntil: 'networkidle' });
+  ok(
+    page.url().includes(`/c/${pablo.tokenPublico}`),
+    'El llavero abre la tarjeta del cliente sin sesión',
+    page.url().replace(BASE, ''),
+  );
+  ok(await visible(page.getByText('Hola, Pablo.')), 'Y el cliente ve su tarjeta al tocarlo');
+
   /* 9. Consola limpia */
   ok(errores.length === 0, 'Sin errores en consola', errores.slice(0, 3).join(' | '));
 } catch (e) {
