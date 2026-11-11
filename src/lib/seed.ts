@@ -177,6 +177,9 @@ export function buildSeed(): Db {
     tipo: 'barberia',
     domicilioLegal: 'Madrid',
     correoLegal: '',
+    estadoCobro: 'al_dia',
+    proximoPago: null,
+    notaCobro: '',
     altaEn: fecha(-215, 10),
   };
 

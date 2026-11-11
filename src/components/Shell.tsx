@@ -8,6 +8,11 @@ import { Salir } from './Salir';
 import { vocabulario } from '../lib/vocabulario';
 import { useRefresco } from '../lib/refresco';
 
+function fechaCorta(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`);
+  return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+}
+
 export function Shell({
   barberia,
   activo,
@@ -86,6 +91,35 @@ export function Shell({
       </header>
 
       <main className="mx-auto w-full max-w-2xl px-4 pb-28 pt-1 lg:max-w-4xl lg:pb-14">
+        {(barberia.estadoCobro === 'pendiente' || barberia.estadoCobro === 'lectura') && (
+          <div
+            className={cn(
+              'mb-3 mt-2 flex items-start gap-2 rounded-[3px] border px-3 py-2.5',
+              barberia.estadoCobro === 'lectura'
+                ? 'border-clay/50 bg-clay/8'
+                : 'border-line bg-paper',
+            )}
+          >
+            <span className="mt-[3px] size-1.5 shrink-0 rounded-full bg-clay" />
+            <p className="text-[11.5px] leading-relaxed text-ink-soft">
+              {barberia.estadoCobro === 'lectura' ? (
+                <>
+                  <strong className="font-semibold text-ink">Solo lectura.</strong> La cuota está
+                  pendiente desde el{' '}
+                  {barberia.proximoPago ? fechaCorta(barberia.proximoPago) : 'vencimiento'}. Puedes
+                  consultar tus clientes y tu agenda, pero no crear ni editar hasta regularizarlo.
+                </>
+              ) : (
+                <>
+                  La cuota venció el{' '}
+                  {barberia.proximoPago ? fechaCorta(barberia.proximoPago) : 'día de pago'}. Para no
+                  perder el acceso, regularízala en los próximos días.
+                </>
+              )}
+            </p>
+          </div>
+        )}
+
         {children}
       </main>
 

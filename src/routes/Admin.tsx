@@ -32,6 +32,8 @@ interface LocalAdmin {
   email: string | null;
   activo: boolean;
   tipo: TipoNegocio;
+  estadoCobro: string;
+  proximoPago: string | null;
 }
 
 function slugDe(texto: string): string {
@@ -73,6 +75,8 @@ export default function Admin() {
           email: null,
           activo: true,
           tipo: b.tipo,
+          estadoCobro: 'al_dia',
+          proximoPago: null,
         })),
       );
       return;
@@ -97,6 +101,8 @@ export default function Admin() {
       email: string | null;
       activo: boolean;
       tipo: TipoNegocio;
+      estado_cobro: string;
+      proximo_pago: string | null;
     };
     setLocales(
       ((loc.data ?? []) as FilaLocal[]).map((b) => {
@@ -111,6 +117,8 @@ export default function Admin() {
           email: b.email,
           activo: b.activo,
           tipo: b.tipo ?? 'barberia',
+          estadoCobro: b.estado_cobro ?? 'al_dia',
+          proximoPago: b.proximo_pago,
         };
       }),
     );
@@ -334,6 +342,8 @@ export default function Admin() {
                     <p className="flex items-center gap-2 truncate font-serif text-[16px] leading-tight text-ink">
                       {l.nombre}
                       {!l.activo && <Pill tono="danger">bloqueado</Pill>}
+                      {l.estadoCobro === 'pendiente' && <Pill tono="warn">pago</Pill>}
+                      {l.estadoCobro === 'lectura' && <Pill tono="warn">solo lectura</Pill>}
                     </p>
                     <p className="mt-0.5 truncate text-[11px] text-muted">
                       /{l.slug} · {l.clientes} clientes · {l.llaveros} llaveros

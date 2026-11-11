@@ -37,6 +37,9 @@ export function aBarberia(r: Fila): Barberia {
     tipo: (s(r.tipo, 'barberia') as Barberia['tipo']) ?? 'barberia',
     domicilioLegal: s(r.domicilio_legal),
     correoLegal: s(r.correo_legal),
+    estadoCobro: (s(r.estado_cobro, 'al_dia') as Barberia['estadoCobro']) ?? 'al_dia',
+    proximoPago: s(r.proximo_pago) || null,
+    notaCobro: s(r.nota_cobro),
     altaEn: s(r.creado_en),
   };
 }

@@ -31,6 +31,12 @@ export interface Barberia {
   domicilioLegal: string;
   /** Correo para derechos y reclamaciones de ese local. */
   correoLegal: string;
+  /** al_dia · pendiente · lectura · suspendido */
+  estadoCobro: EstadoCobro;
+  /** Día en que vence la siguiente cuota. */
+  proximoPago: string | null;
+  /** Nota del administrador sobre el cobro. */
+  notaCobro: string;
   altaEn: Iso;
 }
 
@@ -40,6 +46,8 @@ export interface Barbero {
   nombre: string;
   rol: 'dueno' | 'barbero';
 }
+
+export type EstadoCobro = 'al_dia' | 'pendiente' | 'lectura' | 'suspendido';
 
 export interface Consentimientos {
   /** Constancia de que se le entregó la información de privacidad. No es un permiso. */

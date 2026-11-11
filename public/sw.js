@@ -3,7 +3,7 @@
    Estáticos con hash: caché primero (sus nombres cambian en cada despliegue).
    Sube la versión al publicar para tirar la caché vieja. */
 
-const CACHE = 'julex-v11';
+const CACHE = 'julex-v12';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg'];
 
 self.addEventListener('install', (evento) => {

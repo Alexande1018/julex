@@ -396,6 +396,15 @@ correo legales (se piden al crear el local y se editan en Ajustes).
 IVA desde el día 1 del mes siguiente; 1 € + IVA por cada llavero activo a partir del decimosexto, con
 el recuento tomado el día 1 de cada mes.
 
+**Cobro.** Cada local tiene `proximo_pago` y un `estado_cobro` que avanza solo:
+`al_dia` → `pendiente` (venció hace menos de 8 días, todo sigue) → `lectura` (hasta 15 días: el local
+no puede escribir, sus clientes sí reservar y usar su tarjeta) → `suspendido` (no entra, páginas
+públicas ocultas y llaveros que dejan de abrir). `revisar_cobros()` aplica la escalera y corre a
+diario con pg_cron (6:00); también se puede lanzar a mano desde el panel. El llavero no se retira:
+se marca `suspendido` y vuelve al pagar. Desde la ficha del local, el administrador marca el mes
+pagado (`marcar_pagado`) o suspende a mano con una nota (`suspender_local`). La suspensión manual no
+la revierte el barrido.
+
 **Pendiente, y no es código:** aceptar y conservar los DPA de Supabase y Cloudflare, revisar los
 textos con un abogado antes de cobrar a un local real, y cerrar o redirigir el dominio antiguo de
 Netlify. La retención aprobada (un año tras la última visita, seis meses las reservas no atendidas,

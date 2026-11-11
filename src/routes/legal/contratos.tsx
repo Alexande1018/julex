@@ -62,6 +62,14 @@ export function Condiciones() {
           incumplimiento grave. En ambos casos se conservan los datos el tiempo necesario para
           atender responsabilidades y luego se borran o se devuelven.
         </p>
+        <p>
+          Si la cuota no se paga, el servicio pasa por tres avisos antes de cortarse: el día del
+          vencimiento se avisa y todo sigue; entre el octavo y el decimoquinto día el local queda en
+          solo lectura (puede consultar, no crear ni editar), aunque sus clientes pueden seguir
+          reservando y usando su tarjeta; a partir del decimoquinto día se suspende el acceso, se
+          ocultan sus páginas públicas y sus llaveros dejan de abrir. Al regularizar el pago se
+          reactiva todo, llaveros incluidos, sin volver a grabarlos.
+        </p>
       </Seccion>
 
       <Seccion titulo="Llaveros">

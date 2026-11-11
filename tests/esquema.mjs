@@ -638,6 +638,116 @@ async function main() {
   const puenteTras = await db.query(`select llavero_tarjeta('tok_uno') as t`);
   ok(puenteTras.rows[0].t === null, 'Y el llavero ya no lleva a ninguna tarjeta');
 
+  /* ------------------------------------------------------------------ */
+  /* Cobro: la escalera y sus efectos                                   */
+  /* ------------------------------------------------------------------ */
+
+  const localCobro = await db.query(`select id from barberias order by creado_en limit 1`);
+  const localId = localCobro.rows[0].id;
+
+  const cliCobro = await db.query(
+    `insert into clientes (barberia_id, codigo, nombre, token_publico)
+     values ($1, 'P-9999', 'Cobro Test', 'tokcobro') returning id`,
+    [localId],
+  );
+  const cliCobroId = cliCobro.rows[0].id;
+  await db.query(
+    `insert into llaveros (barberia_id, token, codigo_corto, estado, cliente_id, asignado_en)
+     values ($1, 'tokcobro-tag', 'COB-01', 'activo', $2, now())`,
+    [localId, cliCobroId],
+  );
+
+  const estadoCobro = async () =>
+    (await db.query(`select estado_cobro, activo from barberias where id = $1`, [localId])).rows[0];
+
+  // El barrido se lanza sin sesión (como el cron).
+  const barrer = async () => {
+    await db.query(`select set_config('test.uid', '', false)`);
+    await db.query(`select revisar_cobros() as r`);
+    await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+  };
+
+  await db.query(`update barberias set proximo_pago = current_date - 3 where id = $1`, [localId]);
+  await barrer();
+  let ec = await estadoCobro();
+  ok(ec.estado_cobro === 'pendiente' && ec.activo === true, 'Tres días tarde: aviso, todo sigue');
+
+  await db.query(`update barberias set proximo_pago = current_date - 10 where id = $1`, [localId]);
+  await barrer();
+  ec = await estadoCobro();
+  ok(ec.estado_cobro === 'lectura' && ec.activo === true, 'Diez días: solo lectura');
+
+  let fallo = null;
+  try {
+    await db.query(`update clientes set nombre = 'Cambiado' where id = $1`, [cliCobroId]);
+  } catch (e) {
+    fallo = e.message;
+  }
+  ok(fallo === 'local_en_solo_lectura', 'En solo lectura el local no puede escribir', String(fallo));
+
+  const puenteLectura = await db.query(`select llavero_tarjeta('tokcobro-tag') as t`);
+  ok(
+    puenteLectura.rows[0].t === 'tokcobro',
+    'En solo lectura el llavero del cliente sigue abriendo su tarjeta',
+  );
+
+  // El cliente anónimo sí puede reservar mientras no esté suspendido.
+  await db.query(`select set_config('test.uid', '', false)`);
+  const citaAnon = await db.query(
+    `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado)
+     select $1, $2, s.id, now() + interval '2 days', 'confirmada'
+       from servicios s where s.barberia_id = $1 limit 1 returning id`,
+    [localId, cliCobroId],
+  );
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+  ok(citaAnon.rowCount === 1, 'En solo lectura el cliente sí puede reservar');
+
+  await db.query(`update barberias set proximo_pago = current_date - 20 where id = $1`, [localId]);
+  await barrer();
+  ec = await estadoCobro();
+  const tagSuspendido = await db.query(`select llavero_tarjeta('tokcobro-tag') as t`);
+  const baneado = await db.query(`select banned_until from auth.users where id = $1`, [dueno]);
+  ok(ec.estado_cobro === 'suspendido' && ec.activo === false, 'Veinte días: el local se suspende');
+  ok(tagSuspendido.rows[0].t === null, 'Y sus llaveros dejan de abrir tarjetas');
+  ok(baneado.rows[0].banned_until !== null, 'Y la cuenta queda bloqueada');
+
+  let falloAnon = null;
+  await db.query(`select set_config('test.uid', '', false)`);
+  try {
+    await db.query(
+      `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado)
+       select $1, $2, s.id, now() + interval '3 days', 'confirmada'
+         from servicios s where s.barberia_id = $1 limit 1`,
+      [localId, cliCobroId],
+    );
+  } catch (e) {
+    falloAnon = e.message;
+  }
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+  ok(falloAnon === 'local_suspendido', 'Un local suspendido ya no acepta reservas');
+
+  // Pagar lo devuelve todo.
+  await db.query(`insert into admins (user_id) values ($1) on conflict do nothing`, [dueno]);
+  const pago = await db.query(`select marcar_pagado($1) as ok`, [localId]);
+  const trasPago = await db.query(
+    `select b.estado_cobro, b.activo, l.suspendido, u.banned_until
+       from barberias b
+       join llaveros l on l.barberia_id = b.id and l.token = 'tokcobro-tag'
+       join auth.users u on u.id = $2
+      where b.id = $1`,
+    [localId, dueno],
+  );
+  const tagPagado = await db.query(`select llavero_tarjeta('tokcobro-tag') as t`);
+  const tp = trasPago.rows[0];
+  ok(pago.rows[0].ok === true, 'El administrador marca el mes pagado');
+  ok(
+    tp.estado_cobro === 'al_dia' && tp.activo === true && tp.suspendido === false && tp.banned_until === null,
+    'Y el local vuelve: cuenta abierta, llaveros vivos',
+    JSON.stringify(tp),
+  );
+  ok(tagPagado.rows[0].t === 'tokcobro', 'El mismo llavero abre otra vez, sin reasignarlo');
+  await db.query(`delete from admins where user_id = $1`, [dueno]);
+
   await db.close();
 }
 

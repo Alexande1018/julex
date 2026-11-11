@@ -38,6 +38,10 @@ interface CuentaLocal {
   email: string | null;
   activo: boolean;
   tipo: TipoNegocio;
+  estado_cobro: string;
+  proximo_pago: string | null;
+  nota_cobro: string;
+  suspension_manual: boolean;
 }
 
 type Filtro = 'todos' | 'activos' | 'libres' | 'retirados';
@@ -53,6 +57,7 @@ export default function AdminLocal() {
   const [q, setQ] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [correo, setCorreo] = useState('');
+  const [notaCobro, setNotaCobro] = useState('');
   const [clave, setClave] = useState('');
 
   const cargar = useCallback(async () => {
@@ -89,6 +94,21 @@ export default function AdminLocal() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  const accionCobro = async (funcion: string, args: Record<string, unknown>) => {
+    if (!haySupabase || !local) return;
+    setOcupado(true);
+    try {
+      const { error } = await supabase!.rpc(funcion, args);
+      if (error) throw new Error(error.message);
+      toast(funcion === 'marcar_pagado' ? 'Mes marcado como pagado' : 'Local suspendido', 'ok');
+      await cargar();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo', 'aviso');
+    } finally {
+      setOcupado(false);
+    }
+  };
 
   const cambiarTipo = async (tipo: TipoNegocio) => {
     if (!haySupabase || !local) return;
@@ -261,6 +281,73 @@ export default function AdminLocal() {
             url={`${window.location.origin}/cita/${local.slug}`}
             nombreFichero={`julex-${local.slug}-reservas`}
           />
+        </section>
+
+        <Rule className="my-6" />
+
+        {/* COBRO */}
+        <section>
+          <div className="flex items-baseline justify-between gap-3">
+            <Eyebrow>Cobro</Eyebrow>
+            <Pill
+              tono={
+                local.estado_cobro === 'al_dia'
+                  ? 'ok'
+                  : local.estado_cobro === 'suspendido'
+                    ? 'danger'
+                    : 'warn'
+              }
+            >
+              {local.estado_cobro === 'al_dia'
+                ? 'AL DÍA'
+                : local.estado_cobro === 'pendiente'
+                  ? 'PENDIENTE'
+                  : local.estado_cobro === 'lectura'
+                    ? 'SOLO LECTURA'
+                    : 'SUSPENDIDO'}
+            </Pill>
+          </div>
+
+          <div className="mt-2 grid gap-1.5 text-[11.5px] text-muted">
+            <p>
+              Próximo pago:{' '}
+              <span className="text-ink-soft">
+                {local.proximo_pago
+                  ? new Date(`${local.proximo_pago}T12:00:00`).toLocaleDateString('es-ES', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'sin fecha: el barrido no lo toca'}
+              </span>
+            </p>
+            {local.nota_cobro && <p>Nota: {local.nota_cobro}</p>}
+            {local.suspension_manual && <p className="text-clay">Suspendido a mano.</p>}
+          </div>
+
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <Btn t="sm" onClick={() => void accionCobro('marcar_pagado', { p_local: local.id })}>
+              Marcar mes pagado
+            </Btn>
+            <input
+              value={notaCobro}
+              onChange={(e) => setNotaCobro(e.target.value)}
+              placeholder="motivo de la suspensión"
+              className={cn(inputClases, 'h-8 w-44 text-[11.5px]')}
+            />
+            <Btn
+              v="outline"
+              t="sm"
+              onClick={() =>
+                void accionCobro('suspender_local', {
+                  p_local: local.id,
+                  p_nota: notaCobro.trim() || 'Suspendido por impago',
+                })
+              }
+            >
+              Suspender
+            </Btn>
+          </div>
         </section>
 
         <Rule className="my-6" />
