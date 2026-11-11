@@ -194,17 +194,6 @@ export default function Ajustes() {
     }
   };
 
-  const exportar = () => {
-    const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `julex-${barberia.slug || 'local'}-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('Datos exportados a JSON', 'ok');
-  };
-
   return (
     <Shell barberia={barberia} activo="/barbero/ajustes">
       <div className="pt-5">
@@ -773,9 +762,6 @@ export default function Ajustes() {
       <section className="pb-6">
         <Eyebrow>Datos</Eyebrow>
         <div className="mt-2.5 flex flex-wrap gap-2">
-          <Btn v="outline" t="md" onClick={exportar}>
-            <Download size={13} /> Exportar datos
-          </Btn>
           {!haySupabase && (
             <Btn v="outline" t="md" onClick={() => setReset(true)}>
               <RotateCcw size={13} /> Reiniciar demo
@@ -787,8 +773,8 @@ export default function Ajustes() {
         </div>
         <p className="mt-3 text-[10.5px] leading-relaxed text-faint">
           {haySupabase
-            ? 'Los datos viven en vuestra base de datos. La exportación incluye clientes, visitas y llaveros.'
-            : 'Todo se guarda en este navegador. La demo está aislada: no comparte datos con ninguna barbería real ni con ningún servicio externo.'}
+            ? 'Los datos viven en nuestra base de datos, aislados por local. Para llevarte una copia, pídesela al administrador de JULEX.'
+            : 'Todo se guarda en este navegador. La demo está aislada: no comparte datos con ningún local real ni con ningún servicio externo.'}
         </p>
       </section>
 

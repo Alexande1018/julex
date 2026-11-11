@@ -129,8 +129,9 @@ export function Condiciones() {
           <Link to="/encargo-tratamiento" className="underline decoration-line underline-offset-2">
             acuerdo de encargo
           </Link>
-          . El negocio puede exportar sus datos desde Ajustes en cualquier momento. Al terminar, se
-          devuelven o se borran en el plazo acordado, salvo lo que la ley obligue a conservar.
+          . El negocio puede pedir una copia completa de sus datos a JULEX en cualquier momento; se
+          entrega en un archivo JSON. Al terminar, se devuelven o se borran en el plazo acordado, salvo lo
+          que la ley obligue a conservar.
         </p>
       </Seccion>
 

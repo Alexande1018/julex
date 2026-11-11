@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Copy, Nfc, Plus, Search } from 'lucide-react';
+import { ArrowLeft, Download, Copy, Nfc, Plus, Search } from 'lucide-react';
 import { haySupabase, supabase } from '../lib/supabase';
 import { fmtEuros } from '../lib/format';
 import { Salir } from '../components/Salir';
@@ -102,6 +102,47 @@ export default function AdminLocal() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  const exportar = async () => {
+    if (!haySupabase || !local) return;
+    setOcupado(true);
+    try {
+      const sb = supabase!;
+      const [b, cli, lla, ser, cit, vis, rec] = await Promise.all([
+        sb.from('barberias').select('*').eq('id', local.id).single(),
+        sb.from('clientes').select('*').eq('barberia_id', local.id),
+        sb.from('llaveros').select('*').eq('barberia_id', local.id),
+        sb.from('servicios').select('*').eq('barberia_id', local.id),
+        sb.from('citas').select('*').eq('barberia_id', local.id),
+        sb.from('visitas').select('*').eq('barberia_id', local.id),
+        sb.from('recompensas').select('*').eq('barberia_id', local.id),
+      ]);
+
+      const datos = {
+        exportado_en: new Date().toISOString(),
+        barberia: b.data,
+        clientes: cli.data ?? [],
+        llaveros: lla.data ?? [],
+        servicios: ser.data ?? [],
+        citas: cit.data ?? [],
+        visitas: vis.data ?? [],
+        recompensas: rec.data ?? [],
+      };
+
+      const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `julex-${local.slug}-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Datos del local exportados', 'ok');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo exportar', 'aviso');
+    } finally {
+      setOcupado(false);
+    }
+  };
 
   const accionCobro = async (funcion: string, args: Record<string, unknown>) => {
     if (!haySupabase || !local) return;
@@ -481,6 +522,20 @@ export default function AdminLocal() {
               </div>
             </div>
           )}
+        </section>
+
+        <Rule className="my-6" />
+
+        {/* DATOS */}
+        <section>
+          <Eyebrow>Datos</Eyebrow>
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+            Copia completa en JSON: el local, sus clientes, llaveros, servicios, citas, visitas y
+            recompensas. Solo la descarga el administrador.
+          </p>
+          <Btn v="outline" t="md" className="mt-2.5" onClick={() => void exportar()} disabled={ocupado}>
+            <Download size={13} /> Exportar los datos del local
+          </Btn>
         </section>
 
         <Rule className="my-6" />
