@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Copy, Nfc, Plus, Search, Store } from 'lucide-react';
 import { haySupabase, supabase } from '../lib/supabase';
 import { useDb } from '../lib/store';
-import { fmtEuros, fmtFechaCorta } from '../lib/format';
+import { fmtEuros, fmtFechaCorta, normaliza } from '../lib/format';
 import {
   Btn,
   Eyebrow,
@@ -18,6 +18,14 @@ import {
 } from '../components/ui';
 
 const CUOTA_MINIMA = 15;
+
+/** «Barbería Centro» → barberia-centro (sin acentos). */
+function slugDe(texto: string): string {
+  return normaliza(texto)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
 
 interface LlaveroAdmin {
   id: string;
@@ -194,7 +202,7 @@ export default function Admin() {
     try {
       const { data, error } = await supabase!.rpc('crear_local_admin', {
         p_nombre: form.nombre.trim(),
-        p_slug: form.nombre.trim(),
+        p_slug: slugDe(form.nombre),
         p_email: form.email.trim(),
         p_password: form.password,
         p_color: form.color,
