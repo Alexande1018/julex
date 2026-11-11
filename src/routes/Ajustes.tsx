@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, Circle, Download, LogOut, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useDb } from '../lib/store';
 import {
@@ -15,7 +15,7 @@ import {
 import { barberiaActiva, cuotaMensual, resumenLlaveros, sillasDe } from '../lib/derive';
 import { fmtEuros } from '../lib/format';
 import { Shell } from '../components/Shell';
-import { haySupabase } from '../lib/supabase';
+import { haySupabase, supabase } from '../lib/supabase';
 import { subirLogo } from '../lib/repo';
 import { Logotipo } from '../components/Logotipo';
 import { imagenAWebp, imagenAWebpBlob } from '../lib/imagen';
@@ -53,9 +53,15 @@ export default function Ajustes() {
   const inputLogo = useRef<HTMLInputElement>(null);
   const [reset, setReset] = useState(false);
   const [salirConfirm, setSalirConfirm] = useState(false);
+  const [esAdmin, setEsAdmin] = useState(false);
 
   const llaveros = resumenLlaveros(db, barberia.id);
   const cuota = cuotaMensual(db, barberia.id);
+  useEffect(() => {
+    if (!haySupabase || !supabase) return;
+    void supabase.rpc('soy_admin').then(({ data }) => setEsAdmin(data === true));
+  }, []);
+
   const servicios = db.servicios.filter((s) => s.barberiaId === barberia.id);
   const sillas = sillasDe(db, barberia.id);
 
@@ -420,6 +426,29 @@ export default function Ajustes() {
           un servicio externo de pago.
         </p>
       </section>
+
+      <Rule className="my-6" />
+
+      {esAdmin && (
+        <>
+          <Rule className="my-6" />
+          <section>
+            <Eyebrow>Administración</Eyebrow>
+            <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+              Esta cuenta es de administrador: gestiona todos los locales, sus llaveros y sus accesos.
+            </p>
+            <Link
+              to="/admin"
+              className={cn(
+                btnClases('outline', 'md'),
+                'mt-2.5 inline-flex w-full items-center justify-center gap-1.5',
+              )}
+            >
+              Abrir panel de administrador
+            </Link>
+          </section>
+        </>
+      )}
 
       <Rule className="my-6" />
 

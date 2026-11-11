@@ -16,6 +16,7 @@ import Tarjeta from './routes/Tarjeta';
 import Cita from './routes/Cita';
 import Nfc from './routes/Nfc';
 import Admin from './routes/Admin';
+import AdminLocal from './routes/AdminLocal';
 import Legal from './routes/Legal';
 import NoEncontrado from './routes/NoEncontrado';
 
@@ -119,6 +120,7 @@ export default function App() {
         <Route path="/cita/:slug" element={<Cita />} />
 
         <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/local/:id" element={<AdminLocal />} />
         <Route path="/legal" element={<Legal />} />
         <Route path="*" element={<NoEncontrado />} />
       </Routes>
