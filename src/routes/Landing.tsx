@@ -75,11 +75,6 @@ export default function Landing() {
                 </Link>
               )}
             </div>
-
-            <p className="mt-5 flex items-center gap-3 text-[11px] leading-relaxed text-faint">
-              <span aria-hidden className="h-px w-7 bg-line" />
-              30 € el alta con 15 llaveros · 15 €/mes · sin permanencia
-            </p>
           </div>
 
           <figure className="mt-9 lg:mt-0">
