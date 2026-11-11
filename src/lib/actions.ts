@@ -528,7 +528,7 @@ export async function crearCita(input: {
     clienteId: input.clienteId,
     servicioId: input.servicioId,
     inicio: input.inicio,
-    estado: 'pendiente',
+    estado: 'confirmada',
     origen: input.origen,
     nota: input.nota ?? '',
     sillaId: silla?.id ?? null,

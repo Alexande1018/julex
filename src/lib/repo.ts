@@ -342,7 +342,7 @@ export async function insertarCita(datos: {
       inicio: datos.inicio,
       origen: datos.origen,
       nota: datos.nota ?? '',
-      estado: 'pendiente',
+      estado: 'confirmada',
       silla_id: datos.sillaId ?? null,
     })
     .select('id')

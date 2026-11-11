@@ -232,6 +232,34 @@ export default function Tarjeta() {
           <p className="mt-1 text-[13px] text-muted">Qué bueno verte por aquí.</p>
         </section>
 
+        {/* EN LA COLA */}
+        {ficha.cola && (
+          <section className="mt-5">
+            {ficha.cola.estado === 'sillon' ? (
+              <div className="rounded-[4px] bg-ink px-4 py-4 text-ivory">
+                <p className="text-[9.5px] font-bold uppercase tracking-[0.18em] text-ivory/50">
+                  Ya es tu turno
+                </p>
+                <p className="display mt-1.5 text-[26px] leading-none">
+                  Pasa a {ficha.cola.silla ?? 'la silla'}.
+                </p>
+                <p className="mt-2 text-[12px] leading-relaxed text-ivory/60">
+                  El barbero te está esperando. El tiempo corre desde que te llamó.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-[4px] border border-line bg-paper px-4 py-3.5">
+                <p className="text-[9.5px] font-bold uppercase tracking-[0.18em] text-faint">
+                  Estás en la cola
+                </p>
+                <p className="mt-1 text-[13px] text-ink-soft">
+                  En cuanto se libere una silla, esta pantalla te dirá cuál es la tuya.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* PRÓXIMA CITA */}
         <section className="mt-6">
           <Eyebrow>Tu próxima cita</Eyebrow>

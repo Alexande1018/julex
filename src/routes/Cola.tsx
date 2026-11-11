@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Clock, Plus } from 'lucide-react';
 import { useDb } from '../lib/store';
@@ -62,6 +62,57 @@ export default function Cola() {
   const sillón = sillaActual ? enSilla(sillaActual.id) : cola.sillon;
   const clienteSillon = sillón ? clienteDe(db, sillón.clienteId) : undefined;
   const servicioSillon = sillón ? servicioDe(db, sillón.servicioId) : undefined;
+
+  /* ------------------- reparto automático de sillas ------------------- */
+  const colaRef = useRef(cola);
+  colaRef.current = cola;
+  const temporizadores = useRef<Record<string, number>>({});
+  const [avisos, setAvisos] = useState<Record<string, number>>({});
+
+  const parar = (sillaId: string) => {
+    const t = temporizadores.current[sillaId];
+    if (t) window.clearInterval(t);
+    delete temporizadores.current[sillaId];
+    setAvisos((a) => {
+      const { [sillaId]: _, ...resto } = a;
+      return resto;
+    });
+  };
+
+  /** Diez segundos y la silla pasa al siguiente de la cola. */
+  const programar = (sillaId: string) => {
+    if (temporizadores.current[sillaId]) return;
+    let restante = 10;
+    setAvisos((a) => ({ ...a, [sillaId]: restante }));
+    temporizadores.current[sillaId] = window.setInterval(() => {
+      const c = colaRef.current;
+      const ocupada = c.sillones.some((q) => q.sillaId === sillaId);
+      if (ocupada || c.esperando.length === 0) {
+        parar(sillaId);
+        return;
+      }
+      restante -= 1;
+      if (restante <= 0) {
+        const siguiente = c.esperando[0];
+        parar(sillaId);
+        void pasarASillon(siguiente.id, sillaId);
+        return;
+      }
+      setAvisos((a) => ({ ...a, [sillaId]: restante }));
+    }, 1000);
+  };
+
+  // Una silla libre con gente esperando arranca su cuenta atrás sola.
+  useEffect(() => {
+    for (const silla of sillas) {
+      const ocupada = cola.sillones.some((q) => q.sillaId === silla.id);
+      if (!ocupada && cola.esperando.length > 0) programar(silla.id);
+    }
+  }, [cola.sillones, cola.esperando, sillas]);
+
+  useEffect(() => () => {
+    for (const t of Object.values(temporizadores.current)) window.clearInterval(t);
+  }, []);
 
   const terminar = async () => {
     if (!sillón || !clienteSillon) return;
@@ -177,36 +228,28 @@ export default function Cola() {
             >
               Terminar
             </Btn>
-
-            {sillas.length > 1 && (
-              <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-ivory/35">
-                  Mover a
-                </span>
-                {sillas
-                  .filter((x) => x.id !== sillaActual?.id && !ocupada(x.id))
-                  .map((x) => (
-                    <button
-                      key={x.id}
-                      onClick={() => void cambiarSilla(sillón.id, x.id)}
-                      className="rounded-[3px] border border-ivory/25 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-ivory/80 transition-colors hover:border-ivory/60 hover:text-ivory"
-                    >
-                      {x.nombre}
-                    </button>
-                  ))}
-                {sillas.filter((x) => x.id !== sillaActual?.id && !ocupada(x.id)).length === 0 && (
-                  <span className="text-[10px] text-ivory/40">no queda otra libre</span>
-                )}
-              </div>
-            )}
           </div>
         </section>
       ) : cola.esperando.length > 0 ? (
         <div className="mt-4 rounded-[4px] border border-dashed border-line px-4 py-6 text-center">
-          <p className="font-serif text-[16px] text-ink">El sillón está libre</p>
-          <p className="mx-auto mt-1.5 max-w-[36ch] text-[12px] leading-relaxed text-muted">
-            Pasa al siguiente cuando estés listo.
-          </p>
+          {sillaActual && avisos[sillaActual.id] > 0 ? (
+            <>
+              <p className="font-serif text-[16px] text-ink">
+                Entra {cola.esperando[0] ? clienteDe(db, cola.esperando[0].clienteId)?.nombre : 'el siguiente'} en{' '}
+                {avisos[sillaActual.id]} s
+              </p>
+              <p className="mx-auto mt-1.5 max-w-[36ch] text-[12px] leading-relaxed text-muted">
+                {sillaActual.nombre} se asigna sola. No hay que tocar nada.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-serif text-[16px] text-ink">Silla libre</p>
+              <p className="mx-auto mt-1.5 max-w-[36ch] text-[12px] leading-relaxed text-muted">
+                Cuando llegue alguien, entra solo en diez segundos.
+              </p>
+            </>
+          )}
         </div>
       ) : null}
 
@@ -272,18 +315,7 @@ export default function Cola() {
                       </span>
                     </Link>
 
-                    {primero && !sillón ? (
-                      <button
-                        className={btnClases(
-                          'primary',
-                          'sm',
-                          'shrink-0 px-3 text-[10px] uppercase tracking-[0.12em]',
-                        )}
-                        onClick={() => void pasarASillon(q.id, sillaActual?.id)}
-                      >
-                        {sillas.length > 1 && sillaActual ? `A ${sillaActual.nombre}` : 'Siguiente'}
-                      </button>
-                    ) : !primero ? (
+                    {!primero ? (
                       <button
                         onClick={() => setNoVino(q.id)}
                         className="shrink-0 text-[10.5px] font-medium text-faint underline decoration-line underline-offset-4 transition-colors hover:text-clay"

@@ -42,6 +42,8 @@ export interface FichaPublica {
   } | null;
   visitas: { fecha: string; precio: number; servicio: string }[];
   servicios: ServicioPublico[];
+  /** Si está en la cola: en qué silla y desde cuándo. */
+  cola: { estado: 'esperando' | 'sillon'; silla: string | null; desde: string | null } | null;
 }
 
 export interface ServicioPublico {
@@ -136,6 +138,17 @@ export function fichaLocal(token: string): FichaPublica | null {
     servicios: db.servicios
       .filter((x) => x.barberiaId === b.id && x.activo)
       .map((x) => ({ id: x.id, nombre: x.nombre, precio: x.precio, minutos: x.minutos })),
+    cola: (() => {
+      const enCola = db.cola.find(
+        (q) => q.clienteId === c.id && (q.estado === 'esperando' || q.estado === 'sillon'),
+      );
+      if (!enCola) return null;
+      return {
+        estado: enCola.estado as 'esperando' | 'sillon',
+        silla: db.sillas?.find((x) => x.id === enCola.sillaId)?.nombre ?? null,
+        desde: enCola.inicioEn,
+      };
+    })(),
   };
 }
 
@@ -202,6 +215,13 @@ export async function cargarFicha(token: string): Promise<FichaPublica | null> {
       precio: Number(x.precio ?? 0),
       minutos: Number(x.minutos ?? 30),
     })),
+    cola: r.cola
+      ? {
+          estado: String(r.cola.estado) as 'esperando' | 'sillon',
+          silla: r.cola.silla ? String(r.cola.silla) : null,
+          desde: r.cola.desde ? String(r.cola.desde) : null,
+        }
+      : null,
   };
 }
 
