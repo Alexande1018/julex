@@ -68,7 +68,22 @@ try {
   ok(page.url().includes('/barbero/cola'), 'Tras entrar se vuelve a la cola');
   ok(await visible(page.getByText('La cola')), 'La cola se pinta');
 
-  /* 2b. Ajustes: el QR de reservas del local */
+  /* 2b. El tipo de negocio cambia el vocabulario, no los datos */
+  await page.goto(`${BASE}/barbero/ajustes`, { waitUntil: 'networkidle' });
+  const selectorTipo = page.locator('select').filter({ hasText: 'Salón de uñas' }).first();
+  await selectorTipo.selectOption('unas');
+  ok(
+    await visible(page.getByRole('button', { name: 'Citas', exact: true }).first()),
+    'Con «salón de uñas» la pestaña pasa a Citas',
+  );
+  await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
+  ok(await visible(page.getByRole('heading', { name: 'Citas' })), 'Y la pantalla se llama Citas');
+  await page.goto(`${BASE}/barbero/ajustes`, { waitUntil: 'networkidle' });
+  await page.locator('select').filter({ hasText: 'Salón de uñas' }).first().selectOption('barberia');
+  await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
+  ok(await visible(page.getByText('La cola')), 'Y vuelve a ser una barbería');
+
+  /* 2c. Ajustes: el QR de reservas del local */
   await page.goto(`${BASE}/barbero/ajustes`, { waitUntil: 'networkidle' });
   ok(await visible(page.getByText('QR de reservas')), 'Ajustes trae el QR de reservas');
   ok(

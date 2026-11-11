@@ -13,6 +13,7 @@ import {
   type ResultadoFicha,
 } from '../lib/publico';
 import { Candado } from '../components/Candado';
+import { vocabulario } from '../lib/vocabulario';
 import {
   etiquetaDia,
   fmtFechaCorta,
@@ -123,6 +124,7 @@ export default function Tarjeta() {
     );
   }
 
+  const v = vocabulario(ficha.local.tipo);
   const cliente = ficha.cliente;
   const barberia = ficha.local;
   const citas = ficha.proxima;
@@ -290,7 +292,7 @@ export default function Tarjeta() {
           <div className="mt-6 flex items-end justify-between">
             <div>
               <p className="text-[11px] text-ivory/70">Socio desde {fmtFechaCorta(cliente.creadoEn)}</p>
-              <p className="num mt-1 font-serif text-[15px] text-ivory/90">{cortes} cortes</p>
+              <p className="num mt-1 font-serif text-[15px] text-ivory/90">{cortes} {v.serviciosMin}</p>
             </div>
             <div className="text-right">
               <p className="num font-serif text-[30px] leading-none text-ivory">{fidelidad.enCiclo}</p>
@@ -387,7 +389,7 @@ export default function Tarjeta() {
             <div className="flex items-end justify-between">
               <div>
                 <p className="num font-serif text-[34px] leading-none text-ink">{cortes}</p>
-                <p className="eyebrow mt-1.5">cortes en total</p>
+                <p className="eyebrow mt-1.5">{v.serviciosMin} en total</p>
               </div>
               {fidelidad.disponibles > 0 ? (
                 <Pill tono="brand">1 corte gratis</Pill>
@@ -395,7 +397,7 @@ export default function Tarjeta() {
                 <p className="max-w-[16ch] text-right text-[11px] leading-snug text-muted">
                   {fidelidad.faltan === 1
                     ? 'Te falta 1 corte para el siguiente gratis.'
-                    : `Te faltan ${fidelidad.faltan} cortes para el siguiente gratis.`}
+                    : `Te faltan ${fidelidad.faltan} ${v.serviciosMin} para el siguiente gratis.`}
                 </p>
               )}
             </div>
@@ -406,7 +408,7 @@ export default function Tarjeta() {
 
             <div className="mt-3 flex items-center justify-between border-t border-line-soft pt-2.5">
               <span className="text-[10.5px] text-faint">
-                {fidelidad.aplicadas} cortes gratis disfrutados
+                {fidelidad.aplicadas} {v.serviciosMin} gratis disfrutados
               </span>
               <span className="num text-[10.5px] font-semibold text-ink-soft">
                 {fidelidad.enCiclo}/{fidelidad.meta}

@@ -12,6 +12,7 @@ import {
   posicionEnCola,
   ultimaVisita,
 } from '../lib/derive';
+import { vocabulario } from '../lib/vocabulario';
 import { buscarTexto, fmtFechaCorta, haceCuanto, ultimaVisitaTexto } from '../lib/format';
 import {
   Avatar,
@@ -36,6 +37,7 @@ export default function Nfc() {
   const llavero = token ? llaveroPorToken(db, token) : undefined;
   const barberia = llavero ? db.barberias.find((b) => b.id === llavero.barberiaId) : undefined;
   const cliente = llavero?.clienteId ? clienteDe(db, llavero.clienteId) : undefined;
+  const v = vocabulario(barberia?.tipo);
 
   /**
    * Sin sesión, este enlace no es del barbero: es el móvil del propio cliente.
@@ -274,7 +276,7 @@ export default function Nfc() {
           <div className="mt-4 flex items-center gap-3">
             <div>
               <p className="num font-serif text-[21px] leading-none text-ivory">{fidelidad.cortes}</p>
-              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-ivory/45">cortes</p>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-ivory/45">{v.serviciosMin}</p>
             </div>
             <span className="h-7 w-px bg-ivory/20" />
             <div>
@@ -301,7 +303,7 @@ export default function Nfc() {
       <div className="mx-auto w-full max-w-md px-5 pb-12 pt-6">
         {/* CÓMO CORTA */}
         <section>
-          <Eyebrow>Cómo corta</Eyebrow>
+          <Eyebrow>{v.comoAtiende}</Eyebrow>
           <p className="mt-2 border-l-2 border-[var(--brand)] pl-3.5 font-serif text-[16px] italic leading-[1.55] text-ink">
             {cliente.comoCorta || 'Sin notas todavía. Pregúntale y apúntalo después.'}
           </p>
@@ -326,7 +328,7 @@ export default function Nfc() {
         {/* ESTADO */}
         {enSillon ? (
           <div className="rounded-[4px] border border-line bg-paper px-4 py-3">
-            <Pill tono="brand">En el sillón</Pill>
+            <Pill tono="brand">{v.enPuesto}</Pill>
             <p className="mt-2 text-[12px] text-ink-soft">
               Empezó a las {haceCuanto(cola.sillon!.inicioEn ?? cola.sillon!.llegadaEn).replace('hace ', 'hace ')}.
             </p>

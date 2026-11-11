@@ -552,6 +552,47 @@ async function main() {
   );
   ok(permiso.rows[0].p === true, 'El público anónimo puede llamarla');
 
+  /* ------------------------------------------------------------------ */
+  /* El tipo de negocio                                                 */
+  /* ------------------------------------------------------------------ */
+
+  const tipoPaco = await db.query(`select tipo from barberias where slug = 'barberia-paco'`);
+  ok(tipoPaco.rows[0].tipo === 'barberia', 'Sin decir el tipo, el local nace barbería');
+
+  const dueno3 = '33333333-3333-3333-3333-333333333333';
+  await db.query(`insert into auth.users (id) values ($1)`, [dueno3]);
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno3]);
+
+  const unas = await db.query(`select crear_local('Salón Luna', 'salon-luna', null, 'unas') as id`);
+  const salonId = unas.rows[0].id;
+  const semilla = await db.query(
+    `select
+       (select tipo from barberias where id = $1) as tipo,
+       (select nombre from sillas where barberia_id = $1 order by orden limit 1) as puesto,
+       (select string_agg(nombre, ' · ' order by orden) from servicios where barberia_id = $1) as servicios`,
+    [salonId],
+  );
+  const sem = semilla.rows[0];
+  ok(sem.tipo === 'unas', 'El local nace con el tipo elegido');
+  ok(sem.puesto === 'Mesa 1', 'Y su primer puesto se llama Mesa', sem.puesto);
+  ok(
+    /Manicura/.test(sem.servicios) && !/Corte \+ barba/.test(sem.servicios),
+    'Los servicios de partida son los del sector',
+    sem.servicios,
+  );
+
+  // El administrador puede cambiarlo después.
+  await db.query(`insert into admins (user_id) values ($1)`, [dueno]);
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+  const cambiado = await db.query(`select cambiar_tipo_local($1, 'tatuaje') as ok`, [salonId]);
+  const tipoNuevo = await db.query(`select tipo from barberias where id = $1`, [salonId]);
+  ok(cambiado.rows[0].ok === true && tipoNuevo.rows[0].tipo === 'tatuaje',
+     'El administrador cambia el tipo de un local');
+
+  // Y el público lo ve.
+  const publico = await db.query(`select local_publico('salon-luna') as l`);
+  ok(publico.rows[0].l?.tipo === 'tatuaje', 'El tipo sale en el local público');
+
   await db.close();
 }
 

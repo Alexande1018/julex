@@ -5,6 +5,8 @@ import { haySupabase, supabase } from '../lib/supabase';
 import { fmtEuros } from '../lib/format';
 import { Salir } from '../components/Salir';
 import { CodigoQr } from '../components/CodigoQr';
+import { TIPOS, vocabulario } from '../lib/vocabulario';
+import type { TipoNegocio } from '../lib/types';
 import {
   Btn,
   Eyebrow,
@@ -35,6 +37,7 @@ interface CuentaLocal {
   barbero_id: string | null;
   email: string | null;
   activo: boolean;
+  tipo: TipoNegocio;
 }
 
 type Filtro = 'todos' | 'activos' | 'libres' | 'retirados';
@@ -86,6 +89,24 @@ export default function AdminLocal() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  const cambiarTipo = async (tipo: TipoNegocio) => {
+    if (!haySupabase || !local) return;
+    setOcupado(true);
+    try {
+      const { error } = await supabase!.rpc('cambiar_tipo_local', {
+        p_barberia: local.id,
+        p_tipo: tipo,
+      });
+      if (error) throw error;
+      setLocal({ ...local, tipo });
+      toast(`Ahora es ${vocabulario(tipo).etiqueta}`, 'ok');
+    } catch {
+      toast('No se pudo cambiar el tipo', 'aviso');
+    } finally {
+      setOcupado(false);
+    }
+  };
 
   const activos = llaveros.filter((l) => l.estado === 'activo');
   const libres = llaveros.filter((l) => l.estado === 'sin_asignar');
@@ -196,7 +217,9 @@ export default function AdminLocal() {
             <Salir a="/" tono="oscuro" />
           </div>
           <h1 className="mt-4 font-serif text-[25px] leading-tight text-ivory">{local.nombre}</h1>
-          <p className="mt-1 text-[11.5px] text-ivory/50">/{local.slug}</p>
+          <p className="mt-1 text-[11.5px] text-ivory/50">
+            /{local.slug} · {vocabulario(local.tipo).etiqueta}
+          </p>
         </div>
       </header>
 
@@ -205,6 +228,29 @@ export default function AdminLocal() {
           <Stat valor={clientes} etiqueta="Clientes" />
           <Stat valor={activos.length} etiqueta="Activos" nota={`de ${llaveros.length}`} />
           <Stat valor={fmtEuros(cuota)} etiqueta="Cuota" />
+        </section>
+
+        <Rule className="my-6" />
+
+        {/* TIPO DE NEGOCIO */}
+        <section>
+          <Eyebrow>Tipo de negocio</Eyebrow>
+          <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
+            Cambia el vocabulario del local —la cola, los puestos, la ficha— y los valores con los que
+            nació. No toca sus servicios ni sus datos.
+          </p>
+          <select
+            value={local.tipo}
+            disabled={ocupado}
+            onChange={(e) => void cambiarTipo(e.target.value as TipoNegocio)}
+            className={`${inputClases} mt-2`}
+          >
+            {TIPOS.map((t) => (
+              <option key={t.tipo} value={t.tipo}>
+                {t.etiqueta} — {t.pista}
+              </option>
+            ))}
+          </select>
         </section>
 
         <Rule className="my-6" />

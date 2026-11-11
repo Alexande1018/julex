@@ -25,6 +25,7 @@ import {
 import { estadoPin, quitarPinComoBarbero } from '../lib/publico';
 import { fmtFechaCorta, fmtDuracion, fmtEuros, fmtHora, telefonoBonito, ultimaVisitaTexto } from '../lib/format';
 import { Shell } from '../components/Shell';
+import { vocabulario } from '../lib/vocabulario';
 import { Sellos } from '../components/Timer';
 import {
   Avatar,
@@ -46,6 +47,7 @@ export default function Ficha() {
   const navegar = useNavigate();
   const loc = useLocation();
   const barberia = barberiaActiva(db);
+  const v = vocabulario(barberia.tipo);
 
   const [editCorta, setEditCorta] = useState(false);
   const [editNotas, setEditNotas] = useState(false);
@@ -112,7 +114,7 @@ export default function Ficha() {
   const guardarCorta = () => {
     actualizarCliente(cliente.id, { comoCorta: corta.trim() });
     setEditCorta(false);
-    toast('Cómo corta guardado', 'ok');
+    toast(`${v.comoAtiende} guardado`, 'ok');
   };
 
   const guardarNotas = () => {
@@ -126,7 +128,7 @@ export default function Ficha() {
     const r = await atender(enSillon.id, enSillon.servicioId);
     if (!r) return;
     if (r.recompensaGanada) setPremio(true);
-    else toast(`${cliente.nombre}: ${r.cortesTotales} cortes registrados`, 'ok');
+    else toast(`${cliente.nombre}: ${r.cortesTotales} ${v.serviciosMin} registrados`, 'ok');
   };
 
   const anadir = () => {
@@ -168,7 +170,7 @@ export default function Ficha() {
               <span className="num text-[10px] font-bold uppercase tracking-[0.12em] text-faint">
                 {cliente.codigo}
               </span>
-              {enSillon && <Pill tono="brand">En sillón</Pill>}
+              {enSillon && <Pill tono="brand">{v.enPuesto}</Pill>}
               {enEspera && <Pill tono="warn">Esperando · {cola.esperando.indexOf(enEspera) + 1}º</Pill>}
               {llavero ? <Pill tono="ok">Llavero</Pill> : <Pill>Sin llavero</Pill>}
             </div>
@@ -195,7 +197,7 @@ export default function Ficha() {
       {/* CÓMO CORTA: el corazón de la ficha */}
       <section className="mt-6">
         <div className="flex items-baseline justify-between">
-          <Eyebrow>Cómo corta</Eyebrow>
+          <Eyebrow>{v.comoAtiende}</Eyebrow>
           {!editCorta && (
             <button
               onClick={() => setEditCorta(true)}
@@ -248,7 +250,7 @@ export default function Ficha() {
       <section className="mt-6 grid grid-cols-3 gap-3">
         <div>
           <p className="num font-serif text-[21px] leading-none text-ink">{fidelidad.cortes}</p>
-          <p className="eyebrow mt-1.5">Cortes</p>
+          <p className="eyebrow mt-1.5">{v.servicios}</p>
         </div>
         <div className="border-l border-line-soft pl-3">
           <p className="font-serif text-[15px] leading-tight text-ink">{ultimaVisitaTexto(ultima)}</p>
@@ -484,10 +486,10 @@ export default function Ficha() {
             disabled={otroEnSillon}
             onClick={() => {
               pasarASillon(enEspera.id);
-              toast(`${cliente.nombre} pasa al sillón`, 'ok');
+              toast(`${cliente.nombre} pasa al ${v.puestoMin}`, 'ok');
             }}
           >
-            {otroEnSillon ? 'Sillón ocupado' : 'Pasar al sillón'}
+            {otroEnSillon ? v.puestoOcupado : v.pasarAPuesto}
           </Btn>
         ) : (
           <Btn t="lg" className="w-full" onClick={() => setNuevaCola(true)}>

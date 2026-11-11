@@ -13,6 +13,8 @@ import {
   salir,
 } from '../lib/actions';
 import { barberiaActiva, cuotaMensual, resumenLlaveros, sillasDe } from '../lib/derive';
+import { TIPOS, vocabulario } from '../lib/vocabulario';
+import type { Barberia } from '../lib/types';
 import { fmtEuros } from '../lib/format';
 import { Shell } from '../components/Shell';
 import { CodigoQr } from '../components/CodigoQr';
@@ -45,6 +47,7 @@ export default function Ajustes() {
   const db = useDb();
   const navegar = useNavigate();
   const barberia = barberiaActiva(db);
+  const v = vocabulario(barberia.tipo);
 
   const [nombre, setNombre] = useState(barberia.nombre);
   const [telefono, setTelefono] = useState(barberia.telefono);
@@ -179,6 +182,23 @@ export default function Ajustes() {
             <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputClases} />
           </Field>
 
+          <Field
+            label="Tipo de negocio"
+            hint="cambia los nombres de la app, no tus servicios"
+          >
+            <select
+              value={barberia.tipo}
+              onChange={(e) => void actualizarBarberia({ tipo: e.target.value as Barberia['tipo'] })}
+              className={inputClases}
+            >
+              {TIPOS.map((t) => (
+                <option key={t.tipo} value={t.tipo}>
+                  {t.etiqueta} — {t.pista}
+                </option>
+              ))}
+            </select>
+          </Field>
+
           <Field label="Teléfono" hint="opcional">
             <input
               value={telefono}
@@ -222,7 +242,7 @@ export default function Ajustes() {
             </div>
           </div>
 
-          <Field label="Meta de fidelización" hint="cortes por corte gratis">
+          <Field label="Meta de fidelización" hint={`${v.serviciosMin} por ${v.servicioMin} gratis`}>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -328,17 +348,17 @@ export default function Ajustes() {
 
       <Rule className="my-6" />
 
-      {/* SILLAS */}
+      {/* PUESTOS */}
       <section>
         <div className="flex items-end justify-between">
-          <Eyebrow>Sillas</Eyebrow>
+          <Eyebrow>{v.puestos}</Eyebrow>
           <span className="num text-[11px] text-faint">
             {sillas.filter((x) => x.activa).length} activas
           </span>
         </div>
         <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
-          Cada silla es un puesto de trabajo. Con más de una, el mismo tramo admite varias citas a la
-          vez y cada silla lleva su propia cuenta.
+          Cada {v.puestoMin} es un puesto de trabajo. Con más de uno, el mismo tramo admite varias
+          citas a la vez y cada {v.puestoMin} lleva su propia cuenta.
         </p>
 
         <div className="mt-2">
@@ -384,7 +404,7 @@ export default function Ajustes() {
         </div>
 
         <Btn v="outline" t="sm" className="mt-3 w-full border-dashed" onClick={() => crearSilla('')}>
-          <Plus size={13} /> Añadir silla
+          <Plus size={13} /> Añadir {v.puestoMin}
         </Btn>
         <p className="mt-2 text-[10.5px] text-faint">
           Desactivar una silla deja de ofrecer huecos en ella; su historial no se pierde.

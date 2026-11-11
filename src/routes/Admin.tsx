@@ -5,6 +5,8 @@ import { haySupabase, supabase } from '../lib/supabase';
 import { useDb } from '../lib/store';
 import { fmtEuros } from '../lib/format';
 import { Salir } from '../components/Salir';
+import { TIPOS, vocabulario } from '../lib/vocabulario';
+import type { TipoNegocio } from '../lib/types';
 import {
   Btn,
   Eyebrow,
@@ -29,6 +31,7 @@ interface LocalAdmin {
   activos: number;
   email: string | null;
   activo: boolean;
+  tipo: TipoNegocio;
 }
 
 function slugDe(texto: string): string {
@@ -47,7 +50,13 @@ export default function Admin() {
   const [locales, setLocales] = useState<LocalAdmin[] | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [nuevo, setNuevo] = useState(false);
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', color: '#3E4A35' });
+  const [form, setForm] = useState({
+    nombre: '',
+    email: '',
+    password: '',
+    color: '#3E4A35',
+    tipo: 'barberia' as TipoNegocio,
+  });
 
   const cargar = useCallback(async () => {
     if (!haySupabase) {
@@ -61,6 +70,7 @@ export default function Admin() {
           activos: db.llaveros.filter((l) => l.barberiaId === b.id && l.estado === 'activo').length,
           email: null,
           activo: true,
+          tipo: b.tipo,
         })),
       );
       return;
@@ -78,7 +88,14 @@ export default function Admin() {
       return;
     }
 
-    type FilaLocal = { id: string; nombre: string; slug: string; email: string | null; activo: boolean };
+    type FilaLocal = {
+      id: string;
+      nombre: string;
+      slug: string;
+      email: string | null;
+      activo: boolean;
+      tipo: TipoNegocio;
+    };
     setLocales(
       ((loc.data ?? []) as FilaLocal[]).map((b) => {
         const suyos = (lla.data ?? []).filter((l) => l.barberia_id === b.id);
@@ -91,6 +108,7 @@ export default function Admin() {
           activos: suyos.filter((l) => l.estado === 'activo').length,
           email: b.email,
           activo: b.activo,
+          tipo: b.tipo ?? 'barberia',
         };
       }),
     );
@@ -133,6 +151,7 @@ export default function Admin() {
         p_email: form.email.trim(),
         p_password: form.password,
         p_color: form.color,
+        p_tipo: form.tipo,
       });
       if (error) {
         const m = error.message.includes('email_en_uso')
@@ -148,7 +167,7 @@ export default function Admin() {
       const slug = (data as { slug?: string })?.slug ?? '';
       toast(`Local creado · /${slug}`, 'ok');
       setNuevo(false);
-      setForm({ nombre: '', email: '', password: '', color: '#3E4A35' });
+      setForm({ nombre: '', email: '', password: '', color: '#3E4A35', tipo: 'barberia' });
       await cargar();
     } finally {
       setOcupado(false);
@@ -222,6 +241,20 @@ export default function Admin() {
                     className={inputClases}
                   />
                 </Field>
+                <Field label="Tipo de negocio" hint="cambia el vocabulario y los servicios de partida">
+                  <select
+                    value={form.tipo}
+                    onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as TipoNegocio }))}
+                    className={inputClases}
+                  >
+                    {TIPOS.map((t) => (
+                      <option key={t.tipo} value={t.tipo}>
+                        {t.etiqueta} — {t.pista}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
                 <Field label="Color">
                   <input
                     type="color"

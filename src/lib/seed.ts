@@ -174,6 +174,7 @@ export function buildSeed(): Db {
     direccion: 'Calle Mayor 14, 28013 Madrid',
     logo: null,
     fidelidadMeta: 10,
+    tipo: 'barberia',
     altaEn: fecha(-215, 10),
   };
 

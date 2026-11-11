@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Nfc } from 'lucide-react';
 import { useDb } from '../lib/store';
+import { vocabulario } from '../lib/vocabulario';
 import { haySupabase } from '../lib/supabase';
 import { actualizarCliente, crearCliente, asignarLlavero, anadirACola } from '../lib/actions';
 import { barberiaActiva, resumenLlaveros, serviciosDe } from '../lib/derive';
@@ -229,7 +230,7 @@ export default function Alta() {
             />
           </Field>
 
-          <Field label="Cómo corta" requerido hint="lo que no quieres volver a preguntar">
+          <Field label={vocabulario(barberia?.tipo).comoAtiende} requerido hint="lo que no quieres volver a preguntar">
             <textarea
               value={comoCorta}
               onChange={(e) => setComoCorta(e.target.value)}

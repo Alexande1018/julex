@@ -12,6 +12,9 @@ export interface Servicio {
   orden?: number;
 }
 
+/** Sector del local. Cambia el vocabulario de la app, no el modelo. */
+export type TipoNegocio = 'barberia' | 'peluqueria' | 'unas' | 'tatuaje';
+
 export interface Barberia {
   id: ID;
   nombre: string;
@@ -22,6 +25,8 @@ export interface Barberia {
   /** Data URL del logo (se guarda en el navegador, ya reducido). */
   logo: string | null;
   fidelidadMeta: number;
+  /** Barbería, peluquería, salón de uñas o estudio de tatuaje. */
+  tipo: TipoNegocio;
   altaEn: Iso;
 }
 

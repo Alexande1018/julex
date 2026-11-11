@@ -9,7 +9,7 @@ import { supabase, haySupabase } from './supabase';
 import { store } from './store';
 import { actualizarCliente, cambiarEstadoCita } from './actions';
 import { servicioDe } from './derive';
-import type { Consentimientos, EstadoCita } from './types';
+import type { Consentimientos, EstadoCita, TipoNegocio } from './types';
 
 export interface FichaPublica {
   estado: 'abierta';
@@ -21,6 +21,7 @@ export interface FichaPublica {
     telefono: string;
     logo: string | null;
     fidelidadMeta: number;
+    tipo: TipoNegocio;
   };
   cliente: {
     nombre: string;
@@ -90,6 +91,7 @@ export interface LocalPublico {
   nombre: string;
   slug: string;
   color: string;
+  tipo: TipoNegocio;
   direccion: string;
   telefono: string;
   logo: string | null;
@@ -146,6 +148,7 @@ export function fichaLocal(token: string, pin: string | null = null): ResultadoF
       telefono: b.telefono,
       logo: b.logo,
       fidelidadMeta: meta,
+      tipo: b.tipo,
     },
     cliente: {
       nombre: c.nombre,
@@ -225,6 +228,7 @@ export async function cargarFicha(
       telefono: String(r.local?.telefono ?? ''),
       logo: r.local?.logo_url ? String(r.local.logo_url) : null,
       fidelidadMeta: meta,
+      tipo: (String(r.local?.tipo ?? 'barberia') as TipoNegocio),
     },
     cliente: {
       nombre: String(r.cliente?.nombre ?? ''),
@@ -440,6 +444,7 @@ export async function cargarLocal(slug: string): Promise<LocalPublico | null> {
       telefono: b.telefono,
       logo: b.logo,
       fidelidadMeta: b.fidelidadMeta,
+      tipo: b.tipo,
       servicios: db.servicios
         .filter((s) => s.barberiaId === b.id && s.activo)
         .map((s) => ({ id: s.id, nombre: s.nombre, precio: s.precio, minutos: s.minutos })),
@@ -460,6 +465,7 @@ export async function cargarLocal(slug: string): Promise<LocalPublico | null> {
     telefono: String(r.telefono ?? ''),
     logo: r.logo_url ? String(r.logo_url) : null,
     fidelidadMeta: Number(r.fidelidad_meta ?? 10),
+    tipo: String(r.tipo ?? 'barberia') as TipoNegocio,
     servicios: (r.servicios ?? []).map((x: Record<string, any>) => ({
       id: String(x.id),
       nombre: String(x.nombre),

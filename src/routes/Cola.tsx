@@ -20,6 +20,7 @@ import {
 } from '../lib/derive';
 import { fmtFecha, fmtHora, fmtDuracion, haceCuanto } from '../lib/format';
 import { Shell } from '../components/Shell';
+import { vocabulario } from '../lib/vocabulario';
 import { Foto } from '../components/Foto';
 import { Cronometro } from '../components/Timer';
 import {
@@ -38,6 +39,7 @@ export default function Cola() {
   const db = useDb();
   const navegar = useNavigate();
   const barberia = barberiaActiva(db);
+  const v = vocabulario(barberia.tipo);
   const cola = colaDelDia(db, barberia.id);
 
   const [noVino, setNoVino] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export default function Cola() {
     if (r.recompensaGanada) {
       setPremio({ clienteId: clienteSillon.id, nombre: clienteSillon.nombre, resultado: r });
     } else {
-      toast(`${clienteSillon.nombre}: ${r.cortesTotales} cortes registrados`, 'ok');
+      toast(`${clienteSillon.nombre}: ${r.cortesTotales} ${v.serviciosMin} registrados`, 'ok');
     }
   };
 
@@ -134,7 +136,7 @@ export default function Cola() {
               {new Date()
                 .toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
             </Eyebrow>
-            <h1 className="display mt-2 text-[32px] leading-none text-ink">La cola</h1>
+            <h1 className="display mt-2 text-[32px] leading-none text-ink">{v.cola}</h1>
             <p className="mt-2 hidden text-[12px] text-muted lg:block">
               {cola.esperando.length === 0
                 ? 'Nadie esperando ahora mismo'
@@ -187,7 +189,7 @@ export default function Cola() {
         <section className="mt-4 overflow-hidden rounded-[4px] bg-ink text-ivory">
           <div className="flex items-center justify-between border-b border-ivory/12 px-4 py-2.5">
             <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-ivory/55">
-              {sillaActual ? sillaActual.nombre : 'En sillón'}
+              {sillaActual ? sillaActual.nombre : v.enPuesto}
             </span>
             <span className="num text-[11.5px] text-ivory/60">
               desde las {fmtHora(sillón.inicioEn ?? sillón.llegadaEn)}
@@ -438,7 +440,7 @@ export default function Cola() {
         titulo="Corte gratis conseguido"
         descripcion={
           premio
-            ? `${premio.nombre} ha llegado a ${premio.resultado.cortesTotales} cortes. Es el momento de decírselo.`
+            ? `${premio.nombre} ha llegado a ${premio.resultado.cortesTotales} ${v.serviciosMin}. Es el momento de decírselo.`
             : ''
         }
         pie={
@@ -479,7 +481,7 @@ export default function Cola() {
                 <span className="num text-[12.5px] text-ink">{premio.resultado.servicio}</span>
               </div>
               <div className="mt-2 flex items-baseline justify-between">
-                <span className="eyebrow">Cortes totales</span>
+                <span className="eyebrow">{v.servicios} totales</span>
                 <span className="num text-[12.5px] text-ink">{premio.resultado.cortesTotales}</span>
               </div>
               <div className="mt-2 flex items-baseline justify-between">

@@ -34,6 +34,7 @@ export function aBarberia(r: Fila): Barberia {
     direccion: s(r.direccion),
     logo: r.logo_url ? s(r.logo_url) : null,
     fidelidadMeta: n(r.fidelidad_meta, 10),
+    tipo: (s(r.tipo, 'barberia') as Barberia['tipo']) ?? 'barberia',
     altaEn: s(r.creado_en),
   };
 }

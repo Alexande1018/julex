@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Nfc, Plus, Search } from 'lucide-react';
 import { useDb } from '../lib/store';
+import { vocabulario } from '../lib/vocabulario';
 import { barberiaActiva, clientesActivos, cortesDe, llaveroDeCliente, ultimaVisita } from '../lib/derive';
 import { buscarTexto, diasDesde, ultimaVisitaTexto } from '../lib/format';
 import { Shell } from '../components/Shell';
@@ -12,6 +13,7 @@ type Filtro = 'todos' | 'activos' | 'inactivos';
 export default function Clientes() {
   const db = useDb();
   const barberia = barberiaActiva(db);
+  const v = vocabulario(barberia.tipo);
   const [q, setQ] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
 
@@ -117,7 +119,7 @@ export default function Clientes() {
                     <p className="mt-0.5 flex items-center gap-2 text-[11.5px] text-muted">
                       <span>{ultimaVisitaTexto(ultima)}</span>
                       <span className="text-faint">·</span>
-                      <span className="num">{cortesDe(db, c.id)} cortes</span>
+                      <span className="num">{cortesDe(db, c.id)} {v.serviciosMin}</span>
                     </p>
                   </div>
                   <span className="flex shrink-0 items-center gap-1.5">

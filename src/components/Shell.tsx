@@ -5,14 +5,7 @@ import type { Barberia } from '../lib/types';
 import { cn, Wordmark } from './ui';
 import { Logotipo } from './Logotipo';
 import { Salir } from './Salir';
-
-const NAV = [
-  { to: '/barbero/cola', label: 'Cola', Icon: ListOrdered },
-  { to: '/barbero/agenda', label: 'Agenda', Icon: Calendar },
-  { to: '/barbero/clientes', label: 'Clientes', Icon: Users },
-  { to: '/barbero/panel', label: 'Panel', Icon: BarChart3 },
-  { to: '/barbero/ajustes', label: 'Ajustes', Icon: Settings },
-];
+import { vocabulario } from '../lib/vocabulario';
 
 export function Shell({
   barberia,
@@ -25,6 +18,15 @@ export function Shell({
 }) {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
+  const v = vocabulario(barberia.tipo);
+
+  const NAV = [
+    { to: '/barbero/cola', label: v.navCola, Icon: ListOrdered },
+    { to: '/barbero/agenda', label: 'Agenda', Icon: Calendar },
+    { to: '/barbero/clientes', label: 'Clientes', Icon: Users },
+    { to: '/barbero/panel', label: 'Panel', Icon: BarChart3 },
+    { to: '/barbero/ajustes', label: 'Ajustes', Icon: Settings },
+  ];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);

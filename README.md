@@ -277,6 +277,32 @@ Además: `/` (portada con el simulador de llavero) y `/legal` (textos de consent
 
 ---
 
+## Tipo de negocio
+
+La entidad `barberias` es el **local**, sea del sector que sea. Cada local guarda su `tipo`, y la app
+usa ese dato para llamar a las cosas por su nombre. **El administrador lo elige al crear el local**;
+después puede cambiarlo él desde la ficha del local, o el propio local desde Ajustes.
+
+| Tipo | Pantalla | Puesto | Ficha del cliente |
+|---|---|---|---|
+| `barberia` | La cola | Sillón | Cómo corta |
+| `peluqueria` | La agenda | Puesto | Preferencias de estilo |
+| `unas` | Citas | Mesa | Diseño y preferencias |
+| `tatuaje` | Citas | Estación | Diseño y notas del proyecto |
+
+El tipo también decide **con qué nace el local**: el nombre de su primer puesto y sus tres servicios
+de partida. Una barbería arranca con Corte, Corte + barba y Niño; un salón de uñas, con Manicura,
+Pedicura y Semipermanente; un estudio de tatuaje, con tres tamaños de sesión.
+
+Lo que **no** cambia: los servicios, precios, duraciones y puestos son datos de cada local y se
+editan en Ajustes. Una peluquería puede trabajar con cola y un estudio puede renombrar sus mesas.
+El tipo solo cambia el vocabulario y los valores iniciales.
+
+Está en `barberias.tipo` (enumerado `tipo_negocio`), en `src/lib/vocabulario.ts` —el único sitio con
+las etiquetas— y en `sembrar_local()`, que siembra el puesto y los servicios de partida.
+
+---
+
 ## Qué funciona de verdad
 
 Todo esto se ejecuta, muta datos y **sobrevive a recargar** (localStorage `julex.demo.v1`):

@@ -30,6 +30,7 @@ const VACIO: Db = {
       direccion: '',
       logo: null,
       fidelidadMeta: 10,
+      tipo: 'barberia',
       altaEn: '',
     },
   ],
