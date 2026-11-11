@@ -26,6 +26,7 @@ import { estadoPin, quitarPinComoBarbero } from '../lib/publico';
 import { fmtFechaCorta, fmtDuracion, fmtEuros, fmtHora, telefonoBonito, ultimaVisitaTexto } from '../lib/format';
 import { Shell } from '../components/Shell';
 import { vocabulario } from '../lib/vocabulario';
+import { AVISO_SENSIBLE, terminoSensible } from '../lib/privacidad';
 import { Sellos } from '../components/Timer';
 import {
   Avatar,
@@ -112,12 +113,20 @@ export default function Ficha() {
   const otroEnSillon = !!cola.sillon && !enSillon;
 
   const guardarCorta = () => {
+    if (terminoSensible(corta)) {
+      toast('Quita los datos de salud: no pueden guardarse en la ficha', 'aviso');
+      return;
+    }
     actualizarCliente(cliente.id, { comoCorta: corta.trim() });
     setEditCorta(false);
     toast(`${v.comoAtiende} guardado`, 'ok');
   };
 
   const guardarNotas = () => {
+    if (terminoSensible(notas)) {
+      toast('Quita los datos de salud: no pueden guardarse en la ficha', 'aviso');
+      return;
+    }
     actualizarCliente(cliente.id, { notas: notas.trim() });
     setEditNotas(false);
     toast('Notas guardadas', 'ok');

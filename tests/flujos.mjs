@@ -73,6 +73,17 @@ try {
     'La portada enseña los cuatro oficios con su foto',
   );
 
+  /* 1c. Textos legales */
+  await page.goto(`${BASE}/legal`, { waitUntil: 'networkidle' });
+  ok(await visible(page.getByText('Aviso legal')), 'La página legal lista los documentos');
+  await page.goto(`${BASE}/aviso-legal`, { waitUntil: 'networkidle' });
+  ok(await visible(page.getByText('18508170R')), 'El aviso legal identifica al titular');
+  await page.goto(`${BASE}/local/barberia-pablo/privacidad`, { waitUntil: 'networkidle' });
+  ok(
+    await visible(page.getByRole('heading', { name: /Cómo trata Barbería Pablo tus datos/i })),
+    'Cada local tiene su página de privacidad',
+  );
+
   /* 2. Ruta protegida y acceso */
   await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
   ok(page.url().includes('/barbero/login'), 'Sin sesión, la cola redirige al acceso');
@@ -128,6 +139,7 @@ try {
   await page
     .locator('textarea[placeholder^="Degradado bajo"]')
     .fill('Degradado medio, laterales a 1. Prueba automática de la suite.');
+  await page.getByRole('checkbox', { name: /He entregado al cliente la información de privacidad/i }).check();
   await page.getByRole('button', { name: /crear cliente/i }).click();
   const creadoOk = await esperarEstado((d) => (d.clientes ?? []).some((c) => c.nombre === 'Prueba Automática'));
   ok(creadoOk && (await visible(page.getByText('ya está en la barbería'))), 'El alta confirma la creación');

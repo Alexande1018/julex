@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Nfc } from 'lucide-react';
 import { useDb } from '../lib/store';
 import { vocabulario } from '../lib/vocabulario';
+import { AVISO_SENSIBLE, terminoSensible } from '../lib/privacidad';
 import { haySupabase } from '../lib/supabase';
 import { actualizarCliente, crearCliente, asignarLlavero, anadirACola } from '../lib/actions';
 import { barberiaActiva, resumenLlaveros, serviciosDe } from '../lib/derive';
@@ -31,9 +32,12 @@ export default function Alta() {
   const [comoCorta, setComoCorta] = useState('');
   const [notas, setNotas] = useState('');
   const [preferencias, setPreferencias] = useState('');
-  const [datos, setDatos] = useState(true);
-  const [avisos, setAvisos] = useState(false);
-  const [marketing, setMarketing] = useState(false);
+  // Constancia de que se entregó la información, no un permiso: empieza sin marcar.
+  const [datos, setDatos] = useState(false);
+  const [avisos, setAvisos] = useState(true);
+  const [fidelidad, setFidelidad] = useState(false);
+  const [preferenciasCons, setPreferenciasCons] = useState(false);
+  const [promociones, setPromociones] = useState(false);
   const [creado, setCreado] = useState<string | null>(null);
   const [llaveroAsignado, setLlaveroAsignado] = useState<string | null>(null);
 
@@ -43,10 +47,15 @@ export default function Alta() {
     .slice(0, 6);
   const resumen = resumenLlaveros(db, barberia.id);
 
-  const valido = nombre.trim().length > 1 && comoCorta.trim().length > 3 && datos;
+  const valido = nombre.trim().length > 1 && datos;
+  const sensible = terminoSensible(notas) ?? terminoSensible(preferencias) ?? terminoSensible(comoCorta);
 
   const guardar = async () => {
     if (!valido) return;
+    if (sensible) {
+      toast(`Quita los datos de ${sensible}: no se pueden guardar en la ficha`, 'aviso');
+      return;
+    }
     try {
       const c = await crearCliente({
         nombre,
@@ -54,7 +63,14 @@ export default function Alta() {
         comoCorta,
         notas,
         preferencias,
-        consentimientos: { datos, avisos, marketing },
+        consentimientos: {
+          datos,
+          avisos,
+          marketing: promociones,
+          fidelidad,
+          preferencias: preferenciasCons,
+          promociones,
+        },
       });
       setCreado(c.id);
       toast('Cliente creado', 'ok');
@@ -69,9 +85,11 @@ export default function Alta() {
     setComoCorta('');
     setNotas('');
     setPreferencias('');
-    setDatos(true);
-    setAvisos(false);
-    setMarketing(false);
+    setDatos(false);
+    setAvisos(true);
+    setFidelidad(false);
+    setPreferenciasCons(false);
+    setPromociones(false);
     setCreado(null);
     setLlaveroAsignado(null);
   };
@@ -230,7 +248,7 @@ export default function Alta() {
             />
           </Field>
 
-          <Field label={vocabulario(barberia?.tipo).comoAtiende} requerido hint="lo que no quieres volver a preguntar">
+          <Field label={vocabulario(barberia?.tipo).comoAtiende} hint="lo que no quieres volver a preguntar">
             <textarea
               value={comoCorta}
               onChange={(e) => setComoCorta(e.target.value)}
@@ -238,6 +256,7 @@ export default function Alta() {
               className={cn(inputClases, 'font-serif text-[14.5px] italic leading-relaxed')}
               placeholder="Degradado bajo, laterales al 0,5, arriba con tijera. No tocar el flequillo."
             />
+            <p className="mt-1 text-[10.5px] leading-relaxed text-faint">{AVISO_SENSIBLE}</p>
           </Field>
 
           <Field label="Notas" hint="opcional">
@@ -248,6 +267,11 @@ export default function Alta() {
               className={inputClases}
               placeholder="Prefiere venir los sábados."
             />
+            {sensible && (
+              <p className="mt-1 text-[10.5px] leading-relaxed text-clay">
+                Parece que hay datos de {sensible}. Quítalos para poder guardar.
+              </p>
+            )}
           </Field>
 
           <Field label="Preferencias" hint="opcional">
@@ -262,32 +286,48 @@ export default function Alta() {
 
         <Rule className="my-6" />
 
-        <Eyebrow>Consentimientos</Eyebrow>
-        <div className="mt-1 divide-y divide-line-soft">
+        <Eyebrow>Información y permisos</Eyebrow>
+        <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+          He facilitado al cliente la información de privacidad y las condiciones del local. Los
+          permisos de abajo son opcionales y se pueden retirar cuando quiera.
+        </p>
+
+        <div className="mt-2 divide-y divide-line-soft">
           <CheckBox checked={datos} onChange={setDatos}>
-            Acepto que {barberia.nombre} guarde mis datos para gestionar mis citas y mi historial.{' '}
+            He entregado al cliente la información de privacidad y las condiciones de{' '}
+            {barberia.nombre}.{' '}
             <span className="text-[11px] text-faint">
-              Necesario para el servicio. <LinkLegal hash="datos" />
+              Constancia, no consentimiento. <LinkLegal to={`/local/${barberia.slug}/privacidad`} />
             </span>
           </CheckBox>
+
           <CheckBox checked={avisos} onChange={setAvisos}>
-            Quiero recibir un aviso cuando sea mi turno.{' '}
+            Avisarle cuando sea su turno o su cita esté cerca.{' '}
+            <span className="text-[11px] text-faint">Forma parte del servicio.</span>
+          </CheckBox>
+
+          <CheckBox checked={fidelidad} onChange={setFidelidad}>
+            Alta en el programa de fidelización de {barberia.nombre}: se registran sus visitas y sus
+            recompensas.{' '}
             <span className="text-[11px] text-faint">
-              Opcional. <LinkLegal hash="avisos" />
+              Opcional, desmarcado. <LinkLegal to={`/local/${barberia.slug}/fidelizacion`} />
             </span>
           </CheckBox>
-          <CheckBox checked={marketing} onChange={setMarketing}>
-            Quiero recibir recordatorios de visita y solicitudes de reseña.{' '}
-            <span className="text-[11px] text-faint">
-              Opcional. <LinkLegal hash="marketing" />
-            </span>
+
+          <CheckBox checked={preferenciasCons} onChange={setPreferenciasCons}>
+            Guardar sus preferencias de atención para recordarlas en futuras visitas.{' '}
+            <span className="text-[11px] text-faint">Opcional, desmarcado.</span>
+          </CheckBox>
+
+          <CheckBox checked={promociones} onChange={setPromociones}>
+            Recibir promociones e invitaciones a volver por parte de {barberia.nombre}.{' '}
+            <span className="text-[11px] text-faint">Opcional, desmarcado.</span>
           </CheckBox>
         </div>
 
         <p className="mt-3 text-[10.5px] leading-relaxed text-faint">
-          {haySupabase
-            ? 'Estos consentimientos se guardan en la ficha del cliente. No se envía ningún SMS ni mensaje.'
-            : 'En demo estos consentimientos solo se guardan en este navegador. No se envía ningún SMS ni mensaje.'}
+          Solo se marcan los permisos que el cliente acepte delante de ti. No se envían SMS ni
+          mensajes todavía: los permisos quedan guardados para cuando el envío exista.
         </p>
       </div>
 
@@ -310,10 +350,10 @@ export default function Alta() {
   );
 }
 
-function LinkLegal({ hash }: { hash: string }) {
+function LinkLegal({ to }: { to: string }) {
   return (
     <a
-      href={`/legal#${hash}`}
+      href={to}
       target="_blank"
       rel="noreferrer"
       className="underline decoration-line underline-offset-2 hover:text-ink-soft"

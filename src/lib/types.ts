@@ -27,6 +27,10 @@ export interface Barberia {
   fidelidadMeta: number;
   /** Barbería, peluquería, salón de uñas o estudio de tatuaje. */
   tipo: TipoNegocio;
+  /** Domicilio que se publica en su página legal. Puede ser solo la ciudad. */
+  domicilioLegal: string;
+  /** Correo para derechos y reclamaciones de ese local. */
+  correoLegal: string;
   altaEn: Iso;
 }
 
@@ -38,10 +42,22 @@ export interface Barbero {
 }
 
 export interface Consentimientos {
+  /** Constancia de que se le entregó la información de privacidad. No es un permiso. */
   datos: boolean;
+  /** Avisos operativos de su cita o su turno. Forman parte del servicio. */
   avisos: boolean;
+  /** Promociones e invitaciones a volver. Opcional, desmarcado. */
   marketing: boolean;
+  /** Programa de fidelización. Opcional, desmarcado. */
+  fidelidad: boolean;
+  /** Recordar preferencias para futuras visitas. Opcional, desmarcado. */
+  preferencias: boolean;
+  /** Promociones por cualquier canal. Opcional, desmarcado. */
+  promociones: boolean;
 }
+
+/** Activo, bloqueado (no se puede abrir pero se conserva) o anonimizado. */
+export type PrivacidadCliente = 'activo' | 'bloqueado' | 'anonimizado';
 
 export interface Cliente {
   id: ID;
@@ -56,6 +72,7 @@ export interface Cliente {
   notas: string;
   preferencias: string;
   consentimientos: Consentimientos;
+  privacidad: PrivacidadCliente;
   creadoEn: Iso;
   /**
    * Solo demo: PIN de la tarjeta guardado en el navegador. En modo real no

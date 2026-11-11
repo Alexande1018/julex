@@ -167,6 +167,9 @@ export default function Tarjeta() {
           preferencias,
           avisos: cliente.consentimientos.avisos,
           marketing: cliente.consentimientos.marketing,
+          fidelidad: cliente.consentimientos.fidelidad,
+          preferenciasCons: cliente.consentimientos.preferencias,
+          promociones: cliente.consentimientos.promociones,
         },
         pin,
       );
@@ -178,7 +181,10 @@ export default function Tarjeta() {
     }
   };
 
-  const cambiarConsentimiento = async (campo: 'avisos' | 'marketing', valor: boolean) => {
+  const cambiarConsentimiento = async (
+    campo: 'avisos' | 'fidelidad' | 'preferencias' | 'promociones',
+    valor: boolean,
+  ) => {
     if (!token) return;
     try {
       await guardarMisDatos(
@@ -187,7 +193,10 @@ export default function Tarjeta() {
           telefono: cliente.telefono,
           preferencias: cliente.preferencias,
           avisos: campo === 'avisos' ? valor : cliente.consentimientos.avisos,
-          marketing: campo === 'marketing' ? valor : cliente.consentimientos.marketing,
+          marketing: cliente.consentimientos.marketing,
+          fidelidad: campo === 'fidelidad' ? valor : cliente.consentimientos.fidelidad,
+          preferenciasCons: campo === 'preferencias' ? valor : cliente.consentimientos.preferencias,
+          promociones: campo === 'promociones' ? valor : cliente.consentimientos.promociones,
         },
         pin,
       );
@@ -203,7 +212,7 @@ export default function Tarjeta() {
     try {
       await pedirBaja(token, pin);
       await recargar();
-      toast('Solicitud registrada. La barbería te contactará.', 'info');
+      toast('Hemos recibido tu solicitud. La barbería tiene un mes para responderte.', 'info');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'No se pudo registrar la baja', 'aviso');
     }
@@ -495,12 +504,17 @@ export default function Tarjeta() {
           <p className="mt-1.5 text-[9.5px] uppercase tracking-[0.18em] text-faint">
             Hecho con JULEX
           </p>
-          <Link
-            to="/legal"
-            className="mt-2 inline-block text-[10px] text-faint underline decoration-line underline-offset-2 hover:text-muted"
-          >
-            Privacidad y consentimientos
-          </Link>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-faint">
+            <Link
+              to={`/local/${barberia.slug}/privacidad`}
+              className="underline decoration-line underline-offset-2 hover:text-muted"
+            >
+              Privacidad de {barberia.nombre}
+            </Link>
+            <Link to="/privacidad" className="underline decoration-line underline-offset-2 hover:text-muted">
+              Privacidad de JULEX
+            </Link>
+          </div>
         </footer>
       </div>
 
@@ -546,22 +560,35 @@ export default function Tarjeta() {
           </label>
 
           <div>
-            <Eyebrow>Consentimientos</Eyebrow>
+            <Eyebrow>Permisos</Eyebrow>
+            <p className="mt-1 text-[10.5px] leading-relaxed text-muted">
+              Lo necesario para atenderte no se pregunta: se informa. Lo de abajo es opcional y lo
+              puedes quitar cuando quieras.
+            </p>
             <div className="mt-1 divide-y divide-line-soft">
-              <Check checked={cliente.consentimientos.datos} onChange={() => toast('El consentimiento de datos es necesario para el servicio', 'aviso')}>
-                Datos para gestionar mis citas e historial
-              </Check>
               <Check
                 checked={cliente.consentimientos.avisos}
                 onChange={(v) => void cambiarConsentimiento('avisos', v)}
               >
-                Avisos cuando sea mi turno
+                Avisarme cuando sea mi turno o mi cita esté cerca
               </Check>
               <Check
-                checked={cliente.consentimientos.marketing}
-                onChange={(v) => void cambiarConsentimiento('marketing', v)}
+                checked={cliente.consentimientos.fidelidad}
+                onChange={(v) => void cambiarConsentimiento('fidelidad', v)}
               >
-                Recordatorios de visita y solicitudes de reseña
+                Programa de fidelización: registrar mis visitas y mis recompensas
+              </Check>
+              <Check
+                checked={cliente.consentimientos.preferencias}
+                onChange={(v) => void cambiarConsentimiento('preferencias', v)}
+              >
+                Guardar mis preferencias para futuras visitas
+              </Check>
+              <Check
+                checked={cliente.consentimientos.promociones}
+                onChange={(v) => void cambiarConsentimiento('promociones', v)}
+              >
+                Recibir promociones e invitaciones a volver
               </Check>
             </div>
           </div>

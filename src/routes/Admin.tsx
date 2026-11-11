@@ -56,6 +56,8 @@ export default function Admin() {
     password: '',
     color: '#3E4A35',
     tipo: 'barberia' as TipoNegocio,
+    domicilio: '',
+    correoLegal: '',
   });
 
   const cargar = useCallback(async () => {
@@ -152,6 +154,8 @@ export default function Admin() {
         p_password: form.password,
         p_color: form.color,
         p_tipo: form.tipo,
+        p_domicilio_legal: form.domicilio.trim(),
+        p_correo_legal: form.correoLegal.trim(),
       });
       if (error) {
         const m = error.message.includes('email_en_uso')
@@ -167,7 +171,15 @@ export default function Admin() {
       const slug = (data as { slug?: string })?.slug ?? '';
       toast(`Local creado · /${slug}`, 'ok');
       setNuevo(false);
-      setForm({ nombre: '', email: '', password: '', color: '#3E4A35', tipo: 'barberia' });
+      setForm({
+        nombre: '',
+        email: '',
+        password: '',
+        color: '#3E4A35',
+        tipo: 'barberia',
+        domicilio: '',
+        correoLegal: '',
+      });
       await cargar();
     } finally {
       setOcupado(false);
@@ -253,6 +265,25 @@ export default function Admin() {
                       </option>
                     ))}
                   </select>
+                </Field>
+
+                <Field label="Domicilio legal" hint="lo que se publica en su página legal; vale solo la ciudad">
+                  <input
+                    value={form.domicilio}
+                    onChange={(e) => setForm((f) => ({ ...f, domicilio: e.target.value }))}
+                    className={inputClases}
+                    placeholder="Alicante"
+                  />
+                </Field>
+
+                <Field label="Correo legal" hint="para derechos y reclamaciones de ese local">
+                  <input
+                    value={form.correoLegal}
+                    onChange={(e) => setForm((f) => ({ ...f, correoLegal: e.target.value }))}
+                    className={inputClases}
+                    inputMode="email"
+                    placeholder="hola@ellocal.com"
+                  />
                 </Field>
 
                 <Field label="Color">

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Circle, Download, LogOut, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useDb } from '../lib/store';
@@ -58,6 +58,11 @@ export default function Ajustes() {
   const [reset, setReset] = useState(false);
   const [salirConfirm, setSalirConfirm] = useState(false);
   const [esAdmin, setEsAdmin] = useState(false);
+  const [domicilioLegal, setDomicilioLegal] = useState(barberia.domicilioLegal);
+  const [correoLegal, setCorreoLegal] = useState(barberia.correoLegal);
+  const [solicitudes, setSolicitudes] = useState<
+    { id: string; estado: string; creada_en: string; accion: string | null; clientes: { nombre: string; codigo: string } | null }[]
+  >([]);
 
   const llaveros = resumenLlaveros(db, barberia.id);
   const cuota = cuotaMensual(db, barberia.id);
@@ -65,6 +70,34 @@ export default function Ajustes() {
     if (!haySupabase || !supabase) return;
     void supabase.rpc('soy_admin').then(({ data }) => setEsAdmin(data === true));
   }, []);
+
+  const cargarSolicitudes = useCallback(async () => {
+    if (!haySupabase || !supabase) return;
+    const { data } = await supabase
+      .from('solicitudes_baja')
+      .select('id, estado, creada_en, accion, clientes(nombre, codigo)')
+      .order('creada_en', { ascending: false });
+    setSolicitudes((data ?? []) as unknown as typeof solicitudes);
+  }, []);
+
+  useEffect(() => {
+    void cargarSolicitudes();
+  }, [cargarSolicitudes]);
+
+  const resolverBaja = async (id: string, accion: 'anonimizar' | 'bloquear') => {
+    if (!supabase) return;
+    const { error } = await supabase.rpc('resolver_solicitud_baja', {
+      p_solicitud: id,
+      p_accion: accion,
+      p_nota: '',
+    });
+    if (error) {
+      toast('No se pudo resolver la solicitud', 'aviso');
+      return;
+    }
+    toast(accion === 'anonimizar' ? 'Datos anonimizados' : 'Ficha bloqueada', 'ok');
+    await cargarSolicitudes();
+  };
 
   const servicios = db.servicios.filter((s) => s.barberiaId === barberia.id);
   const sillas = sillasDe(db, barberia.id);
@@ -476,6 +509,110 @@ export default function Ajustes() {
           </section>
         </>
       )}
+
+      <Rule className="my-6" />
+
+      {/* CUMPLIMIENTO */}
+      <section>
+        <Eyebrow>Cumplimiento</Eyebrow>
+        <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+          Estos datos identifican al local en sus páginas legales. Si faltan, las reservas siguen
+          funcionando, pero la página de identidad sale incompleta.
+        </p>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Field label="Domicilio legal" hint="puede ser solo la ciudad">
+            <input
+              value={domicilioLegal}
+              onChange={(e) => setDomicilioLegal(e.target.value)}
+              className={inputClases}
+              placeholder="Alicante"
+            />
+          </Field>
+          <Field label="Correo legal" hint="para derechos y reclamaciones">
+            <input
+              value={correoLegal}
+              onChange={(e) => setCorreoLegal(e.target.value)}
+              className={inputClases}
+              inputMode="email"
+              placeholder="hola@ellocal.com"
+            />
+          </Field>
+        </div>
+        <Btn
+          v="outline"
+          t="sm"
+          className="mt-2.5"
+          onClick={() =>
+            void actualizarBarberia({
+              domicilioLegal: domicilioLegal.trim(),
+              correoLegal: correoLegal.trim(),
+            }).then(() => toast('Datos legales guardados', 'ok'))
+          }
+        >
+          Guardar datos legales
+        </Btn>
+
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+          <Link to={`/local/${barberia.slug}/legal`} className="text-ink-soft underline decoration-line underline-offset-4 hover:text-ink">
+            Aviso legal del local
+          </Link>
+          <Link to={`/local/${barberia.slug}/privacidad`} className="text-ink-soft underline decoration-line underline-offset-4 hover:text-ink">
+            Privacidad del local
+          </Link>
+          <Link to={`/local/${barberia.slug}/reservas`} className="text-ink-soft underline decoration-line underline-offset-4 hover:text-ink">
+            Reservas y cancelaciones
+          </Link>
+        </div>
+      </section>
+
+      <Rule className="my-6" />
+
+      {/* SOLICITUDES DE BAJA */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3">
+          <Eyebrow>Solicitudes de baja</Eyebrow>
+          <span className="num text-[11px] text-faint">
+            {solicitudes.filter((x) => x.estado !== 'resuelta').length} pendientes
+          </span>
+        </div>
+        <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+          Un cliente pidió que se borren sus datos. Tienes un mes para responder: anonimizar la ficha
+          (se conservan las visitas sin sus datos) o bloquearla (no se puede abrir, se conserva).
+          En los dos casos el llavero se retira.
+        </p>
+
+        {solicitudes.length === 0 ? (
+          <p className="mt-2 text-[11.5px] text-faint">No hay solicitudes.</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-line-soft rounded-[3px] border border-line bg-paper px-3.5">
+            {solicitudes.map((x) => (
+              <li key={x.id} className="flex flex-wrap items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12.5px] font-semibold text-ink">
+                    {x.clientes?.nombre ?? 'Cliente'}{' '}
+                    <span className="num text-[10.5px] font-normal text-faint">{x.clientes?.codigo}</span>
+                  </p>
+                  <p className="text-[10.5px] text-muted">
+                    {new Date(x.creada_en).toLocaleDateString('es-ES')} · {x.estado}
+                    {x.accion ? ` · ${x.accion}` : ''}
+                  </p>
+                </div>
+                {x.estado !== 'resuelta' && (
+                  <div className="flex gap-2">
+                    <Btn v="outline" t="sm" onClick={() => void resolverBaja(x.id, 'anonimizar')}>
+                      Anonimizar
+                    </Btn>
+                    <Btn v="quiet" t="sm" onClick={() => void resolverBaja(x.id, 'bloquear')}>
+                      Bloquear
+                    </Btn>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <Rule className="my-6" />
 

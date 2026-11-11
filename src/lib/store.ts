@@ -31,6 +31,8 @@ const VACIO: Db = {
       logo: null,
       fidelidadMeta: 10,
       tipo: 'barberia',
+      domicilioLegal: '',
+      correoLegal: '',
       altaEn: '',
     },
   ],

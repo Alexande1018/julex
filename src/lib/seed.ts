@@ -175,6 +175,8 @@ export function buildSeed(): Db {
     logo: null,
     fidelidadMeta: 10,
     tipo: 'barberia',
+    domicilioLegal: 'Madrid',
+    correoLegal: '',
     altaEn: fecha(-215, 10),
   };
 
@@ -210,7 +212,15 @@ export function buildSeed(): Db {
       comoCorta: f.comoCorta,
       notas: f.notas,
       preferencias: f.preferencias,
-      consentimientos: f.consentimientos,
+      consentimientos: {
+        datos: true,
+        avisos: f.consentimientos.avisos,
+        marketing: f.consentimientos.marketing,
+        fidelidad: true,
+        preferencias: f.consentimientos.avisos,
+        promociones: f.consentimientos.marketing,
+      },
+      privacidad: 'activo',
       creadoEn: fecha(-(60 + idx * 37), 11),
     });
 

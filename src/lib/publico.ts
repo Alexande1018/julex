@@ -22,6 +22,8 @@ export interface FichaPublica {
     logo: string | null;
     fidelidadMeta: number;
     tipo: TipoNegocio;
+    domicilioLegal: string;
+    correoLegal: string;
   };
   cliente: {
     nombre: string;
@@ -46,6 +48,8 @@ export interface FichaPublica {
   servicios: ServicioPublico[];
   /** Si está en la cola: en qué silla y desde cuándo. */
   cola: { estado: 'esperando' | 'sillon'; silla: string | null; desde: string | null } | null;
+  /** Solicitud de baja abierta, si la hay. */
+  baja: { estado: string; creadaEn: string } | null;
 }
 
 export interface ServicioPublico {
@@ -92,6 +96,8 @@ export interface LocalPublico {
   slug: string;
   color: string;
   tipo: TipoNegocio;
+  domicilioLegal: string;
+  correoLegal: string;
   direccion: string;
   telefono: string;
   logo: string | null;
@@ -149,6 +155,8 @@ export function fichaLocal(token: string, pin: string | null = null): ResultadoF
       logo: b.logo,
       fidelidadMeta: meta,
       tipo: b.tipo,
+      domicilioLegal: b.domicilioLegal,
+      correoLegal: b.correoLegal,
     },
     cliente: {
       nombre: c.nombre,
@@ -190,6 +198,7 @@ export function fichaLocal(token: string, pin: string | null = null): ResultadoF
         desde: enCola.inicioEn,
       };
     })(),
+    baja: null,
   };
 }
 
@@ -229,6 +238,8 @@ export async function cargarFicha(
       logo: r.local?.logo_url ? String(r.local.logo_url) : null,
       fidelidadMeta: meta,
       tipo: (String(r.local?.tipo ?? 'barberia') as TipoNegocio),
+      domicilioLegal: String(r.local?.domicilio_legal ?? ''),
+      correoLegal: String(r.local?.correo_legal ?? ''),
     },
     cliente: {
       nombre: String(r.cliente?.nombre ?? ''),
@@ -240,6 +251,9 @@ export async function cargarFicha(
         datos: r.consentimientos?.datos !== false,
         avisos: r.consentimientos?.avisos === true,
         marketing: r.consentimientos?.marketing === true,
+        fidelidad: r.consentimientos?.fidelidad === true,
+        preferencias: r.consentimientos?.preferencias === true,
+        promociones: r.consentimientos?.promociones === true,
       },
     },
     cortes,
@@ -266,6 +280,7 @@ export async function cargarFicha(
       precio: Number(x.precio ?? 0),
       minutos: Number(x.minutos ?? 30),
     })),
+    baja: r.baja ? { estado: String(r.baja.estado), creadaEn: String(r.baja.creada_en) } : null,
     cola: r.cola
       ? {
           estado: String(r.cola.estado) as 'esperando' | 'sillon',
@@ -302,7 +317,15 @@ export async function cancelarCitaPublica(
 
 export async function guardarMisDatos(
   token: string,
-  datos: { telefono: string; preferencias: string; avisos: boolean; marketing: boolean },
+  datos: {
+    telefono: string;
+    preferencias: string;
+    avisos: boolean;
+    marketing: boolean;
+    fidelidad: boolean;
+    preferenciasCons: boolean;
+    promociones: boolean;
+  },
   pin: string | null = null,
 ): Promise<boolean> {
   if (haySupabase) {
@@ -312,6 +335,9 @@ export async function guardarMisDatos(
       p_preferencias: datos.preferencias,
       p_avisos: datos.avisos,
       p_marketing: datos.marketing,
+      p_fidelidad: datos.fidelidad,
+      p_cons_preferencias: datos.preferenciasCons,
+      p_promociones: datos.promociones,
       p_pin: pin,
     });
     if (error) throw new Error(error.message);
@@ -325,7 +351,14 @@ export async function guardarMisDatos(
   await actualizarCliente(c.id, {
     telefono: datos.telefono.trim(),
     preferencias: datos.preferencias.trim(),
-    consentimientos: { ...c.consentimientos, avisos: datos.avisos, marketing: datos.marketing },
+    consentimientos: {
+      ...c.consentimientos,
+      avisos: datos.avisos,
+      marketing: datos.marketing,
+      fidelidad: datos.fidelidad,
+      preferencias: datos.preferenciasCons,
+      promociones: datos.promociones,
+    },
   });
   return true;
 }
@@ -445,6 +478,8 @@ export async function cargarLocal(slug: string): Promise<LocalPublico | null> {
       logo: b.logo,
       fidelidadMeta: b.fidelidadMeta,
       tipo: b.tipo,
+      domicilioLegal: b.domicilioLegal,
+      correoLegal: b.correoLegal,
       servicios: db.servicios
         .filter((s) => s.barberiaId === b.id && s.activo)
         .map((s) => ({ id: s.id, nombre: s.nombre, precio: s.precio, minutos: s.minutos })),
@@ -466,6 +501,8 @@ export async function cargarLocal(slug: string): Promise<LocalPublico | null> {
     logo: r.logo_url ? String(r.logo_url) : null,
     fidelidadMeta: Number(r.fidelidad_meta ?? 10),
     tipo: String(r.tipo ?? 'barberia') as TipoNegocio,
+    domicilioLegal: String(r.domicilio_legal ?? ''),
+    correoLegal: String(r.correo_legal ?? ''),
     servicios: (r.servicios ?? []).map((x: Record<string, any>) => ({
       id: String(x.id),
       nombre: String(x.nombre),
@@ -615,7 +652,14 @@ export async function pedirCita(input: {
       comoCorta: '',
       notas: '',
       preferencias: '',
-      consentimientos: { datos: true, avisos: true, marketing: false },
+      consentimientos: {
+        datos: true,
+        avisos: true,
+        marketing: false,
+        fidelidad: false,
+        preferencias: false,
+        promociones: false,
+      },
     });
     clienteId = nuevo.id;
   }

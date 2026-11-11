@@ -365,6 +365,43 @@ Todo esto se ejecuta, muta datos y **sobrevive a recargar** (localStorage `julex
 
 ---
 
+## Cumplimiento
+
+Lo que está implantado y lo que no.
+
+**Datos y permisos.** La casilla obligatoria del alta ya no es un consentimiento: es la constancia
+de que se entregó la información de privacidad. Los permisos son tres, separados y desmarcados
+—fidelización, preferencias y promociones—, y se pueden retirar desde la tarjeta. Los avisos de
+turno son parte del servicio.
+
+**Baja.** El cliente pide la baja desde su tarjeta: se apagan sus comunicaciones al momento y se crea
+una **solicitud** que entra en la bandeja del local (Ajustes → Solicitudes de baja), con un mes de
+plazo. El local elige **anonimizar** (se borran nombre, teléfono, notas y preferencias y se retira el
+llavero; las visitas quedan sin datos personales) o **bloquear** (la ficha se conserva pero ni la
+tarjeta ni el llavero vuelven a abrirla).
+
+**Tarjeta.** El PIN es opcional, pero cuando la tarjeta llega desde un llavero la app invita a
+ponerlo. Los clientes bloqueados o anonimizados no tienen tarjeta pública.
+
+**Datos sensibles.** Las notas y las preferencias avisan de que no se guarden datos de salud, y el
+formulario rechaza los términos inequívocos (alergias, medicación, diagnósticos…). «Cómo corta» ya
+no es obligatorio.
+
+**Textos.** `/legal` es el índice; cada documento vive en su ruta: `/aviso-legal`, `/privacidad`,
+`/cookies`, `/condiciones`, `/encargo-tratamiento`, `/creditos`, `/accesibilidad`. Cada local tiene
+las suyas: `/local/<slug>/legal`, `/privacidad`, `/reservas` y `/fidelizacion`, con su domicilio y su
+correo legales (se piden al crear el local y se editan en Ajustes).
+
+**Precio publicado.** Alta 30 € + IVA con 15 llaveros, que incluye el primer mes; cuota 15 €/mes +
+IVA desde el día 1 del mes siguiente; 1 € + IVA por cada llavero activo a partir del decimosexto, con
+el recuento tomado el día 1 de cada mes.
+
+**Pendiente, y no es código:** aceptar y conservar los DPA de Supabase y Cloudflare, revisar los
+textos con un abogado antes de cobrar a un local real, y cerrar o redirigir el dominio antiguo de
+Netlify. La retención aprobada (un año tras la última visita, seis meses las reservas no atendidas,
+cinco años la facturación, noventa días los registros, treinta las copias) está escrita en
+`/privacidad`, pero no hay todavía un proceso automático que la ejecute.
+
 ## Qué es real y qué falta
 
 Real, sobre Supabase: cuentas con correo y contraseña, RLS por local, sillas con capacidad,

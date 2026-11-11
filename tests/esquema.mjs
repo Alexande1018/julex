@@ -483,7 +483,7 @@ async function main() {
     [pinToken],
   );
   const conPinActualizar = await db.query(
-    `select actualizar_mis_datos($1, '699000000', null, null, null, '4821') as ok`,
+    `select actualizar_mis_datos($1, '699000000', null, null, null, null, null, null, '4821') as ok`,
     [pinToken],
   );
   ok(
@@ -592,6 +592,51 @@ async function main() {
   // Y el público lo ve.
   const publico = await db.query(`select local_publico('salon-luna') as l`);
   ok(publico.rows[0].l?.tipo === 'tatuaje', 'El tipo sale en el local público');
+
+  /* ------------------------------------------------------------------ */
+  /* Baja: solicitud, bandeja y resolución                              */
+  /* ------------------------------------------------------------------ */
+
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+  const tokBaja = cliente.rows[0].token_publico;
+
+  const pide1 = await db.query(`select solicitar_baja($1, '1357') as ok`, [tokBaja]);
+  const pide2 = await db.query(`select solicitar_baja($1, '1357') as ok`, [tokBaja]);
+  const abiertas = await db.query(
+    `select count(*)::int n from solicitudes_baja where cliente_id = $1 and estado <> 'resuelta'`,
+    [clienteId],
+  );
+  ok(pide1.rows[0].ok === true && pide2.rows[0].ok === true, 'El cliente puede pedir la baja');
+  ok(abiertas.rows[0].n === 1, 'Pedirla dos veces no duplica la solicitud');
+
+  const solicitud = await db.query(
+    `select id from solicitudes_baja where cliente_id = $1 and estado <> 'resuelta'`,
+    [clienteId],
+  );
+  const resolvio = await db.query(`select resolver_solicitud_baja($1, 'anonimizar', '') as ok`, [
+    solicitud.rows[0].id,
+  ]);
+  const tras = await db.query(
+    `select nombre, telefono, preferencias, privacidad, cons_fidelidad from clientes where id = $1`,
+    [clienteId],
+  );
+  const llaverosTras = await db.query(
+    `select count(*)::int n from llaveros where cliente_id = $1 and estado = 'activo'`,
+    [clienteId],
+  );
+  const fichaTras = await db.query(`select ficha_publica($1) as f`, [tokBaja]);
+  const bajaT = tras.rows[0];
+  ok(resolvio.rows[0].ok === true, 'El local resuelve la solicitud');
+  ok(
+    bajaT.nombre === 'Cliente dado de baja' && bajaT.telefono === '' && bajaT.preferencias === '',
+    'Anonimizar borra los datos personales',
+    JSON.stringify(bajaT),
+  );
+  ok(bajaT.privacidad === 'anonimizado' && llaverosTras.rows[0].n === 0, 'Y retira el llavero');
+  ok(fichaTras.rows[0].f === null, 'La tarjeta de un cliente dado de baja ya no existe');
+
+  const puenteTras = await db.query(`select llavero_tarjeta('tok_uno') as t`);
+  ok(puenteTras.rows[0].t === null, 'Y el llavero ya no lleva a ninguna tarjeta');
 
   await db.close();
 }

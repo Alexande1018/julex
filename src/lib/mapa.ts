@@ -35,6 +35,8 @@ export function aBarberia(r: Fila): Barberia {
     logo: r.logo_url ? s(r.logo_url) : null,
     fidelidadMeta: n(r.fidelidad_meta, 10),
     tipo: (s(r.tipo, 'barberia') as Barberia['tipo']) ?? 'barberia',
+    domicilioLegal: s(r.domicilio_legal),
+    correoLegal: s(r.correo_legal),
     altaEn: s(r.creado_en),
   };
 }
@@ -85,7 +87,11 @@ export function aCliente(r: Fila): Cliente {
       datos: r.cons_datos !== false,
       avisos: r.cons_avisos === true,
       marketing: r.cons_marketing === true,
+      fidelidad: r.cons_fidelidad === true,
+      preferencias: r.cons_preferencias === true,
+      promociones: r.cons_promociones === true,
     },
+    privacidad: (s(r.privacidad, 'activo') as Cliente['privacidad']) ?? 'activo',
     creadoEn: s(r.creado_en),
   };
 }

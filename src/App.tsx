@@ -18,6 +18,15 @@ import Nfc from './routes/Nfc';
 import Admin from './routes/Admin';
 import AdminLocal from './routes/AdminLocal';
 import Legal from './routes/Legal';
+import { AvisoLegal, Cookies, Privacidad } from './routes/legal/proveedor';
+import { Condiciones, Encargo } from './routes/legal/contratos';
+import { Accesibilidad, Creditos } from './routes/legal/varios';
+import {
+  LocalFidelizacion,
+  LocalLegal,
+  LocalPrivacidad,
+  LocalReservas,
+} from './routes/legal/local';
 import NoEncontrado from './routes/NoEncontrado';
 
 function Requiere({ children }: { children: React.ReactNode }) {
@@ -122,6 +131,17 @@ export default function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/local/:id" element={<AdminLocal />} />
         <Route path="/legal" element={<Legal />} />
+        <Route path="/aviso-legal" element={<AvisoLegal />} />
+        <Route path="/privacidad" element={<Privacidad />} />
+        <Route path="/cookies" element={<Cookies />} />
+        <Route path="/condiciones" element={<Condiciones />} />
+        <Route path="/encargo-tratamiento" element={<Encargo />} />
+        <Route path="/creditos" element={<Creditos />} />
+        <Route path="/accesibilidad" element={<Accesibilidad />} />
+        <Route path="/local/:slug/legal" element={<LocalLegal />} />
+        <Route path="/local/:slug/privacidad" element={<LocalPrivacidad />} />
+        <Route path="/local/:slug/reservas" element={<LocalReservas />} />
+        <Route path="/local/:slug/fidelizacion" element={<LocalFidelizacion />} />
         <Route path="*" element={<NoEncontrado />} />
       </Routes>
       <Toaster />

@@ -148,6 +148,7 @@ export async function crearCliente(datos: AltaCliente): Promise<Cliente> {
     notas: datos.notas.trim(),
     preferencias: datos.preferencias.trim(),
     consentimientos: datos.consentimientos,
+    privacidad: 'activo',
     creadoEn: new Date().toISOString(),
   };
   store.mutate((d) => {
@@ -171,6 +172,9 @@ export async function actualizarCliente(
       fila.cons_datos = patch.consentimientos.datos;
       fila.cons_avisos = patch.consentimientos.avisos;
       fila.cons_marketing = patch.consentimientos.marketing;
+      fila.cons_fidelidad = patch.consentimientos.fidelidad;
+      fila.cons_preferencias = patch.consentimientos.preferencias;
+      fila.cons_promociones = patch.consentimientos.promociones;
     }
     if ((await intentar(() => repo.actualizarCliente(id, fila), 'guardar el cliente')) !== null) {
       await refrescar();
@@ -608,6 +612,8 @@ export async function actualizarBarberia(patch: Partial<Db['barberias'][number]>
     if (patch.direccion !== undefined) fila.direccion = patch.direccion;
     if (patch.fidelidadMeta !== undefined) fila.fidelidad_meta = patch.fidelidadMeta;
     if (patch.tipo !== undefined) fila.tipo = patch.tipo;
+    if (patch.domicilioLegal !== undefined) fila.domicilio_legal = patch.domicilioLegal;
+    if (patch.correoLegal !== undefined) fila.correo_legal = patch.correoLegal;
     if (patch.logo !== undefined) fila.logo_url = patch.logo;
     if ((await intentar(() => repo.actualizarLocal(fila), 'guardar el local')) !== null) await refrescar();
     return;
