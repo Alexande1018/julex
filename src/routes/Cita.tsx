@@ -437,11 +437,6 @@ export default function Cita() {
             </CheckBox>
           </section>
         )}
-
-        <p className="mt-5 text-[10.5px] leading-relaxed text-faint">
-          La cita queda pendiente hasta que la barbería la confirme. No hace falta crear ninguna
-          cuenta.
-        </p>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 border-t border-line bg-ivory/95 px-4 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
