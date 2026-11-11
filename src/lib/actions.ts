@@ -680,6 +680,38 @@ export async function quitarSilla(id: ID): Promise<void> {
   });
 }
 
+export async function crearServicio(nombre = 'Servicio nuevo'): Promise<void> {
+  const db = store.get();
+  const barberia = db.barberias[0];
+  if (!barberia) return;
+  const orden = db.servicios.reduce((m, s) => Math.max(m, s.orden ?? 0), 0) + 1;
+
+  if (haySupabase) {
+    const fila = {
+      barberiaId: barberia.id,
+      nombre: nombre.trim() || 'Servicio nuevo',
+      precio: 15,
+      minutos: 30,
+      orden,
+    };
+    if ((await intentar(() => repo.insertarServicio(fila), 'crear el servicio')) !== null) {
+      await refrescar();
+    }
+    return;
+  }
+  store.mutate((d) => {
+    d.servicios.push({
+      id: uid('sv'),
+      barberiaId: barberia.id,
+      nombre: nombre.trim() || 'Servicio nuevo',
+      precio: 15,
+      minutos: 30,
+      activo: true,
+      orden,
+    });
+  });
+}
+
 export async function actualizarServicio(
   id: ID,
   patch: Partial<Db['servicios'][number]>,

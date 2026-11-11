@@ -6,6 +6,7 @@ import {
   actualizarBarberia,
   actualizarServicio,
   actualizarSilla,
+  crearServicio,
   crearSilla,
   quitarSilla,
   reiniciarDemo,
@@ -247,9 +248,19 @@ export default function Ajustes() {
           {servicios.map((s) => (
             <div
               key={s.id}
-              className="grid grid-cols-[1fr_58px_58px] items-center gap-2 border-b border-line-soft py-2.5"
+              className="grid grid-cols-[1fr_58px_58px_26px] items-center gap-2 border-b border-line-soft py-2.5"
             >
-              <span className="truncate text-[13px] text-ink">{s.nombre}</span>
+              <input
+                defaultValue={s.nombre}
+                onBlur={(e) => {
+                  const nombre = e.target.value.trim();
+                  if (nombre && nombre !== s.nombre) actualizarServicio(s.id, { nombre });
+                }}
+                className={cn(
+                  'min-w-0 truncate rounded-[2px] border border-transparent bg-transparent px-1 py-1 text-[13px] hover:border-line focus:border-ink/40 focus:bg-paper focus:outline-none',
+                  s.activo ? 'text-ink' : 'text-faint line-through',
+                )}
+              />
               <div className="relative">
                 <input
                   type="number"
@@ -269,17 +280,34 @@ export default function Ajustes() {
                   step={5}
                   value={s.minutos}
                   onChange={(e) => actualizarServicio(s.id, { minutos: Number(e.target.value) || 0 })}
-                  className="num w-full rounded-[2px] border border-transparent bg-transparent py-1 pl-1 pr-5 text-right text-[12.5px] text-ink-soft hover:border-line focus:border-ink/40 focus:bg-paper focus:outline-none"
+                  className="num w-full rounded-[2px] border border-transparent bg-transparent py-1 pl-1 pr-3 text-right text-[12.5px] text-ink-soft hover:border-line focus:border-ink/40 focus:bg-paper focus:outline-none"
                 />
-                <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-faint">
-                  min
+                <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-faint">
+                  m
                 </span>
               </div>
+              <button
+                onClick={() => actualizarServicio(s.id, { activo: !s.activo })}
+                aria-label={s.activo ? `Ocultar ${s.nombre}` : `Volver a ofrecer ${s.nombre}`}
+                className={cn(
+                  'justify-self-end rounded-full border p-1 transition-colors',
+                  s.activo
+                    ? 'border-[var(--brand)] text-[var(--brand)]'
+                    : 'border-line text-faint hover:text-muted',
+                )}
+              >
+                {s.activo ? <Check size={11} /> : <Circle size={11} />}
+              </button>
             </div>
           ))}
         </div>
+
+        <Btn v="outline" t="sm" className="mt-3 w-full border-dashed" onClick={() => crearServicio()}>
+          <Plus size={13} /> Añadir servicio
+        </Btn>
         <p className="mt-2 text-[10.5px] text-faint">
-          Los cambios se aplican al instante en la agenda, la cola y la tarjeta del cliente.
+          Los cambios se aplican al instante en la agenda, la cola y la tarjeta del cliente. Lo que
+          ocultes deja de ofrecerse al reservar, pero no borra su historial.
         </p>
       </section>
 

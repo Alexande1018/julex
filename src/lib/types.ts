@@ -8,6 +8,8 @@ export interface Servicio {
   precio: number;
   minutos: number;
   activo: boolean;
+  /** Orden en el que se ofrecen al cliente. */
+  orden?: number;
 }
 
 export interface Barberia {

@@ -65,6 +65,7 @@ export function aServicio(r: Fila): Servicio {
     precio: n(r.precio),
     minutos: n(r.minutos, 30),
     activo: r.activo !== false,
+    orden: n(r.orden, 1),
   };
 }
 

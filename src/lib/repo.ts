@@ -120,6 +120,24 @@ export async function eliminarSilla(id: string): Promise<void> {
   if (error) fallo('quitando la silla', error);
 }
 
+export async function insertarServicio(input: {
+  barberiaId: string;
+  nombre: string;
+  precio: number;
+  minutos: number;
+  orden: number;
+}): Promise<void> {
+  const sb = exigirCliente();
+  const { error } = await sb.from('servicios').insert({
+    barberia_id: input.barberiaId,
+    nombre: input.nombre,
+    precio: input.precio,
+    minutos: input.minutos,
+    orden: input.orden,
+  });
+  if (error) fallo('creando el servicio', error);
+}
+
 export async function actualizarServicio(
   id: ID,
   patch: { nombre?: string; precio?: number; minutos?: number; activo?: boolean },
