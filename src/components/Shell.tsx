@@ -6,6 +6,7 @@ import { cn, Wordmark } from './ui';
 import { Logotipo } from './Logotipo';
 import { Salir } from './Salir';
 import { vocabulario } from '../lib/vocabulario';
+import { useRefresco } from '../lib/refresco';
 
 export function Shell({
   barberia,
@@ -19,6 +20,7 @@ export function Shell({
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const v = vocabulario(barberia.tipo);
+  useRefresco();
 
   const NAV = [
     { to: '/barbero/cola', label: v.navCola, Icon: ListOrdered },
