@@ -207,7 +207,7 @@ export default function Tarjeta() {
               <span className="num rounded-[2px] border border-ivory/25 px-1.5 py-1 text-[9.5px] font-bold tracking-[0.1em] text-ivory/70">
                 {cliente.codigo}
               </span>
-              <Salir a="/" tono="oscuro" etiqueta="Cerrar" cerrarSesion={false} />
+              <Salir a="/" tono="oscuro" etiqueta="Cerrar" icono="cerrar" cerrarSesion={false} />
             </div>
           </div>
 

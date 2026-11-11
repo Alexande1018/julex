@@ -489,8 +489,9 @@ export default function Ajustes() {
       <Confirmar
         open={salirConfirm}
         titulo="¿Cerrar la sesión?"
-        texto="El llavero dejará de abrir la ficha hasta que vuelvas a entrar."
+        texto="Se cierra la sesión en este navegador: la cola y las fichas volverán a pedir acceso."
         etiquetaConfirmar="Cerrar sesión"
+        nota={null}
         onClose={() => setSalirConfirm(false)}
         onConfirm={() => {
           void salir().finally(() => navegar('/'));

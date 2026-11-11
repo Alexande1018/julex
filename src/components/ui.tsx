@@ -306,6 +306,7 @@ export function Confirmar({
   texto,
   etiquetaConfirmar = 'Confirmar',
   peligro,
+  nota = 'Esta acción queda registrada en el historial de la barbería.',
   onConfirm,
   onClose,
 }: {
@@ -314,6 +315,8 @@ export function Confirmar({
   texto: string;
   etiquetaConfirmar?: string;
   peligro?: boolean;
+  /** Texto pequeño bajo la descripción. Con `null` no se pinta nada. */
+  nota?: string | null;
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -342,9 +345,7 @@ export function Confirmar({
         </div>
       }
     >
-      <p className="text-[13px] leading-relaxed text-ink-soft">
-        Esta acción queda registrada en el historial de la barbería.
-      </p>
+      {nota && <p className="text-[13px] leading-relaxed text-ink-soft">{nota}</p>}
     </Sheet>
   );
 }

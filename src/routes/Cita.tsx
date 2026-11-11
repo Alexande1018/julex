@@ -257,7 +257,7 @@ export default function Cita() {
           </button>
           <div className="flex items-center gap-3">
             <span className="text-[9.5px] font-bold uppercase tracking-[0.22em] text-faint">JULEX</span>
-            <Salir a="/" etiqueta="Cerrar" cerrarSesion={false} />
+            <Salir a="/" etiqueta="Cerrar" icono="cerrar" cerrarSesion={false} />
           </div>
         </div>
 

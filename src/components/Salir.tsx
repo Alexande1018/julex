@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 import { salir } from '../lib/actions';
 import { Confirmar, cn } from './ui';
 
@@ -11,6 +11,8 @@ import { Confirmar, cn } from './ui';
  *   En la ventana del cliente no hay sesion que cerrar: se pasa en `false` y solo
  *   navega, para no dejar fuera al barbero que abrio la tarjeta en el mismo navegador.
  * - `variante`: `texto` para cabeceras y `celda` para la barra inferior del movil.
+ * - `icono`: la puerta con flecha (`salida`, la de cerrar sesion) o una X (`cerrar`,
+ *   la de las paginas publicas, donde solo se vuelve).
  */
 export function Salir({
   a = '/',
@@ -18,6 +20,7 @@ export function Salir({
   etiqueta = 'Salir',
   cerrarSesion = true,
   variante = 'texto',
+  icono = 'salida',
   className,
 }: {
   a?: string;
@@ -25,6 +28,7 @@ export function Salir({
   etiqueta?: string;
   cerrarSesion?: boolean;
   variante?: 'texto' | 'celda';
+  icono?: 'salida' | 'cerrar';
   className?: string;
 }) {
   const navegar = useNavigate();
@@ -65,7 +69,11 @@ export function Salir({
           className,
         )}
       >
-        <LogOut size={variante === 'texto' ? 12 : 19} strokeWidth={variante === 'texto' ? 2 : 1.8} />
+        {icono === 'cerrar' ? (
+          <X size={variante === 'texto' ? 12 : 19} strokeWidth={variante === 'texto' ? 2 : 1.8} />
+        ) : (
+          <LogOut size={variante === 'texto' ? 12 : 19} strokeWidth={variante === 'texto' ? 2 : 1.8} />
+        )}
         <span
           className={cn(
             variante === 'texto'
@@ -82,6 +90,7 @@ export function Salir({
         titulo="¿Salir?"
         texto="Se cierra la sesión en este navegador: la cola y las fichas volverán a pedir acceso."
         etiquetaConfirmar="Salir"
+        nota={null}
         onClose={() => setPregunta(false)}
         onConfirm={() => {
           setPregunta(false);
