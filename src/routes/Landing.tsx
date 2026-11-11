@@ -6,16 +6,8 @@ import { Btn, Eyebrow, Pill, Wordmark, btnClases, cn } from '../components/ui';
 import { Foto, PieFoto } from '../components/Foto';
 
 const ENTRADAS = [
-  {
-    titulo: 'Soy negocio',
-    texto: 'Tu cola o agenda, tus clientes y sus fichas. Se entra con la cuenta del local.',
-    to: '/barbero/login',
-  },
-  {
-    titulo: 'Admin',
-    texto: 'Locales, llaveros activos y la cuota del mes. La trastienda del producto.',
-    to: '/admin',
-  },
+  { titulo: 'Soy negocio', to: '/barbero/login' },
+  { titulo: 'Admin', to: '/admin' },
 ];
 
 const PASOS = [
@@ -124,15 +116,10 @@ export default function Landing() {
               <Link
                 key={e.to}
                 to={e.to}
-                className="group/fila flex items-baseline gap-4 px-1 py-4 transition-colors hover:bg-paper/80"
+                className="group/fila flex items-center gap-4 px-1 py-4 transition-colors hover:bg-paper/80"
               >
-                <span className="min-w-0 flex-1">
-                  <span className="block font-serif text-[18px] leading-tight text-ink">
-                    {e.titulo}
-                  </span>
-                  <span className="mt-1 block max-w-[52ch] text-[12px] leading-relaxed text-muted">
-                    {e.texto}
-                  </span>
+                <span className="min-w-0 flex-1 font-serif text-[18px] leading-tight text-ink">
+                  {e.titulo}
                 </span>
                 <ArrowRight
                   size={15}
