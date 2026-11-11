@@ -4,7 +4,6 @@ import { useDb } from '../lib/store';
 import { haySupabase } from '../lib/supabase';
 import { Btn, Eyebrow, Pill, Wordmark, btnClases, cn } from '../components/ui';
 import { Foto, PieFoto } from '../components/Foto';
-import { TIPOS } from '../lib/vocabulario';
 
 const ENTRADAS = [
   {
@@ -149,27 +148,6 @@ export default function Landing() {
           </div>
         </details>
 
-        {/* OFICIOS */}
-        <section className="mt-12">
-          <div className="flex items-baseline justify-between gap-4">
-            <Eyebrow>Un producto, cuatro oficios</Eyebrow>
-            <span className="num text-[10.5px] tracking-[0.14em] text-faint">01 — 04</span>
-          </div>
-          <div className="mt-4 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
-            {TIPOS.map((t) => (
-              <div key={t.tipo} className="border-t border-line pt-2.5">
-                <p className="font-serif text-[17px] leading-tight text-ink">{t.etiqueta}</p>
-                <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{t.pista}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 max-w-[62ch] text-[11.5px] leading-relaxed text-faint">
-            Eliges el tipo al crear el local y la app cambia sus palabras: la cola o la agenda, el
-            sillón o la mesa, cómo corta o el diseño del proyecto. Los servicios, los precios y los
-            puestos los pones tú, y el tipo se puede cambiar cuando quieras.
-          </p>
-        </section>
-
         {/* MANIFIESTO */}
         <section className="mt-12 lg:mt-16">
           <div className="relative overflow-hidden rounded-[2px]">
@@ -253,53 +231,13 @@ export default function Landing() {
         </section>
         )}
 
-        {/* PRECIO */}
-        <section className="mt-12 border-t border-line pt-6 lg:mt-16">
-          <Eyebrow>Lo que cuesta</Eyebrow>
-          <div className="mt-4 grid gap-6 sm:grid-cols-2 sm:gap-12">
-            <div>
-              <p className="num display text-[46px] text-ink lg:text-[56px]">30 €</p>
-              <p className="mt-2 max-w-[34ch] text-[12.5px] leading-relaxed text-muted">
-                Alta del negocio con quince llaveros, una sola vez. Los chips se graban en blanco:
-                no hace falta saber quién los va a usar.
-              </p>
-            </div>
-            <div>
-              <p className="num display text-[46px] text-ink lg:text-[56px]">15 €/mes</p>
-              <p className="mt-2 max-w-[34ch] text-[12.5px] leading-relaxed text-muted">
-                Mínimo. Un euro más por cada llavero activo a partir del decimoquinto, desde el segundo
-                mes. Si no activas más, son quince y no cambia.
-              </p>
-            </div>
-          </div>
-        </section>
-
         <footer className="mt-14 border-t border-line pt-5">
-          <p className="max-w-[64ch] text-[11.5px] leading-relaxed text-faint">
-            {haySupabase
-              ? 'Cada negocio guarda sus datos en su propia base de datos. No se envía ningún mensaje automático, el cobro de la cuota se calcula y no se factura, y no se comparte nada con terceros.'
-              : 'Demo con datos falsos y aislados. No se envía ningún mensaje, no se cobra nada y no hay ninguna integración externa conectada. Los cambios se guardan en este navegador.'}
-          </p>
-
-          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-[11.5px]">
-            <div className="flex flex-wrap items-baseline gap-4">
-              <Link
-                to="/legal"
-                className="text-ink-soft underline decoration-line underline-offset-4 hover:text-ink"
-              >
-                Textos legales
-              </Link>
-              <span className="text-faint">
-                {db.clientes.length} clientes · {db.llaveros.length} llaveros
-              </span>
-            </div>
-            <span className="pie-foto">
-              Fotografías: dominio público y CC BY 2.0 ·{' '}
-              <Link to="/legal" className="underline decoration-line underline-offset-2">
-                créditos
-              </Link>
-            </span>
-          </div>
+          <span className="pie-foto">
+            Fotografías: dominio público y CC BY 2.0 ·{' '}
+            <Link to="/legal" className="underline decoration-line underline-offset-2">
+              créditos
+            </Link>
+          </span>
 
           <p
             aria-hidden
