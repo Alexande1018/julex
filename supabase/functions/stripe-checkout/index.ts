@@ -93,7 +93,14 @@ Deno.serve(async (req) => {
     const sesion = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer: cliente,
-      line_items: [{ price: Deno.env.get('STRIPE_PRICE_ALTA')!, quantity: 1 }],
+      line_items: [
+        {
+          price: Deno.env.get('STRIPE_PRICE_ALTA')!,
+          quantity: 1,
+          // El IVA va en la línea: el precio está sin impuestos.
+          tax_rates: [Deno.env.get('STRIPE_TAX_IVA')!],
+        },
+      ],
       payment_intent_data: {
         setup_future_usage: 'off_session',
         metadata: { barberia_id: barberiaId },
