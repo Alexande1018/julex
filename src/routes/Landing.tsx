@@ -1,29 +1,24 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, KeyRound, Nfc, QrCode } from 'lucide-react';
+import { ArrowRight, ChevronDown, KeyRound, Nfc, QrCode } from 'lucide-react';
 import { useDb } from '../lib/store';
 import { haySupabase } from '../lib/supabase';
 import { Btn, Eyebrow, Pill, Wordmark, btnClases, cn } from '../components/ui';
 import { Foto, PieFoto } from '../components/Foto';
 import { TIPOS } from '../lib/vocabulario';
 
-const PUERTAS = [
+const ENTRADAS = [
   {
-    n: '01',
-    titulo: 'Quien atiende',
-    texto:
-      'La cola o la agenda del día, la ficha de cada cliente y su memoria. Se usa con una mano, mientras se trabaja.',
-    to: '/barbero/cola',
+    titulo: 'Soy negocio',
+    texto: 'Tu cola o agenda, tus clientes y sus fichas. Se entra con la cuenta del local.',
+    to: '/barbero/login',
   },
   {
-    n: '02',
-    titulo: 'El cliente',
-    texto:
-      'Su tarjeta de socio: fidelización, historial y pedir cita sin crear ninguna cuenta.',
-    to: '/c/P-0004', // se sustituye por el token real del cliente de ejemplo
+    titulo: 'Soy cliente',
+    texto: 'Tu tarjeta, tus sellos y pedir cita. Sin cuenta y sin instalar nada.',
+    to: '/cliente',
   },
   {
-    n: '03',
-    titulo: 'El creador',
+    titulo: 'Admin',
     texto: 'Locales, llaveros activos y la cuota del mes. La trastienda del producto.',
     to: '/admin',
   },
@@ -57,7 +52,6 @@ export default function Landing() {
   const retirado = db.llaveros.find((l) => l.estado === 'retirado');
   const ejemplo = db.clientes.find((c) => c.codigo === 'P-0004');
   const tarjetaDemo = ejemplo ? `/c/${ejemplo.tokenPublico}` : '/';
-  const puertas = PUERTAS.map((p) => (p.n === '02' ? { ...p, to: tarjetaDemo } : p));
 
   return (
     <div className="grain min-h-dvh bg-ivory">
@@ -118,28 +112,42 @@ export default function Landing() {
           </figure>
         </section>
 
-        {/* PUERTAS */}
-        <nav className="mt-10 border-t border-line">
-          {puertas.map((p) => (
-            <Link
-              key={p.n}
-              to={p.to}
-              className="group flex items-baseline gap-4 border-b border-line px-1 py-5 transition-colors hover:bg-paper/80 sm:gap-7"
-            >
-              <span className="num shrink-0 font-serif text-[13px] text-faint">{p.n}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-serif text-[21px] leading-tight text-ink">{p.titulo}</span>
-                <span className="mt-1.5 block max-w-[52ch] text-[12.5px] leading-relaxed text-muted">
-                  {p.texto}
-                </span>
-              </span>
-              <ArrowRight
-                size={17}
-                className="shrink-0 text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-ink"
+        {/* ENTRAR — un solo desplegable para las tres puertas */}
+        <details className="group mt-10 border-t border-line">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-line px-1 py-5 [&::-webkit-details-marker]:hidden">
+            <span className="font-serif text-[21px] leading-tight text-ink">Entrar</span>
+            <span className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+              <span className="hidden sm:inline">Negocio · cliente · admin</span>
+              <ChevronDown
+                size={16}
+                className="transition-transform duration-200 group-open:rotate-180"
               />
-            </Link>
-          ))}
-        </nav>
+            </span>
+          </summary>
+
+          <div className="border-b border-line">
+            {ENTRADAS.map((e) => (
+              <Link
+                key={e.to}
+                to={e.to}
+                className="group/fila flex items-baseline gap-4 px-1 py-4 transition-colors hover:bg-paper/80"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block font-serif text-[18px] leading-tight text-ink">
+                    {e.titulo}
+                  </span>
+                  <span className="mt-1 block max-w-[52ch] text-[12px] leading-relaxed text-muted">
+                    {e.texto}
+                  </span>
+                </span>
+                <ArrowRight
+                  size={15}
+                  className="shrink-0 text-faint transition-transform duration-200 group-hover/fila:translate-x-0.5 group-hover/fila:text-ink"
+                />
+              </Link>
+            ))}
+          </div>
+        </details>
 
         {/* OFICIOS */}
         <section className="mt-12">

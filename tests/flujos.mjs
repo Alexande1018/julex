@@ -60,6 +60,18 @@ try {
   ok((await page.title()).includes('JULEX'), 'La portada carga con su título');
   ok(await visible(page.getByRole('heading', { level: 1 })), 'Hay un titular visible');
 
+  /* 1b. La portada despliega las tres puertas */
+  await page.getByText('Entrar', { exact: true }).click();
+  ok(await visible(page.getByRole('link', { name: /soy negocio/i })), 'La portada despliega «Soy negocio»');
+  ok(await visible(page.getByRole('link', { name: /soy cliente/i })), 'Y «Soy cliente»');
+  ok(await visible(page.getByRole('link', { name: /^admin/i })), 'Y «Admin»');
+
+  await page.goto(`${BASE}/cliente`, { waitUntil: 'networkidle' });
+  ok(
+    await visible(page.getByRole('heading', { name: /tu tarjeta vive en tu llavero/i })),
+    'La puerta del cliente explica qué hacer',
+  );
+
   /* 2. Ruta protegida y acceso */
   await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
   ok(page.url().includes('/barbero/login'), 'Sin sesión, la cola redirige al acceso');
