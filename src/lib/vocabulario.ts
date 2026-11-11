@@ -122,9 +122,9 @@ export function vocabulario(tipo: TipoNegocio | undefined | null): Vocabulario {
   return VOCABULARIO[tipo ?? 'barberia'] ?? VOCABULARIO.barberia;
 }
 
-export const TIPOS: { tipo: TipoNegocio; etiqueta: string; pista: string }[] = [
-  { tipo: 'barberia', etiqueta: 'Barbería', pista: 'Cola, sillón, cómo corta' },
-  { tipo: 'peluqueria', etiqueta: 'Peluquería', pista: 'Agenda, puesto, preferencias de estilo' },
-  { tipo: 'unas', etiqueta: 'Salón de uñas', pista: 'Citas, mesa, diseño y preferencias' },
-  { tipo: 'tatuaje', etiqueta: 'Estudio de tatuaje', pista: 'Citas, estación, notas del proyecto' },
+export const TIPOS: { tipo: TipoNegocio; etiqueta: string }[] = [
+  { tipo: 'barberia', etiqueta: 'Barbería' },
+  { tipo: 'peluqueria', etiqueta: 'Peluquería' },
+  { tipo: 'unas', etiqueta: 'Salón de uñas' },
+  { tipo: 'tatuaje', etiqueta: 'Estudio de tatuaje' },
 ];

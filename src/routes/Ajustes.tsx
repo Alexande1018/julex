@@ -226,7 +226,7 @@ export default function Ajustes() {
             >
               {TIPOS.map((t) => (
                 <option key={t.tipo} value={t.tipo}>
-                  {t.etiqueta} — {t.pista}
+                  {t.etiqueta}
                 </option>
               ))}
             </select>
