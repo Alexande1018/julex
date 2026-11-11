@@ -160,8 +160,8 @@ export default function Landing() {
             </div>
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/25 to-transparent" />
             <blockquote className="absolute inset-x-4 bottom-4 lg:inset-x-9 lg:bottom-8">
-              <p className="max-w-[22ch] font-serif text-[21px] italic leading-[1.15] text-ivory sm:text-[26px] lg:max-w-[26ch] lg:text-[32px]">
-                «Nadie debería tener que recordar lo que ya le contó su cliente.»
+              <p className="max-w-[30ch] font-serif text-[19px] italic leading-[1.16] text-ivory sm:text-[24px] lg:max-w-[34ch] lg:text-[29px]">
+                «Recordar lo que nos cuenta el cliente asegura que siempre estemos un paso adelante en su atención.»
               </p>
             </blockquote>
           </div>
