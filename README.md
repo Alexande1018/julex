@@ -408,6 +408,13 @@ se marca `suspendido` y vuelve al pagar. Desde la ficha del local, el administra
 pagado (`marcar_pagado`) o suspende a mano con una nota (`suspender_local`). La suspensión manual no
 la revierte el barrido.
 
+**Alta a distancia.** `/alta` es pública: el negocio rellena sus datos, la dirección de envío y
+cuántos llaveros quiere (15 incluidos, de 5 en 5), y paga el alta con Stripe en el mismo flujo. La
+función `crear_alta_publica` crea la cuenta con el correo ya confirmado, siembra servicios, sillón y
+horario, y genera los llaveros sin asignar. El pago cobra los 30 € + IVA y, si pasa de 40 llaveros,
+1 € una sola vez por cada extra. La dirección queda en la ficha del local, en el panel del
+administrador.
+
 **Clientes perdidos.** El panel lista a quien lleva más de 60 días sin venir. Cada uno tiene dos
 salidas: **«Baja»** manda una petición al administrador (`peticiones_admin`) para que retire el
 llavero —el local no puede retirarlo solo—, y **«Mensaje»** ofrece SMS (abre la app de mensajes del móvil) o WhatsApp

@@ -89,13 +89,24 @@ export default function Landing() {
             </p>
 
             <div className="mt-7 flex flex-wrap gap-2">
-              <Link to="/barbero/cola" className={btnClases('primary', 'lg', 'px-6')}>
-                {haySupabase ? 'Entrar en mi negocio' : 'Entrar en la demo'}
-              </Link>
-              {!haySupabase && (
-                <Link to={tarjetaDemo} className={btnClases('outline', 'lg')}>
-                  Ver una tarjeta
-                </Link>
+              {haySupabase ? (
+                <>
+                  <Link to="/alta" className={btnClases('primary', 'lg', 'px-6')}>
+                    Crear mi negocio
+                  </Link>
+                  <Link to="/barbero/cola" className={btnClases('outline', 'lg')}>
+                    Ya tengo cuenta
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/barbero/cola" className={btnClases('primary', 'lg', 'px-6')}>
+                    Entrar en la demo
+                  </Link>
+                  <Link to={tarjetaDemo} className={btnClases('outline', 'lg')}>
+                    Ver una tarjeta
+                  </Link>
+                </>
               )}
             </div>
           </div>

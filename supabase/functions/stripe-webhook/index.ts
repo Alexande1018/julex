@@ -46,7 +46,10 @@ async function guardarSuscripcion(sus: any) {
   const barberiaId = sus.metadata?.barberia_id ?? null;
   if (!barberiaId) return;
 
-  const cantidad = sus.items?.data?.[0]?.quantity ?? null;
+  const item = sus.items?.data?.[0];
+  const cantidad = item?.quantity ?? null;
+  // El fin de periodo vive en la línea de la suscripción desde la API 2024.
+  const fin = item?.current_period_end ?? sus.current_period_end ?? null;
 
   await admin.from('suscripciones').upsert({
     barberia_id: barberiaId,
@@ -63,7 +66,7 @@ async function guardarSuscripcion(sus: any) {
               ? 'cancelada'
               : 'sin_activar',
     cantidad: cantidad ?? 0,
-    periodo_fin: fecha(sus.current_period_end),
+    periodo_fin: fecha(fin),
     actualizado_en: new Date().toISOString(),
   });
 

@@ -58,13 +58,17 @@ Deno.serve(async (req) => {
       .eq('id', barberiaId)
       .single();
 
+    // Todos los llaveros del local, no solo los activos: al darse de alta
+    // todavía no hay ninguno asignado y la cuota ya cuenta.
     const { count } = await admin
       .from('llaveros')
       .select('id', { count: 'exact', head: true })
       .eq('barberia_id', barberiaId)
-      .eq('estado', 'activo');
+      .neq('estado', 'retirado');
 
-    const cantidad = Math.min(40, Math.max(15, count ?? 0));
+    const total = Math.max(15, count ?? 0);
+    const cantidad = Math.min(40, total);
+    const extras = Math.max(0, total - 40);
 
     const { data: sus } = await admin
       .from('suscripciones')
@@ -100,12 +104,34 @@ Deno.serve(async (req) => {
           // El IVA va en la línea: el precio está sin impuestos.
           tax_rates: [Deno.env.get('STRIPE_TAX_IVA')!],
         },
+        ...(extras > 0
+          ? [
+              {
+                price: Deno.env.get('STRIPE_PRICE_LLAVERO')!,
+                quantity: extras,
+                tax_rates: [Deno.env.get('STRIPE_TAX_IVA')!],
+              },
+            ]
+          : []),
       ],
       payment_intent_data: {
         setup_future_usage: 'off_session',
         metadata: { barberia_id: barberiaId },
       },
-      metadata: { barberia_id: barberiaId, tipo: 'alta', cantidad: String(cantidad) },
+      // Factura del alta, no solo el recibo: la necesita el negocio.
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          description: 'Alta JULEX con 15 llaveros y el primer mes incluido',
+          metadata: { barberia_id: barberiaId },
+        },
+      },
+      metadata: {
+        barberia_id: barberiaId,
+        tipo: 'alta',
+        cantidad: String(cantidad),
+        extras: String(extras),
+      },
       success_url: `${origen}/barbero/ajustes?pago=ok`,
       cancel_url: `${origen}/barbero/ajustes?pago=cancelado`,
     });

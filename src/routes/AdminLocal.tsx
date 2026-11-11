@@ -45,6 +45,11 @@ interface CuentaLocal {
   suspension_manual: boolean;
   material_pendiente: number;
   material_llaveros: number;
+  direccion_envio: string;
+  cp_envio: string;
+  ciudad_envio: string;
+  provincia_envio: string;
+  telefono_contacto: string;
 }
 
 type Filtro = 'todos' | 'activos' | 'libres' | 'retirados';
@@ -291,6 +296,25 @@ export default function AdminLocal() {
         </section>
 
         <Rule className="my-6" />
+
+        {/* ENVÍO */}
+        {(local.direccion_envio || local.ciudad_envio) && (
+          <>
+            <section>
+              <Eyebrow>Envío</Eyebrow>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
+                {local.direccion_envio}
+                <br />
+                {[local.cp_envio, local.ciudad_envio, local.provincia_envio].filter(Boolean).join(' · ')}
+                {local.telefono_contacto ? ` · ${local.telefono_contacto}` : ''}
+              </p>
+              <p className="mt-1 text-[10.5px] text-faint">
+                Los llaveros de esta alta salen de aquí.
+              </p>
+            </section>
+            <Rule className="my-6" />
+          </>
+        )}
 
         {/* COBRO */}
         <section>
