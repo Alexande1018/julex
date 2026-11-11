@@ -75,14 +75,14 @@ export default function Landing() {
         {/* HERO */}
         <section className="mt-10 lg:mt-16 lg:grid lg:grid-cols-[1.02fr_0.98fr] lg:items-start lg:gap-12">
           <div>
-            <Eyebrow>El llavero · la ficha · la vuelta</Eyebrow>
-            <h1 className="display mt-5 max-w-[16ch] text-[42px] text-ink sm:text-[54px] lg:text-[66px]">
-              El llavero que hace que tu negocio
-              <span className="display-i text-[var(--brand)]"> te conozca.</span>
+            <h1 className="display max-w-[22ch] text-[38px] leading-[1.04] text-ink sm:text-[48px] lg:text-[58px]">
+              La tecnología ideal para los negocios que trabajan
+              <span className="display-i text-[var(--brand)]"> con citas.</span>
             </h1>
-            <p className="mt-5 max-w-[46ch] text-[14.5px] leading-relaxed text-ink-soft">
-              El cliente acerca su llavero al móvil de quien le atiende y aparece su ficha: qué le
-              gusta, cuándo vino y cuántas veces. Sin buscar, sin preguntar, sin recordar de memoria.
+            <p className="mt-6 max-w-[52ch] text-[14.5px] leading-relaxed text-ink-soft">
+              Julex ayuda a barberías, peluquerías, salones de uñas y estudios de tatuaje a llevar su
+              negocio y a ofrecer una experiencia que invita a volver. Una nueva forma de organizar el
+              día, conocer a tus clientes y hacer crecer la relación con cada visita.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-2">
