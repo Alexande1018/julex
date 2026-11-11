@@ -15,29 +15,21 @@ const OFICIOS = [
     nombre: 'Barbería',
     imagen: '/img/oficios/barberia.webp',
     alt: 'Barbero afeitando a un cliente en un sillón clásico',
-    texto:
-      'La cola, el sillón y cómo corta. El cliente entra en la cola, pasa al sillón y su ficha recuerda el degradado.',
   },
   {
     nombre: 'Peluquería',
     imagen: '/img/oficios/peluqueria.webp',
     alt: 'Peluquera secando el pelo a una clienta con secador y cepillo',
-    texto:
-      'La agenda, el puesto y las preferencias de estilo. Cada cita con su servicio, su duración y su color.',
   },
   {
     nombre: 'Salón de uñas',
     imagen: '/img/oficios/unas.webp',
     alt: 'Manicura pintando las uñas de una clienta con un pincel',
-    texto:
-      'Citas, mesas y el diseño de cada clienta. Manicura, pedicura o semipermanente, cada uno con su tiempo.',
   },
   {
     nombre: 'Estudio de tatuaje',
     imagen: '/img/oficios/tatuaje.webp',
     alt: 'Tatuadora trabajando en el brazo de un cliente',
-    texto:
-      'Citas, estaciones y las notas del proyecto. Sesiones largas, retoques y el boceto siempre a mano.',
   },
 ];
 
@@ -177,7 +169,6 @@ export default function Landing() {
                 </div>
                 <figcaption className="mt-2.5">
                   <p className="font-serif text-[18px] leading-tight text-ink">{o.nombre}</p>
-                  <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{o.texto}</p>
                 </figcaption>
               </figure>
             ))}
