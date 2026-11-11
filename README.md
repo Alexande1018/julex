@@ -20,6 +20,10 @@ Supabase   proyecto lgcaqzraqhecyzxkgujh (Frankfurt)
 Se publica con `npx netlify-cli deploy --prod --dir=dist`. Las variables viven en `.env.local`
 (ignorado por git); sin ellas la app arranca en modo local con datos de ejemplo.
 
+El despliegue necesita una sesión de Netlify (`npx netlify-cli login`) **y créditos en la cuenta**.
+Si están agotados, la API responde `403 Account credit usage exceeded` y no se publica nada: es
+facturación, no código. El periodo de la cuenta va del día 10 de un mes al 10 del siguiente.
+
 ## Conectar Supabase (modo real)
 
 Sin variables de entorno la app funciona en **modo local** (datos en el navegador): es lo que se usa
