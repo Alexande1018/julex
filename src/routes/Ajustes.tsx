@@ -460,6 +460,10 @@ export default function Ajustes() {
               Te quedan {llaveros.sinAsignar} llaveros sin asignar.
             </p>
           )}
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
+            ¿Necesitas más? Se piden de 5 en 5 como mínimo: escríbenos y te los preparamos. A partir
+            del 41, cada uno cuesta 1 € una sola vez y no sube tu cuota.
+          </p>
         </div>
       </section>
 

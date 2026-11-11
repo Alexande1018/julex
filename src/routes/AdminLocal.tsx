@@ -192,6 +192,10 @@ export default function AdminLocal() {
 
   const anadir = async (cantidad: number) => {
     if (!haySupabase || ocupado || !local) return;
+    if (cantidad < 5) {
+      toast('Los pedidos de llaveros van de 5 en 5 como mínimo', 'aviso');
+      return;
+    }
     setOcupado(true);
     try {
       const { data, error } = await supabase!.rpc('crear_lote_admin', {
@@ -564,13 +568,17 @@ export default function AdminLocal() {
             <Btn v="outline" t="md" onClick={() => void anadir(15)} disabled={ocupado}>
               <Plus size={13} /> 15 llaveros
             </Btn>
-            <Btn v="quiet" t="md" onClick={() => void anadir(1)} disabled={ocupado}>
-              +1
+            <Btn v="quiet" t="md" onClick={() => void anadir(5)} disabled={ocupado}>
+              <Plus size={13} /> 5 llaveros
             </Btn>
             <Link to={`/cita/${local.slug}`} className={btnClases('quiet', 'md')}>
               Ver reservas
             </Link>
           </div>
+          <p className="mt-2 text-[10.5px] leading-relaxed text-faint">
+            Mínimo 5 llaveros por pedido. A partir del llavero 41, cada uno se cobra a 1 € una sola
+            vez.
+          </p>
         </section>
       </div>
     </div>

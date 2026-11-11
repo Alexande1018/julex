@@ -93,6 +93,10 @@ export function Condiciones() {
           sustituyen avisando en el plazo de un mes desde la entrega.
         </p>
         <p>
+          Los pedidos adicionales van de <strong>5 en 5 llaveros como mínimo</strong>. Cada llavero por
+          encima de los 40 activos se cobra a 1 € + IVA una sola vez.
+        </p>
+        <p>
           El grabado se hace con el dominio que JULEX indique en ese momento. Cambiar de dominio
           obliga a grabar llaveros nuevos, y eso no está incluido en la cuota.
         </p>
