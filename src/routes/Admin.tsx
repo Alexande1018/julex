@@ -51,6 +51,14 @@ export default function Admin() {
   const db = useDb();
   const navegar = useNavigate();
   const [locales, setLocales] = useState<LocalAdmin[] | null>(null);
+  const [peticiones, setPeticiones] = useState<
+    {
+      id: string;
+      creada_en: string;
+      clientes: { nombre: string; codigo: string } | null;
+      barberias: { nombre: string } | null;
+    }[]
+  >([]);
   const [ocupado, setOcupado] = useState(false);
   const [nuevo, setNuevo] = useState(false);
   const [form, setForm] = useState({
@@ -84,6 +92,14 @@ export default function Admin() {
     }
 
     const sb = supabase!;
+
+    const pet = await sb
+      .from('peticiones_admin')
+      .select('id, creada_en, clientes(nombre, codigo), barberias(nombre)')
+      .eq('estado', 'pendiente')
+      .order('creada_en');
+    setPeticiones((pet.data ?? []) as unknown as typeof peticiones);
+
     const [loc, lla, cli] = await Promise.all([
       sb.rpc('admin_locales'),
       sb.from('llaveros').select('barberia_id, estado'),
@@ -196,6 +212,34 @@ export default function Admin() {
     } finally {
       setOcupado(false);
     }
+  };
+
+  const resolverPeticion = async (id: string, accion: 'retirar' | 'descartar') => {
+    const { error } = await supabase!.rpc('resolver_peticion_admin', {
+      p_id: id,
+      p_accion: accion,
+      p_nota: '',
+    });
+    if (error) {
+      toast(error.message, 'aviso');
+      return;
+    }
+    toast(accion === 'retirar' ? 'Llavero retirado' : 'Petición descartada', 'ok');
+    await cargar();
+  };
+
+  const revisarCobros = async () => {
+    if (!haySupabase) {
+      toast('La demo no tiene cobros', 'info');
+      return;
+    }
+    const { error } = await supabase!.rpc('revisar_cobros');
+    if (error) {
+      toast(error.message, 'aviso');
+      return;
+    }
+    toast('Cobros revisados', 'ok');
+    await cargar();
   };
 
   return (
@@ -328,6 +372,52 @@ export default function Admin() {
                 Se crea la barbería con su cuenta, sus tres servicios, su horario y su primera silla.
               </p>
             </div>
+          )}
+
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-[10.5px] leading-relaxed text-faint">
+              El barrido de cobros corre solo cada día a las 6:00.
+            </p>
+            <button
+              onClick={() => void revisarCobros()}
+              className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted hover:text-ink"
+            >
+              Revisar cobros ahora
+            </button>
+          </div>
+
+          {peticiones.length > 0 && (
+            <section className="mb-5">
+              <div className="flex items-baseline justify-between">
+                <Eyebrow>Bajas pedidas por los locales</Eyebrow>
+                <span className="num text-[11px] text-faint">{peticiones.length}</span>
+              </div>
+              <ul className="mt-2 divide-y divide-line-soft rounded-[3px] border border-line bg-paper px-3.5">
+                {peticiones.map((p) => (
+                  <li key={p.id} className="flex flex-wrap items-center gap-3 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12.5px] font-semibold text-ink">
+                        {p.clientes?.nombre ?? 'Cliente'}{' '}
+                        <span className="num text-[10.5px] font-normal text-faint">
+                          {p.clientes?.codigo}
+                        </span>
+                      </p>
+                      <p className="text-[10.5px] text-muted">
+                        {p.barberias?.nombre} · {new Date(p.creada_en).toLocaleDateString('es-ES')}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Btn t="sm" onClick={() => void resolverPeticion(p.id, 'retirar')}>
+                        Retirar llavero
+                      </Btn>
+                      <Btn v="quiet" t="sm" onClick={() => void resolverPeticion(p.id, 'descartar')}>
+                        Descartar
+                      </Btn>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           <div className="mt-3 overflow-hidden rounded-[4px] border border-line">

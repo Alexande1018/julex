@@ -819,6 +819,57 @@ async function main() {
   ok(cobrado.rows[0].n === 2 && pendiente.rows[0].n === 0, 'El material se marca como cobrado');
   await db.query(`delete from admins where user_id = $1`, [dueno]);
 
+  /* ------------------------------------------------------------------ */
+  /* Petición del local: retirar el llavero de quien no vuelve          */
+  /* ------------------------------------------------------------------ */
+
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+  const cliPide = await db.query(
+    `insert into clientes (barberia_id, codigo, nombre, token_publico)
+     values ($1, 'P-7777', 'Sin Volver', 'tokpide') returning id`,
+    [localId],
+  );
+  const cliPideId = cliPide.rows[0].id;
+  await db.query(
+    `insert into llaveros (barberia_id, token, codigo_corto, estado, cliente_id, asignado_en)
+     values ($1, 'tokpide-tag', 'PID-01', 'activo', $2, now())`,
+    [localId, cliPideId],
+  );
+
+  const pideLlavero1 = await db.query(`select peticion_baja_cliente($1) as ok`, [cliPideId]);
+  const pideLlavero2 = await db.query(`select peticion_baja_cliente($1) as ok`, [cliPideId]);
+  const abiertasPet = await db.query(
+    `select count(*)::int n from peticiones_admin where cliente_id = $1 and estado = 'pendiente'`,
+    [cliPideId],
+  );
+  ok(pideLlavero1.rows[0].ok === true && pideLlavero2.rows[0].ok === true, 'El local pide la baja del llavero');
+  ok(abiertasPet.rows[0].n === 1, 'Pedirla dos veces no duplica la petición');
+
+  const petId = (await db.query(
+    `select id from peticiones_admin where cliente_id = $1 and estado = 'pendiente'`,
+    [cliPideId],
+  )).rows[0].id;
+
+  // Sin ser administrador no se resuelve.
+  let falloRes = null;
+  try {
+    await db.query(`select resolver_peticion_admin($1, 'retirar', '')`, [petId]);
+  } catch (e) {
+    falloRes = e.message;
+  }
+  ok(falloRes === 'solo_admin', 'Solo el administrador resuelve la petición');
+
+  await db.query(`insert into admins (user_id) values ($1) on conflict do nothing`, [dueno]);
+  const resuelta = await db.query(`select resolver_peticion_admin($1, 'retirar', '') as ok`, [petId]);
+  const tagPide = await db.query(
+    `select estado from llaveros where token = 'tokpide-tag'`,
+  );
+  const estadoPet = await db.query(`select estado from peticiones_admin where id = $1`, [petId]);
+  ok(resuelta.rows[0].ok === true, 'El administrador la resuelve');
+  ok(tagPide.rows[0].estado === 'retirado', 'Y el llavero queda retirado');
+  ok(estadoPet.rows[0].estado === 'resuelta', 'La petición queda cerrada');
+  await db.query(`delete from admins where user_id = $1`, [dueno]);
+
   await db.close();
 }
 

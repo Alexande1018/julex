@@ -13,7 +13,7 @@ import { store } from './store';
 import { codigoCorto, siguienteCodigoCliente, tokenLlavero, uid } from './ids';
 import { addDays, startOfDay } from './format';
 import { sillaLibre, sillasDe } from './derive';
-import { haySupabase } from './supabase';
+import { haySupabase, supabase } from './supabase';
 import * as repo from './repo';
 import { salirRemoto } from './acceso';
 import { toast } from '../components/ui';
@@ -562,6 +562,19 @@ export async function cambiarEstadoCita(citaId: ID, estado: EstadoCita): Promise
 /* ------------------------------------------------------------------ */
 /* Mensajes (simulados, registrados)                                   */
 /* ------------------------------------------------------------------ */
+
+/**
+ * El local pide al administrador que retire el llavero de un cliente que
+ * lleva tiempo sin venir. No borra nada: deja la petición en su bandeja.
+ */
+export async function peticionBajaCliente(clienteId: ID): Promise<boolean> {
+  if (haySupabase) {
+    const { data, error } = await supabase!.rpc('peticion_baja_cliente', { p_cliente: clienteId });
+    if (error) return false;
+    return data === true;
+  }
+  return true;
+}
 
 export async function registrarMensaje(input: {
   clienteId: ID;

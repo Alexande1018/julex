@@ -408,6 +408,13 @@ se marca `suspendido` y vuelve al pagar. Desde la ficha del local, el administra
 pagado (`marcar_pagado`) o suspende a mano con una nota (`suspender_local`). La suspensión manual no
 la revierte el barrido.
 
+**Clientes perdidos.** El panel lista a quien lleva más de 60 días sin venir. Cada uno tiene dos
+salidas: **«Baja»** manda una petición al administrador (`peticiones_admin`) para que retire el
+llavero —el local no puede retirarlo solo—, y **«Mensaje»** abre la aplicación de SMS del móvil con el
+texto y el enlace de reserva ya escritos; en el ordenador copia el texto. El mensaje solo se ofrece si
+el cliente aceptó promociones, y queda registrado en `mensajes_log`. No hay proveedor de SMS: el
+mensaje sale del número del propio local.
+
 **Pendiente, y no es código:** aceptar y conservar los DPA de Supabase y Cloudflare, revisar los
 textos con un abogado antes de cobrar a un local real, y cerrar o redirigir el dominio antiguo de
 Netlify. La retención aprobada (un año tras la última visita, seis meses las reservas no atendidas,

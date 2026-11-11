@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, MessageCircle, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, MessageCircle, TrendingUp, UserMinus } from 'lucide-react';
 import { useDb } from '../lib/store';
-import { registrarMensaje } from '../lib/actions';
+import type { Cliente } from '../lib/types';
+import { peticionBajaCliente, registrarMensaje } from '../lib/actions';
 import {
   actividadSemanal,
   barberiaActiva,
@@ -30,13 +31,14 @@ export default function Panel() {
   const db = useDb();
   const barberia = barberiaActiva(db);
   const [recordar, setRecordar] = useState<string | null>(null);
+  const [pedidas, setPedidas] = useState<Set<string>>(new Set());
 
   const clientes = db.clientes.filter((c) => c.barberiaId === barberia.id);
   const activos = clientesActivos(db, barberia.id, 30);
   const llaveros = resumenLlaveros(db, barberia.id);
   const activosLlavero = llaverosActivos(db, barberia.id);
   const semanas = actividadSemanal(db, barberia.id, 8);
-  const inactivos = clientesInactivos(db, barberia.id, 30);
+  const inactivos = clientesInactivos(db, barberia.id, 60);
   const ingresos = ingresosDelMes(db, barberia.id);
 
   const ahora = new Date();
@@ -50,7 +52,36 @@ export default function Panel() {
   const maxSemana = Math.max(1, ...semanas.map((s) => s.visitas));
   const totalSemanas = semanas.reduce((s, w) => s + w.visitas, 0);
 
+  const enlaceCita = `${window.location.origin}/cita/${barberia.slug}`;
+  const mensajeCita = (c: Cliente) =>
+    `En ${barberia.nombre} te están esperando. ¿Quieres apartar tu cita? Pide la tuya aquí: ${enlaceCita}`;
+
+  const abrirSms = (c: Cliente) => {
+    const texto = mensajeCita(c);
+    const tel = c.telefono.replace(/[^\d+]/g, '');
+    const movil = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) && tel.length > 5;
+    if (!movil) {
+      void navigator.clipboard
+        .writeText(texto)
+        .then(() => toast('Texto copiado: pégalo en un SMS', 'info'))
+        .catch(() => toast('No se pudo copiar el texto', 'aviso'));
+      return;
+    }
+    const sep = /iPhone|iPad/i.test(navigator.userAgent) ? '&' : '?';
+    window.location.href = `sms:${tel}${sep}body=${encodeURIComponent(texto)}`;
+  };
+
   const clienteRecordar = recordar ? clientes.find((c) => c.id === recordar) : undefined;
+
+  const pedirBaja = async (clienteId: string) => {
+    const enviada = await peticionBajaCliente(clienteId);
+    if (!enviada) {
+      toast('No se pudo enviar la petición', 'aviso');
+      return;
+    }
+    setPedidas((x) => new Set(x).add(clienteId));
+    toast('Solicitud enviada al administrador', 'ok');
+  };
 
   return (
     <Shell barberia={barberia} activo="/barbero/panel">
@@ -117,7 +148,7 @@ export default function Panel() {
 
       <section>
         <div className="flex items-baseline justify-between">
-          <Eyebrow>Sin venir más de 30 días</Eyebrow>
+          <Eyebrow>Sin venir más de 60 días</Eyebrow>
           <span className="num text-[11px] text-faint">{inactivos.length}</span>
         </div>
 
@@ -128,7 +159,7 @@ export default function Panel() {
         ) : (
           <ul className="mt-1">
             {inactivos.map(({ cliente, dias }) => {
-              const consentimiento = cliente.consentimientos.marketing;
+              const consentimiento = cliente.consentimientos.promociones || cliente.consentimientos.marketing;
               return (
                 <li
                   key={cliente.id}
@@ -141,14 +172,32 @@ export default function Panel() {
                   >
                     {cliente.nombre}
                   </Link>
-                  <button
-                    onClick={() => setRecordar(cliente.id)}
-                    disabled={!consentimiento}
-                    title={consentimiento ? 'Escribir recordatorio' : 'Sin consentimiento para avisos'}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-[2px] border border-line px-2 py-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-soft transition-colors enabled:hover:border-ink/30 enabled:hover:text-ink disabled:opacity-35"
-                  >
-                    <MessageCircle size={10} /> Recordar
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      onClick={() => void pedirBaja(cliente.id)}
+                      disabled={pedidas.has(cliente.id)}
+                      title={
+                        pedidas.has(cliente.id)
+                          ? 'Solicitud enviada al administrador'
+                          : 'Pedir al administrador que retire su llavero'
+                      }
+                      className="inline-flex items-center gap-1 rounded-[2px] border border-line px-2 py-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-soft transition-colors enabled:hover:border-clay/50 enabled:hover:text-clay disabled:opacity-35"
+                    >
+                      <UserMinus size={10} /> {pedidas.has(cliente.id) ? 'Pedida' : 'Baja'}
+                    </button>
+                    <button
+                      onClick={() => setRecordar(cliente.id)}
+                      disabled={!consentimiento}
+                      title={
+                        consentimiento
+                          ? 'Enviar un mensaje con el enlace para pedir cita'
+                          : 'Sin consentimiento para promociones'
+                      }
+                      className="inline-flex items-center gap-1 rounded-[2px] border border-line px-2 py-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-soft transition-colors enabled:hover:border-ink/30 enabled:hover:text-ink disabled:opacity-35"
+                    >
+                      <MessageCircle size={10} /> Mensaje
+                    </button>
+                  </div>
                 </li>
               );
             })}
@@ -156,8 +205,9 @@ export default function Panel() {
         )}
 
         <p className="mt-2 text-[10.5px] leading-relaxed text-faint">
-          Solo aparecen clientes con consentimiento de avisos. El mensaje queda registrado en el
-          historial: el envío automático todavía no está conectado.
+          «Baja» pide al administrador que retire el llavero; no se ejecuta solo. «Mensaje» abre tu
+          aplicación de SMS con el texto y el enlace listos, y solo está disponible si el cliente
+          aceptó promociones.
         </p>
       </section>
 
@@ -235,17 +285,17 @@ export default function Panel() {
               className="flex-1"
               onClick={() => {
                 if (!clienteRecordar) return;
+                abrirSms(clienteRecordar);
                 registrarMensaje({
                   clienteId: clienteRecordar.id,
                   tipo: 'reactivacion',
-                  canal: 'whatsapp',
-                  texto: `Hola ${primerNombre(clienteRecordar.nombre)}, hace unas semanas que no te veo. ¿Te guardo hueco esta semana? — ${barberia.nombre}`,
+                  canal: 'sms',
+                  texto: mensajeCita(clienteRecordar),
                 });
                 setRecordar(null);
-                toast('Recordatorio registrado como simulado', 'info');
               }}
             >
-              Registrar envío
+              Enviar SMS
             </Btn>
           </div>
         }
@@ -254,15 +304,18 @@ export default function Panel() {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Pill tono="ok">Con consentimiento</Pill>
-              <span className="text-[11px] text-muted">Avisos aceptados</span>
+              <span className="text-[11px] text-muted">Promociones aceptadas</span>
             </div>
             <p className="rounded-[3px] border border-line bg-paper px-3.5 py-3 font-serif text-[14px] italic leading-relaxed text-ink">
-              Hola {primerNombre(clienteRecordar.nombre)}, hace unas semanas que no te veo. ¿Te guardo
-              hueco esta semana? — {barberia.nombre}
+              {mensajeCita(clienteRecordar)}
+            </p>
+            <p className="break-all rounded-[3px] border border-line bg-ivory px-3 py-2 text-[11px] text-muted">
+              {enlaceCita}
             </p>
             <p className="text-[11px] leading-relaxed text-faint">
-              Hoy solo se registra en el historial. El envío por WhatsApp Business o SMS, con la baja
-              incluida, llegará después.
+              Abre la aplicación de mensajes del móvil con el texto y el enlace listos: se envía desde
+              tu número, y queda registrado aquí. Si lo abres desde el ordenador, se copia el texto
+              para que lo pegues.
             </p>
           </div>
         )}
