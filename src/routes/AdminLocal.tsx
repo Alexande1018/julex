@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Copy, Nfc, Plus, Search } from 'lucide-react';
 import { haySupabase, supabase } from '../lib/supabase';
 import { fmtEuros } from '../lib/format';
+import { Salir } from '../components/Salir';
 import {
   Btn,
   Eyebrow,
@@ -168,9 +169,12 @@ export default function AdminLocal() {
     return (
       <div className="grain min-h-dvh bg-ivory">
         <div className="mx-auto w-full max-w-3xl px-5 py-10">
-          <Link to="/admin" className="text-[11px] font-semibold text-muted hover:text-ink">
-            ← Volver
-          </Link>
+          <div className="flex items-center justify-between">
+            <Link to="/admin" className="text-[11px] font-semibold text-muted hover:text-ink">
+              ← Volver
+            </Link>
+            <Salir a="/" />
+          </div>
           <p className="mt-4 text-[13px] text-muted">Local no encontrado.</p>
         </div>
       </div>
@@ -181,12 +185,15 @@ export default function AdminLocal() {
     <div className="grain min-h-dvh bg-ivory">
       <header className="bg-ink px-5 pb-6 pt-5 text-ivory">
         <div className="mx-auto w-full max-w-3xl">
-          <Link
-            to="/admin"
-            className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-ivory/50 hover:text-ivory"
-          >
-            <ArrowLeft size={12} /> Panel
-          </Link>
+          <div className="flex items-center justify-between">
+            <Link
+              to="/admin"
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-ivory/50 hover:text-ivory"
+            >
+              <ArrowLeft size={12} /> Panel
+            </Link>
+            <Salir a="/" tono="oscuro" />
+          </div>
           <h1 className="mt-4 font-serif text-[25px] leading-tight text-ivory">{local.nombre}</h1>
           <p className="mt-1 text-[11.5px] text-ivory/50">/{local.slug}</p>
         </div>

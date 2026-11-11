@@ -21,6 +21,7 @@ import {
 import { Sellos } from '../components/Timer';
 import { Foto } from '../components/Foto';
 import { Logotipo } from '../components/Logotipo';
+import { Salir } from '../components/Salir';
 import {
   Btn,
   Check,
@@ -202,9 +203,12 @@ export default function Tarjeta() {
                 {barberia.nombre}
               </h1>
             </div>
-            <span className="num rounded-[2px] border border-ivory/25 px-1.5 py-1 text-[9.5px] font-bold tracking-[0.1em] text-ivory/70">
-              {cliente.codigo}
-            </span>
+            <div className="flex flex-col items-end gap-2">
+              <span className="num rounded-[2px] border border-ivory/25 px-1.5 py-1 text-[9.5px] font-bold tracking-[0.1em] text-ivory/70">
+                {cliente.codigo}
+              </span>
+              <Salir a="/" tono="oscuro" etiqueta="Cerrar" cerrarSesion={false} />
+            </div>
           </div>
 
           <div className="mt-6 flex items-end justify-between">

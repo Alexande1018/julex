@@ -4,6 +4,7 @@ import { Calendar, ListOrdered, Settings, Users, BarChart3 } from 'lucide-react'
 import type { Barberia } from '../lib/types';
 import { cn, Wordmark } from './ui';
 import { Logotipo } from './Logotipo';
+import { Salir } from './Salir';
 
 const NAV = [
   { to: '/barbero/cola', label: 'Cola', Icon: ListOrdered },
@@ -74,6 +75,9 @@ export function Shell({
               )}
             </button>
           ))}
+          <div className="ml-auto flex items-center">
+            <Salir a="/" />
+          </div>
         </nav>
       </header>
 
@@ -83,7 +87,7 @@ export function Shell({
 
       {/* Navegación inferior: se usa con el pulgar, mientras se trabaja */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ivory/95 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-2xl grid-cols-5 pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto grid max-w-2xl grid-cols-6 pb-[env(safe-area-inset-bottom)]">
           {NAV.map(({ to, label, Icon }) => {
             const on = activo === to;
             return (
@@ -111,6 +115,7 @@ export function Shell({
               </button>
             );
           })}
+          <Salir a="/" variante="celda" />
         </div>
       </nav>
     </div>

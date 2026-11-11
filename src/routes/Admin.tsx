@@ -4,6 +4,7 @@ import { ChevronRight, Plus, Store } from 'lucide-react';
 import { haySupabase, supabase } from '../lib/supabase';
 import { useDb } from '../lib/store';
 import { fmtEuros } from '../lib/format';
+import { Salir } from '../components/Salir';
 import {
   Btn,
   Eyebrow,
@@ -155,7 +156,10 @@ export default function Admin() {
             <span className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-ivory/80">
               Julex
             </span>
-            {!haySupabase && <Pill tono="warn">Demo</Pill>}
+            <div className="flex items-center gap-3">
+              {!haySupabase && <Pill tono="warn">Demo</Pill>}
+              <Salir a="/" tono="oscuro" />
+            </div>
           </div>
           <h1 className="mt-6 font-serif text-[26px] leading-tight text-ivory">
             Panel del administrador

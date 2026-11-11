@@ -154,6 +154,34 @@ try {
   ok(pwa.manifest === 'standalone', 'El manifest es instalable', pwa.manifest ?? '' );
   ok(pwa.iconos >= 2, 'El manifest trae iconos', `${pwa.iconos} iconos`);
 
+  /* 8b. Salir desde la ventana del local: pide permiso, cierra sesión y vuelve al inicio */
+  await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
+  const salirMovil = page.getByRole('button', { name: 'Salir' }).filter({ visible: true });
+  await salirMovil.first().click();
+  const hojaSalir = page.getByRole('dialog', { name: '¿Salir?' });
+  ok(await visible(hojaSalir), 'Salir pide confirmación antes de cerrar');
+  await hojaSalir.getByRole('button', { name: 'Salir' }).click();
+  const volvioAlInicio = await page
+    .waitForFunction(() => location.pathname === '/', null, { timeout: 6000 })
+    .then(() => true)
+    .catch(() => false);
+  ok(volvioAlInicio, 'Salir vuelve al inicio');
+  ok(await esperarEstado((d) => !d.sesion), 'Salir cierra la sesión del local');
+
+  await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
+  ok(page.url().includes('/barbero/login'), 'Después de salir, la cola vuelve a pedir acceso');
+
+  /* 8c. La tarjeta del cliente sale sin desconectar el navegador del barbero */
+  await page.getByRole('button', { name: /entrar/i }).first().click();
+  await page.waitForURL('**/barbero/cola');
+  await page.goto(`${BASE}/c/${pablo.tokenPublico}`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Cerrar', exact: true }).filter({ visible: true }).first().click();
+  const salioDeLaTarjeta = await page
+    .waitForFunction(() => location.pathname === '/', null, { timeout: 6000 })
+    .then(() => true)
+    .catch(() => false);
+  ok(salioDeLaTarjeta && Boolean((await db()).sesion), 'La tarjeta sale sin cerrar la sesión');
+
   /* 9. Consola limpia */
   ok(errores.length === 0, 'Sin errores en consola', errores.slice(0, 3).join(' | '));
 } catch (e) {

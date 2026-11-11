@@ -87,15 +87,18 @@ no existe». Los enlaces se generan desde `cliente.tokenPublico`.
 Suite de humo con navegador real contra el build de producción:
 
 ```bash
-npm run build
-npm run preview        # en otra terminal (http://127.0.0.1:4173)
+npm run build:demo     # modo local, sin Supabase: es contra lo que prueban los tests
+npm run preview:demo   # en otra terminal (http://127.0.0.1:4173)
 npm run test:e2e
 ```
 
-Veinte comprobaciones sobre los flujos que importan: portada, ruta protegida, acceso, cierre de un
+Si tienes `.env.local`, `npm run build` compila en **modo real** y la suite, que da por hechos los
+datos de demostración, no sirve: usa `build:demo`/`preview:demo` para probar.
+
+Veintinueve comprobaciones sobre los flujos que importan: portada, ruta protegida, acceso, cierre de un
 servicio (con el contador de visitas), alta de cliente, tarjeta por token, el código enumerable
-rechazado, reserva, service worker, manifest y consola limpia. Cada ejecución abre un navegador
-nuevo (sin sesión y sin datos), así que no toca tu navegador de trabajo.
+rechazado, reserva, salida con y sin sesión, service worker, manifest y consola limpia. Cada
+ejecución abre un navegador nuevo (sin sesión y sin datos), así que no toca tu navegador de trabajo.
 
 Usa el Chrome del sistema (`channel: 'chrome'`): no descarga navegadores. Si prefieres los de
 Playwright, `npx playwright install chromium` y cambia el `channel` en `tests/flujos.mjs`.
@@ -107,7 +110,7 @@ npm run test:esquema
 ```
 
 Levanta un **PostgreSQL 18 real en WASM** (PGlite), crea los roles y los esquemas `auth`/`storage`
-que Supabase ya trae, aplica las migraciones tal cual y comprueba las reglas del negocio: 30
+que Supabase ya trae, aplica las migraciones tal cual y comprueba las reglas del negocio:
 56 comprobaciones sobre el alta del local, las sillas, la coherencia de los llaveros, `atender_cola()` en
 transacción, la recompensa que salta exactamente en la meta, el canje que no borra historial, la
 ficha pública, la disponibilidad real (horario, descansos y bloqueos), la reserva sin dobles, la
@@ -240,6 +243,11 @@ Todo esto se ejecuta, muta datos y **sobrevive a recargar** (localStorage `julex
 
 **Consola del creador**
 - Barberías con su cuota, inventario de llaveros (copiar URL del chip, probar), generación de lotes y registro de mensajes.
+
+**Salida**
+- **Salir** en la barra del local (a la derecha en escritorio, sexta celda en la barra inferior del móvil) y en el panel del administrador; **Cerrar** en la tarjeta del cliente y en la reserva.
+- En el local y en el panel pide confirmación, cierra la sesión (Supabase o local) y vuelve a la portada; desde ahí, la cola vuelve a pedir acceso.
+- En la tarjeta del cliente y en la reserva **no** cierra sesión: el barbero que abre la tarjeta que le enseña un cliente vuelve a la portada sin tener que entrar otra vez.
 
 ---
 

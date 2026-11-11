@@ -19,6 +19,7 @@ import {
 } from '../lib/format';
 import { Btn, Check as CheckBox, Eyebrow, Pill, Rule, cn, inputClases, toast } from '../components/ui';
 import { Logotipo } from '../components/Logotipo';
+import { Salir } from '../components/Salir';
 
 interface Destino {
   local: LocalPublico;
@@ -254,7 +255,10 @@ export default function Cita() {
           >
             <ArrowLeft size={13} /> Volver
           </button>
-          <span className="text-[9.5px] font-bold uppercase tracking-[0.22em] text-faint">JULEX</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[9.5px] font-bold uppercase tracking-[0.22em] text-faint">JULEX</span>
+            <Salir a="/" etiqueta="Cerrar" cerrarSesion={false} />
+          </div>
         </div>
 
         <header className="mt-6">
