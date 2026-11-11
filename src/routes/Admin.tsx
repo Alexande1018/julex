@@ -160,9 +160,6 @@ export default function Admin() {
           <h1 className="mt-6 font-serif text-[26px] leading-tight text-ivory">
             Panel del administrador
           </h1>
-          <p className="mt-1.5 max-w-[52ch] text-[12px] leading-relaxed text-ivory/55">
-            Elige un local para ver su cuenta y sus llaveros. Cada barbería sigue viendo solo la suya.
-          </p>
         </div>
       </header>
 
