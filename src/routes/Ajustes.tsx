@@ -417,13 +417,11 @@ export default function Ajustes() {
       <section>
         <Eyebrow>Avisos y mensajes</Eyebrow>
         <div className="mt-2 flex items-center gap-2">
-          <Pill tono="warn">Simulado</Pill>
-          <span className="text-[11.5px] text-muted">Nada sale de la app</span>
+          <Pill tono="neutral">Próximamente</Pill>
         </div>
         <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
-          En esta entrega los recordatorios y solicitudes de reseña se registran en el historial pero no
-          se envían. Para enviarlos de verdad hace falta un proveedor de WhatsApp Business o SMS, y es
-          un servicio externo de pago.
+          Los recordatorios de cita y las solicitudes de reseña ya quedan registrados en el historial de
+          cada cliente. El envío automático por WhatsApp o SMS llegará en la próxima actualización.
         </p>
       </section>
 
