@@ -51,6 +51,9 @@ export default function Admin() {
   const db = useDb();
   const navegar = useNavigate();
   const [locales, setLocales] = useState<LocalAdmin[] | null>(null);
+  const [pedidos, setPedidos] = useState<
+    { id: string; cantidad: number; estado: string; creado_en: string; barberias: { nombre: string } | null }[]
+  >([]);
   const [peticiones, setPeticiones] = useState<
     {
       id: string;
@@ -99,6 +102,13 @@ export default function Admin() {
       .eq('estado', 'pendiente')
       .order('creada_en');
     setPeticiones((pet.data ?? []) as unknown as typeof peticiones);
+
+    const ped = await sb
+      .from('pedidos_llavero')
+      .select('id, cantidad, estado, creado_en, barberias(nombre)')
+      .in('estado', ['pedido', 'enviado'])
+      .order('creado_en');
+    setPedidos((ped.data ?? []) as unknown as typeof pedidos);
 
     const [loc, lla, cli] = await Promise.all([
       sb.rpc('admin_locales'),
@@ -225,6 +235,16 @@ export default function Admin() {
       return;
     }
     toast(accion === 'retirar' ? 'Llavero retirado' : 'Petición descartada', 'ok');
+    await cargar();
+  };
+
+  const moverPedido = async (id: string, estado: 'enviado' | 'entregado') => {
+    const { error } = await supabase!.rpc('mover_pedido', { p_id: id, p_estado: estado });
+    if (error) {
+      toast(error.message, 'aviso');
+      return;
+    }
+    toast(estado === 'enviado' ? 'Pedido marcado como enviado' : 'Pedido entregado', 'ok');
     await cargar();
   };
 
@@ -385,6 +405,39 @@ export default function Admin() {
               Revisar cobros ahora
             </button>
           </div>
+
+          {pedidos.length > 0 && (
+            <section className="mb-5">
+              <div className="flex items-baseline justify-between">
+                <Eyebrow>Llaveros pedidos</Eyebrow>
+                <span className="num text-[11px] text-faint">{pedidos.length}</span>
+              </div>
+              <ul className="mt-2 divide-y divide-line-soft rounded-[3px] border border-line bg-paper px-3.5">
+                {pedidos.map((p) => (
+                  <li key={p.id} className="flex flex-wrap items-center gap-3 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12.5px] font-semibold text-ink">
+                        {p.cantidad} llaveros · {p.barberias?.nombre}
+                      </p>
+                      <p className="text-[10.5px] text-muted">
+                        {p.estado} · {new Date(p.creado_en).toLocaleDateString('es-ES')}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {p.estado === 'pedido' && (
+                        <Btn t="sm" onClick={() => void moverPedido(p.id, 'enviado')}>
+                          Enviado
+                        </Btn>
+                      )}
+                      <Btn v="quiet" t="sm" onClick={() => void moverPedido(p.id, 'entregado')}>
+                        Entregado
+                      </Btn>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {peticiones.length > 0 && (
             <section className="mb-5">

@@ -24,6 +24,7 @@ import { imagenAWebp, imagenAWebpBlob } from '../lib/imagen';
 import {
   Btn,
   Confirmar,
+  Sheet,
   btnClases,
   Eyebrow,
   Field,
@@ -56,6 +57,8 @@ export default function Ajustes() {
   const inputLogo = useRef<HTMLInputElement>(null);
   const [reset, setReset] = useState(false);
   const [salirConfirm, setSalirConfirm] = useState(false);
+  const [pedir, setPedir] = useState(false);
+  const [cantidadPedido, setCantidadPedido] = useState(5);
   const [domicilioLegal, setDomicilioLegal] = useState(barberia.domicilioLegal);
   const [correoLegal, setCorreoLegal] = useState(barberia.correoLegal);
   const [solicitudes, setSolicitudes] = useState<
@@ -64,6 +67,21 @@ export default function Ajustes() {
 
   const llaveros = resumenLlaveros(db, barberia.id);
   const cuota = cuotaMensual(db, barberia.id);
+  const pedirLlaveros = async () => {
+    if (!haySupabase || !supabase) {
+      toast('En la demo no hay pedidos de verdad', 'info');
+      setPedir(false);
+      return;
+    }
+    const { error } = await supabase.rpc('pedir_llaveros', { p_cantidad: cantidadPedido });
+    if (error) {
+      toast(error.message, 'aviso');
+      return;
+    }
+    setPedir(false);
+    toast(`Pedido enviado: ${cantidadPedido} llaveros`, 'ok');
+  };
+
   const cargarSolicitudes = useCallback(async () => {
     if (!haySupabase || !supabase) return;
     const { data } = await supabase
@@ -460,6 +478,10 @@ export default function Ajustes() {
               Te quedan {llaveros.sinAsignar} llaveros sin asignar.
             </p>
           )}
+          <Btn v="outline" t="sm" className="mt-2.5" onClick={() => setPedir(true)}>
+            Pedir más llaveros
+          </Btn>
+
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
             ¿Necesitas más? Se piden de 5 en 5 como mínimo: escríbenos y te los preparamos. A partir
             del 41, cada uno cuesta 1 € una sola vez{' '}
@@ -635,6 +657,58 @@ export default function Ajustes() {
           void salir().finally(() => navegar('/'));
         }}
       />
+      <Sheet
+        open={pedir}
+        onClose={() => setPedir(false)}
+        titulo="Pedir llaveros"
+        descripcion="De 5 en 5. Te los preparamos y te los enviamos."
+        pie={
+          <Btn className="w-full" onClick={() => void pedirLlaveros()}>
+            Enviar pedido
+          </Btn>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-[3px] border border-line bg-paper px-3.5 py-3">
+            <button
+              onClick={() => setCantidadPedido((n) => Math.max(5, n - 5))}
+              className="inline-flex size-8 items-center justify-center rounded-[2px] border border-line text-[16px] text-ink-soft"
+              aria-label="Quitar cinco"
+            >
+              −
+            </button>
+            <span className="num font-serif text-[24px] leading-none text-ink">{cantidadPedido}</span>
+            <button
+              onClick={() => setCantidadPedido((n) => n + 5)}
+              className="inline-flex size-8 items-center justify-center rounded-[2px] border border-line text-[16px] text-ink-soft"
+              aria-label="Añadir cinco"
+            >
+              +
+            </button>
+          </div>
+
+          <div className="space-y-1.5 text-[11.5px] leading-relaxed text-muted">
+            <p>
+              Activos ahora: <span className="text-ink-soft">{cuota.activos}</span>
+            </p>
+            <p>
+              Cuota después de activarlos:{' '}
+              <span className="font-semibold text-ink">
+                {fmtEuros(Math.min(40, Math.max(15, cuota.activos + cantidadPedido)))}
+              </span>{' '}
+              al mes
+            </p>
+            {cuota.activos + cantidadPedido > 40 && (
+              <p className="text-clay">
+                {cuota.activos + cantidadPedido - 40} llaveros pasan del tope: se cobran 1 € una sola
+                vez por cada uno, y la cuota se queda en 40 €.
+              </p>
+            )}
+            <p>Se te avisa cuando salgan y cuando lleguen. El importe aparece en tu factura.</p>
+          </div>
+        </div>
+      </Sheet>
+
     </Shell>
   );
 }
