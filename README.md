@@ -9,6 +9,17 @@ Herramienta para barberías con llavero NFC: la cola del día, la ficha de cada 
 
 ---
 
+## Producción
+
+```
+App        https://julex-379.netlify.app
+Panel      https://julex-379.netlify.app/admin
+Supabase   proyecto lgcaqzraqhecyzxkgujh (Frankfurt)
+```
+
+Se publica con `npx netlify-cli deploy --prod --dir=dist`. Las variables viven en `.env.local`
+(ignorado por git); sin ellas la app arranca en modo local con datos de ejemplo.
+
 ## Conectar Supabase (modo real)
 
 Sin variables de entorno la app funciona en **modo local** (datos en el navegador): es lo que se usa
@@ -97,7 +108,7 @@ npm run test:esquema
 
 Levanta un **PostgreSQL 18 real en WASM** (PGlite), crea los roles y los esquemas `auth`/`storage`
 que Supabase ya trae, aplica las migraciones tal cual y comprueba las reglas del negocio: 30
-48 comprobaciones sobre el alta del local, la coherencia de los llaveros, `atender_cola()` en
+56 comprobaciones sobre el alta del local, las sillas, la coherencia de los llaveros, `atender_cola()` en
 transacción, la recompensa que salta exactamente en la meta, el canje que no borra historial, la
 ficha pública, la disponibilidad real (horario, descansos y bloqueos), la reserva sin dobles, la
 cancelación con sus reglas y la baja del cliente.
@@ -171,14 +182,15 @@ Para probar desde el móvil en la misma wifi, `npm run dev` ya escucha en toda l
 
 ---
 
-## Las cuatro superficies
+## Las superficies
 
 | Ruta | Quién | Qué hace |
 |---|---|---|
 | `/barbero/*` | Barbero | Cola, ficha, clientes, agenda, panel, ajustes. Protegido: sin sesión redirige a `/barbero/login`. |
 | `/nfc/:token` | El llavero | Si está en blanco, pide a quién se lo das. Si ya es de alguien, abre su ficha. Si está retirado, página neutra. |
 | `/c/:codigo` · `/c/:codigo/cita` · `/cita/:slug` | Cliente | Su tarjeta, su fidelización, pedir cita. Sin cuenta. |
-| `/admin` | El creador | Barberías, inventario, cuota y mensajes simulados. Sin datos privados. |
+| `/admin` | El administrador | Lista de locales, alta de local con su barbero, cuotas. Solo cuentas de la tabla `admins`; a un barbero lo devuelve a su cola. |
+| `/admin/local/:id` | El administrador | Ficha de un local: su cuenta (correo, contraseña, bloquear), sus llaveros y sus lotes. |
 
 Además: `/` (portada con el simulador de llavero) y `/legal` (textos de consentimiento).
 
@@ -231,20 +243,21 @@ Todo esto se ejecuta, muta datos y **sobrevive a recargar** (localStorage `julex
 
 ---
 
-## Qué está simulado (y se dice en pantalla)
+## Qué es real y qué falta
+
+Real, sobre Supabase: cuentas con correo y contraseña, RLS por local, sillas con capacidad,
+reservas sin dobles, cola con reparto automático, tarjeta del cliente por token, llaveros con
+vinculación permanente y el panel de administrador con sus locales.
 
 | Cosa | Estado |
 |---|---|
-| Lectura NFC | **Simulada por URL.** No hay Web NFC ni escucha en segundo plano: se abre `/nfc/:token`, igual que hará el móvil. |
-| WhatsApp / SMS | **Nada se envía.** Los mensajes se guardan como `simulado` y así se muestra. |
-| Cobro de la cuota | Se **calcula**, no se factura ni se pasa ningún cargo. |
-| Login | Sin contraseña: botón de demo. En producción lo resuelve Supabase Auth. |
-| Base de datos | `localStorage` del navegador. Aislada de cualquier dato real. |
-| Reseñas, bonos, club, caja | No construidos (Fase 2/3). |
+| Lectura NFC | La hace el móvil del cliente al acercar el chip: abre `/nfc/:token`. La app no lee chips. |
+| WhatsApp / SMS | **Próximamente.** Los avisos quedan registrados; el envío automático llega después. |
+| Cobro de la cuota | Se **calcula** (máximo entre 15 € y llaveros activos), no se factura. |
+| Reseñas, bonos, club, caja | No construidos. |
 
-Los ingresos se calculan **a precio de tarifa** a partir de visitas registradas; la caja real (efectivo, tarjeta, bonos) no existe todavía y el panel lo dice.
-
----
+Los ingresos se calculan **a precio de tarifa** a partir de visitas registradas; la caja real
+(efectivo, tarjeta, bonos) no existe todavía.
 
 ## Grabar un llavero de verdad
 
