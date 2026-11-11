@@ -625,19 +625,27 @@ export default function Ajustes() {
                 </Btn>
               ) : (
                 <>
-                  <select
-                    value={diasPausa}
-                    onChange={(e) => setDiasPausa(Number(e.target.value))}
-                    className={cn(inputClases, 'h-9 w-auto text-[11.5px]')}
-                    aria-label="Días de pausa"
-                  >
-                    <option value={7}>7 días</option>
-                    <option value={15}>15 días</option>
-                    <option value={30}>30 días</option>
-                  </select>
+                  <label className="inline-flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={diasPausa}
+                      onChange={(e) => setDiasPausa(Number(e.target.value))}
+                      onBlur={() => setDiasPausa((n) => Math.min(30, Math.max(1, Math.round(n) || 1)))}
+                      className={cn(inputClases, 'h-9 w-16 text-center text-[11.5px]')}
+                      aria-label="Días de pausa"
+                    />
+                    <span className="text-[11px] text-muted">días</span>
+                  </label>
                   <Btn
                     v="quiet"
-                    onClick={() => void irAStripe('stripe-pausa', { accion: 'pausar', dias: diasPausa })}
+                    onClick={() =>
+                      void irAStripe('stripe-pausa', {
+                        accion: 'pausar',
+                        dias: Math.min(30, Math.max(1, diasPausa)),
+                      })
+                    }
                     disabled={cobrando}
                   >
                     Pausar
@@ -649,8 +657,8 @@ export default function Ajustes() {
         </div>
 
         <p className="mt-2 text-[10.5px] leading-relaxed text-faint">
-          La pausa es para vacaciones o un cierre: deja de cobrarse y se reanuda sola el día que
-          elijas, hasta un máximo de 30 días. Los cobros los gestiona Stripe; JULEX no guarda tu
+          La pausa es para vacaciones o un cierre: elige entre 1 y 30 días, deja de cobrarse y se
+          reanuda sola el día que toque. Los cobros los gestiona Stripe; JULEX no guarda tu
           tarjeta.
         </p>
       </section>
