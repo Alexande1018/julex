@@ -358,10 +358,21 @@ Los ingresos se calculan **a precio de tarifa** a partir de visitas registradas;
 El chip **no conoce al cliente**. Se graba en blanco, en el taller, y nunca se vuelve a escribir.
 
 1. En `/admin`, pulsa **Generar lote de 15**. Cada llavero recibe un token aleatorio y un código legible (`PBL-7K4Q`).
-2. Copia la URL de cada chip: `https://TU-DOMINIO/nfc/<token>`.
-3. Graba esa URL en un **NTAG213/215/216** con cualquier app de escritura NDEF (por ejemplo NFC Tools). URL en texto plano NDEF, no un enlace de app.
-4. Pega el QR del mismo token en la otra cara (una etiqueta QR normal, apuntando a `/nfc/<token>` o a `/q/<token>` cuando exista la ruta de reserva).
-5. En la barbería: el cliente acerca el llavero al móvil del barbero → la app pide a quién se lo da → vinculado. A partir de ahí, ese toque abre su ficha.
+2. En la ficha del local, cada fila del inventario tiene un botón para **copiar la URL del chip**:
+   `https://julex.pages.dev/nfc/<token>`. Hazlo desde el móvil con el que vas a grabar.
+3. Graba esa URL en un **NTAG213/215/216** con una app de escritura NDEF (por ejemplo NFC Tools):
+   URL en texto plano, no un enlace de app ni un acortador. Copiar, pegar, acercar la etiqueta.
+4. Etiqueta cada llavero con **su** código corto, para poder encontrarlo en el inventario.
+5. Comprueba tocándolo con el móvil **sin sesión**: debe decir «Este llavero aún no tiene tarjeta».
+6. En la barbería: el barbero lo acerca a su móvil → la app pide a quién se lo da → vinculado. Desde
+   entonces, ese mismo llavero abre la ficha con el barbero y la tarjeta con el cliente.
+
+**No lleva QR personal.** Desde la migración 0011 el chip basta para las dos puertas, así que en la
+cara B solo va el código corto. El QR del local (`/cita/<slug>`) es otra cosa: se imprime desde
+Ajustes y sirve para quien entra sin llavero.
+
+Bloquear el chip como **solo lectura** (NFC Tools lo permite) evita que lo reescriban en la barbería,
+pero es irreversible: hazlo solo cuando el dominio sea definitivo.
 
 **Enlaces universales (pendiente de Fase 4).** Para que abra la PWA instalada en vez del navegador hacen falta:
 
