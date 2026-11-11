@@ -1,6 +1,8 @@
 # JULEX
 
-Herramienta para barberías con llavero NFC: la cola del día, la ficha de cada cliente y su tarjeta de socio.
+Herramienta para negocios con llavero NFC: la cola o la agenda del día, la ficha de cada cliente y su
+tarjeta de socio. Sirve igual para una barbería, una peluquería, un salón de uñas o un estudio de
+tatuaje, y cambia su vocabulario según el tipo de local.
 **Estado: Fase 1 terminada y funcionando.** Datos de demostración, persistencia local y ninguna integración externa conectada.
 
 - Alta: **30 €** una vez, con 15 llaveros.
@@ -435,8 +437,9 @@ Tablas previstas: `barberias`, `barberos`, `clientes`, `servicios`, `llaveros`, 
 `movimientos_fidelizacion`, `recompensas`, `mensajes_log`, `eventos`, `consentimientos`, `horarios`, `bloqueos_agenda`, `pagos`.
 
 **El local.** La entidad `barberias` es en realidad el **local**: nombre, logo, teléfono, dirección, color de
-marca y meta de fidelización. Está pensada para servir igual a una barbería, una peluquería o un taller sin
-cambiar el modelo; el copy de la portada sí habla de barberías porque es el mercado inicial.
+marca y meta de fidelización. Está pensada para servir igual a una barbería, una peluquería o un salón de
+uñas sin cambiar el modelo: el tipo del local (`barberias.tipo`) decide el vocabulario y los valores con
+los que nace, y la portada habla de cualquier negocio que atienda con cita o cola.
 
 **Logo.** En modo local se guarda como data URL WebP (máx. 512 px, ~7 KB). Con Supabase configurado se
 sube a Storage (`logos/<barberia>/logo.webp`) y la tabla guarda solo la URL pública, con marca de

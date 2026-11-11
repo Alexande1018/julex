@@ -16,7 +16,7 @@ export default function Legal() {
           <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
             Estos textos son un borrador de producto, no un documento jurídico revisado. Antes de usar
             JULEX con clientes reales tienen que pasar por un abogado y por el registro de actividades
-            de tratamiento de la barbería.
+            de tratamiento del negocio.
           </p>
         </header>
 
@@ -25,14 +25,14 @@ export default function Legal() {
         <section id="datos" className="scroll-mt-6">
           <h2 className="text-[18px] leading-snug text-ink">1 · Datos necesarios para el servicio</h2>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-            La barbería guarda tu nombre, teléfono si lo das, cómo se te corta el pelo, notas de
+            El negocio guarda tu nombre, teléfono si lo das, lo que le cuentas para atenderte, notas de
             atención y tu historial de visitas. La finalidad es gestionar tu cita, atenderte con
             criterio y llevar el control de tu fidelización. La base legal es la ejecución de la
             relación de servicio. Sin este consentimiento no se puede usar el llavero ni la tarjeta,
             porque no habría ficha que abrir.
           </p>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-            El responsable del tratamiento es la barbería. JULEX actúa como encargado: presta el
+            El responsable del tratamiento es el negocio. JULEX actúa como encargado: presta el
             software y custodia los datos por su cuenta, sin usarlos para fines propios.
           </p>
         </section>
@@ -40,7 +40,7 @@ export default function Legal() {
         <section id="avisos" className="mt-8">
           <h2 className="text-[18px] leading-snug text-ink">2 · Aviso de turno</h2>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-            Si lo aceptas, la barbería puede avisarte cuando estés cerca de tu turno. Es opcional y
+            Si lo aceptas, el negocio puede avisarte cuando estés cerca de tu turno. Es opcional y
             puedes retirarlo en cualquier momento desde tu tarjeta, sin que eso afecte al servicio.
           </p>
         </section>
@@ -48,9 +48,9 @@ export default function Legal() {
         <section id="marketing" className="mt-8">
           <h2 className="text-[18px] leading-snug text-ink">3 · Recordatorios y reseñas</h2>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-            También opcional. La barbería puede escribirte para recordarte una visita si llevas tiempo
+            También opcional. El negocio puede escribirte para recordarte una visita si llevas tiempo
             sin venir, o para pedirte una reseña después de un corte. Siempre con la posibilidad de
-            darte de baja. La barbería solo escribe a sus propios clientes, que es la excepción de
+            darte de baja. El negocio solo escribe a sus propios clientes, que es la excepción de
             relación previa de la LSSI; aun así, la baja se respeta siempre.
           </p>
         </section>
@@ -59,7 +59,7 @@ export default function Legal() {
           <h2 className="text-[18px] leading-snug text-ink">4 · Tus derechos</h2>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
             Puedes pedir acceso, rectificación, portabilidad, limitación y supresión. Desde tu tarjeta
-            puedes descargar una copia de tus datos y solicitar la baja. La barbería conservará lo
+            puedes descargar una copia de tus datos y solicitar la baja. El negocio conservará lo
             mínimo que exija la normativa fiscal aunque solicites la eliminación.
           </p>
         </section>
@@ -72,7 +72,7 @@ export default function Legal() {
           </h2>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
             {haySupabase
-              ? 'Los datos de clientes, visitas, citas y llaveros viven en una base de datos de Supabase (Fráncfort) y solo los ve la barbería a la que pertenecen. No se envía ningún SMS ni mensaje de WhatsApp todavía, y no se comparte nada con terceros. La tarjeta del cliente puede protegerse con un PIN.'
+              ? 'Los datos de clientes, visitas, citas y llaveros viven en una base de datos de Supabase (Fráncfort) y solo los ve el negocio al que pertenecen. No se envía ningún SMS ni mensaje de WhatsApp todavía, y no se comparte nada con terceros. La tarjeta del cliente puede protegerse con un PIN.'
               : 'Todo lo que ves aquí son datos inventados guardados en tu navegador. No hay servidor, no hay base de datos, no se envía ningún SMS ni mensaje de WhatsApp, y no se comparte nada con terceros. Si recargas o reinicias la demo, los datos vuelven a su estado inicial.'}
           </p>
         </section>

@@ -108,9 +108,9 @@ function AccesoReal({ next, admin = false }: { next: string; admin?: boolean }) 
 
   return (
     <Marco>
-      <Eyebrow>{admin ? 'Acceso del administrador' : 'Acceso del barbero'}</Eyebrow>
+      <Eyebrow>{admin ? 'Acceso del administrador' : 'Acceso del negocio'}</Eyebrow>
       <h1 className="mt-3 font-serif text-[30px] leading-[1.1] text-ink">
-        {admin ? 'Entra en el panel de JULEX.' : 'Entra en tu barbería.'}
+        {admin ? 'Entra en el panel de JULEX.' : 'Entra en tu negocio.'}
       </h1>
       <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
         {admin
@@ -172,7 +172,7 @@ function AccesoReal({ next, admin = false }: { next: string; admin?: boolean }) 
       <p className="mt-5 text-[10.5px] leading-relaxed text-faint">
         {admin
           ? 'Solo cuentas de la tabla de administradores. Un barbero que entre aquí acaba en su cola.'
-          : 'Cada barbería se crea desde el panel de administración de JULEX. Si no tienes acceso, pídelo al administrador.'}
+          : 'Cada negocio se crea desde el panel de administración de JULEX. Si no tienes acceso, pídelo al administrador.'}
       </p>
 
       <p className="mt-3 text-[10.5px] leading-relaxed text-faint">

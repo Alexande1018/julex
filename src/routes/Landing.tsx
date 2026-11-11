@@ -4,13 +4,14 @@ import { useDb } from '../lib/store';
 import { haySupabase } from '../lib/supabase';
 import { Btn, Eyebrow, Pill, Wordmark, btnClases, cn } from '../components/ui';
 import { Foto, PieFoto } from '../components/Foto';
+import { TIPOS } from '../lib/vocabulario';
 
 const PUERTAS = [
   {
     n: '01',
-    titulo: 'El barbero',
+    titulo: 'Quien atiende',
     texto:
-      'La cola del día, la ficha de cada cliente y su memoria. Se usa con una mano, mientras se trabaja.',
+      'La cola o la agenda del día, la ficha de cada cliente y su memoria. Se usa con una mano, mientras se trabaja.',
     to: '/barbero/cola',
   },
   {
@@ -23,7 +24,7 @@ const PUERTAS = [
   {
     n: '03',
     titulo: 'El creador',
-    texto: 'Barberías, llaveros activos y la cuota del mes. La trastienda del producto.',
+    texto: 'Locales, llaveros activos y la cuota del mes. La trastienda del producto.',
     to: '/admin',
   },
 ];
@@ -33,7 +34,7 @@ const PASOS = [
     n: '01',
     titulo: 'Alta en el mostrador',
     texto:
-      'Nombre, cómo corta y un llavero que se vincula con el primer toque. Menos de noventa segundos, con el cliente delante.',
+      'Nombre, lo que le gusta y un llavero que se vincula con el primer toque. Menos de noventa segundos, con el cliente delante.',
   },
   {
     n: '02',
@@ -65,7 +66,7 @@ export default function Landing() {
           <Wordmark />
           <div className="flex items-center gap-3">
             <span className="hidden text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:inline">
-              Producto para barberías
+              Barbería · peluquería · uñas · tatuaje
             </span>
             {!haySupabase && <Pill tono="warn">Demo</Pill>}
           </div>
@@ -76,17 +77,17 @@ export default function Landing() {
           <div>
             <Eyebrow>El llavero · la ficha · la vuelta</Eyebrow>
             <h1 className="display mt-5 max-w-[16ch] text-[42px] text-ink sm:text-[54px] lg:text-[66px]">
-              El llavero que hace que tu barbería
+              El llavero que hace que tu negocio
               <span className="display-i text-[var(--brand)]"> te conozca.</span>
             </h1>
             <p className="mt-5 max-w-[46ch] text-[14.5px] leading-relaxed text-ink-soft">
-              El cliente acerca su llavero al móvil del barbero y aparece su ficha: cómo corta,
-              cuándo vino y cuántas veces. Sin buscar, sin preguntar, sin recordar de memoria.
+              El cliente acerca su llavero al móvil de quien le atiende y aparece su ficha: qué le
+              gusta, cuándo vino y cuántas veces. Sin buscar, sin preguntar, sin recordar de memoria.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-2">
               <Link to="/barbero/cola" className={btnClases('primary', 'lg', 'px-6')}>
-                {haySupabase ? 'Entrar en mi barbería' : 'Entrar en la demo'}
+                {haySupabase ? 'Entrar en mi negocio' : 'Entrar en la demo'}
               </Link>
               {!haySupabase && (
                 <Link to={tarjetaDemo} className={btnClases('outline', 'lg')}>
@@ -140,6 +141,27 @@ export default function Landing() {
           ))}
         </nav>
 
+        {/* OFICIOS */}
+        <section className="mt-12">
+          <div className="flex items-baseline justify-between gap-4">
+            <Eyebrow>Un producto, cuatro oficios</Eyebrow>
+            <span className="num text-[10.5px] tracking-[0.14em] text-faint">01 — 04</span>
+          </div>
+          <div className="mt-4 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+            {TIPOS.map((t) => (
+              <div key={t.tipo} className="border-t border-line pt-2.5">
+                <p className="font-serif text-[17px] leading-tight text-ink">{t.etiqueta}</p>
+                <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{t.pista}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 max-w-[62ch] text-[11.5px] leading-relaxed text-faint">
+            Eliges el tipo al crear el local y la app cambia sus palabras: la cola o la agenda, el
+            sillón o la mesa, cómo corta o el diseño del proyecto. Los servicios, los precios y los
+            puestos los pones tú, y el tipo se puede cambiar cuando quieras.
+          </p>
+        </section>
+
         {/* MANIFIESTO */}
         <section className="mt-12 lg:mt-16">
           <div className="relative overflow-hidden rounded-[2px]">
@@ -153,12 +175,12 @@ export default function Landing() {
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/25 to-transparent" />
             <blockquote className="absolute inset-x-4 bottom-4 lg:inset-x-9 lg:bottom-8">
               <p className="max-w-[22ch] font-serif text-[21px] italic leading-[1.15] text-ivory sm:text-[26px] lg:max-w-[26ch] lg:text-[32px]">
-                «Un barbero no debería tener que recordar lo que ya le contó su cliente.»
+                «Nadie debería tener que recordar lo que ya le contó su cliente.»
               </p>
             </blockquote>
           </div>
           <div className="mt-2 flex items-baseline justify-between gap-4">
-            <PieFoto>El mismo gesto · barbería, hoy</PieFoto>
+            <PieFoto>El mismo gesto · un negocio, hoy</PieFoto>
             <Link
               to="/legal"
               className="pie-foto shrink-0 underline decoration-line underline-offset-4 hover:text-muted"
@@ -230,7 +252,7 @@ export default function Landing() {
             <div>
               <p className="num display text-[46px] text-ink lg:text-[56px]">30 €</p>
               <p className="mt-2 max-w-[34ch] text-[12.5px] leading-relaxed text-muted">
-                Alta de la barbería con quince llaveros, una sola vez. Los chips se graban en blanco:
+                Alta del negocio con quince llaveros, una sola vez. Los chips se graban en blanco:
                 no hace falta saber quién los va a usar.
               </p>
             </div>
@@ -247,7 +269,7 @@ export default function Landing() {
         <footer className="mt-14 border-t border-line pt-5">
           <p className="max-w-[64ch] text-[11.5px] leading-relaxed text-faint">
             {haySupabase
-              ? 'Cada barbería guarda sus datos en su propia base de datos. No se envía ningún mensaje automático, el cobro de la cuota se calcula y no se factura, y no se comparte nada con terceros.'
+              ? 'Cada negocio guarda sus datos en su propia base de datos. No se envía ningún mensaje automático, el cobro de la cuota se calcula y no se factura, y no se comparte nada con terceros.'
               : 'Demo con datos falsos y aislados. No se envía ningún mensaje, no se cobra nada y no hay ninguna integración externa conectada. Los cambios se guardan en este navegador.'}
           </p>
 
