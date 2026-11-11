@@ -12,17 +12,18 @@ Herramienta para barberías con llavero NFC: la cola del día, la ficha de cada 
 ## Producción
 
 ```
-App        https://julex-379.netlify.app
-Panel      https://julex-379.netlify.app/admin
 Supabase   proyecto lgcaqzraqhecyzxkgujh (Frankfurt)
+App        https://julex-379.netlify.app        (versión anterior, Netlify sin créditos)
+Panel      https://julex-379.netlify.app/admin
 ```
 
-Se publica con `npx netlify-cli deploy --prod --dir=dist`. Las variables viven en `.env.local`
-(ignorado por git); sin ellas la app arranca en modo local con datos de ejemplo.
+El sitio vive todavía en Netlify, pero **Netlify no acepta despliegues nuevos** desde el 11 de
+noviembre: cada despliegue de producción cuesta 15 créditos y el plan gratis da 300 al mes, ya
+gastados. La API responde `403 Account credit usage exceeded`: es facturación, no código. La casa
+nueva es **Cloudflare Pages**, que no cobra por despliegue; está explicado en [Publicar](#publicar).
 
-El despliegue necesita una sesión de Netlify (`npx netlify-cli login`) **y créditos en la cuenta**.
-Si están agotados, la API responde `403 Account credit usage exceeded` y no se publica nada: es
-facturación, no código. El periodo de la cuenta va del día 10 de un mes al 10 del siguiente.
+Las variables viven en `.env.local` (ignorado por git); sin ellas la app arranca en modo local con
+datos de ejemplo.
 
 ## Conectar Supabase (modo real)
 
@@ -159,21 +160,61 @@ extensión se queda.
 npm run build     # dist/
 ```
 
-Cualquier hosting estático sirve. Ya hay configuración incluida:
+Cualquier hosting estático sirve: la app es un `index.html`, un par de ficheros y unos assets con
+hash. No hay servidor propio.
 
-- **Netlify / Cloudflare Pages**: `public/_redirects` deja que las rutas profundas
-  (`/c/<token>`, `/barbero/cola`) carguen la app en vez de dar 404.
-- **Vercel**: `vercel.json` con el mismo rewrite y dos cabeceras que importan: `sw.js` sin caché (para
-  que una versión nueva del service worker entre) y el manifest con su tipo MIME correcto.
+### Cloudflare Pages (la casa prevista)
 
-En el hosting hay que declarar las mismas variables que en `.env.local`
+Netlify dejó de publicar por créditos agotados: **cada despliegue de producción cuesta 15** y el plan
+gratis da 300 al mes. Cloudflare Pages no cobra por despliegue ni por tráfico estático, así que es a
+donde va el proyecto.
+
+**Por la interfaz.** En el panel de Cloudflare → Workers & Pages → Create → Pages → Connect to Git,
+elige `Alexande1018/julex` y rellena:
+
+| Ajuste | Valor |
+|---|---|
+| Framework preset | `Vite` (o None) |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Variable `VITE_SUPABASE_URL` | la del `.env.local` |
+| Variable `VITE_SUPABASE_ANON_KEY` | la clave publicable del `.env.local` |
+| Variable `NODE_VERSION` | `22` |
+
+Las variables van en **Build → Variables and secrets** y son de compilación: sin ellas el sitio se
+publica en modo local, con datos de ejemplo y sin Supabase. A partir de ahí, cada `git push` a `main`
+publica solo.
+
+**Por línea de comandos**, si prefieres subir `dist/` ya compilado:
+
+```bash
+npx wrangler pages deploy dist --project-name julex
+# necesita CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID en el entorno
+```
+
+Lo que hace que funcione tal cual, sin tocar código:
+
+- `public/_redirects` (`/* /index.html 200`) deja que las rutas profundas (`/c/<token>`,
+  `/barbero/cola`, `/admin`) carguen la app en vez de dar 404.
+- `public/_headers` pone el manifest con su tipo MIME, deja `sw.js` sin caché (para que entre una
+  versión nueva del service worker) y marca `assets/*` como inmutable.
+
+### Otros
+
+- **Netlify**: la configuración sigue en `public/_redirects` y `.netlify/`; el mismo `dist/` vale.
+  Con créditos, `npx netlify-cli deploy --prod --dir=dist`.
+- **Vercel**: `vercel.json` con el mismo rewrite y las dos cabeceras que importan.
+
+En cualquier hosting hay que declarar las mismas variables que en `.env.local`
 (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`). Sin ellas la app arranca en modo local.
 
 Al publicar una versión nueva, sube `CACHE` en `public/sw.js` (`julex-v1` → `julex-v2`): es lo que
 tira la caché vieja del móvil.
 
 **Dominio.** El chip NFC se graba con la URL definitiva y no se cambia después: elige el dominio antes
-de la primera etiqueta.
+de la primera etiqueta. El nombre del proyecto en Cloudflare decide `https://<proyecto>.pages.dev`, y
+**ese es el que queda grabado**; si vas a vender, compra el dominio antes de escribir el primer llavero
+y añádelo como dominio personalizado.
 
 ---
 
