@@ -70,11 +70,21 @@ export interface Llavero {
 export type EstadoCita = 'pendiente' | 'confirmada' | 'atendida' | 'no_vino' | 'cancelada';
 export type OrigenCita = 'qr' | 'llavero' | 'manual' | 'web';
 
+export interface Silla {
+  id: ID;
+  barberiaId: ID;
+  nombre: string;
+  orden: number;
+  activa: boolean;
+}
+
 export interface Cita {
   id: ID;
   barberiaId: ID;
   clienteId: ID;
   servicioId: ID;
+  /** Silla que la atiende. Puede quedar vacía en citas antiguas. */
+  sillaId?: ID | null;
   inicio: Iso;
   estado: EstadoCita;
   origen: OrigenCita;
@@ -87,6 +97,7 @@ export interface ColaItem {
   id: ID;
   barberiaId: ID;
   clienteId: ID;
+  sillaId?: ID | null;
   servicioId: ID | null;
   estado: EstadoCola;
   llegadaEn: Iso;
@@ -168,6 +179,7 @@ export interface Db {
   version: number;
   barberias: Barberia[];
   barberos: Barbero[];
+  sillas: Silla[];
   servicios: Servicio[];
   clientes: Cliente[];
   llaveros: Llavero[];

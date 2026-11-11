@@ -11,8 +11,10 @@ import {
   clienteDe,
   servicioDe,
   serviciosDe,
+  sillaDe,
+  sillasDe,
 } from '../lib/derive';
-import { addDays, etiquetaDia, fmtDuracion, fmtHora } from '../lib/format';
+import { addDays, etiquetaDia, fmtDuracion, fmtEuros, fmtHora } from '../lib/format';
 import { Shell } from '../components/Shell';
 import {
   Btn,
@@ -39,10 +41,22 @@ export default function Agenda() {
   const barberia = barberiaActiva(db);
   const [offset, setOffset] = useState(0);
   const [nueva, setNueva] = useState(false);
+  const [filtro, setFiltro] = useState<string>('todas');
 
   const dia = useMemo(() => addDays(new Date(), offset), [offset]);
   const citas = citasDelDia(db, barberia.id, dia);
   const servicios = serviciosDe(db, barberia.id);
+  const sillas = sillasDe(db, barberia.id);
+  const activas = sillas.filter((s) => s.activa);
+  const visibles = filtro === 'todas' ? citas : citas.filter((c) => c.sillaId === filtro);
+
+  /** Citas y minutos que come cada silla ese día. */
+  const cuenta = activas.map((silla) => {
+    const suyas = citas.filter((c) => c.sillaId === silla.id);
+    const minutos = suyas.reduce((t, c) => t + (servicioDe(db, c.servicioId)?.minutos ?? 0), 0);
+    return { silla, citas: suyas.length, minutos };
+  });
+  const sinSilla = citas.filter((c) => !c.sillaId).length;
 
   const copiar = async () => {
     const url = `${window.location.origin}/cita/${barberia.slug}`;
@@ -111,7 +125,42 @@ export default function Agenda() {
         </div>
       </div>
 
-      {citas.length === 0 ? (
+      {/* REPARTO POR SILLA */}
+      {activas.length > 1 && (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {cuenta.map(({ silla, citas: n, minutos }) => (
+            <button
+              key={silla.id}
+              onClick={() => setFiltro(filtro === silla.id ? 'todas' : silla.id)}
+              className={cn(
+                'rounded-[4px] border px-3 py-2.5 text-left transition-colors',
+                filtro === silla.id
+                  ? 'border-[var(--brand)] bg-paper'
+                  : 'border-line bg-paper hover:border-ink/25',
+              )}
+            >
+              <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-faint">
+                {silla.nombre}
+              </p>
+              <p className="num mt-1 font-serif text-[22px] leading-none text-ink">{n}</p>
+              <p className="mt-1 text-[10.5px] text-muted">
+                {n === 0 ? 'libre todo el día' : fmtDuracion(minutos) + ' de trabajo'}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {filtro !== 'todas' && (
+        <button
+          onClick={() => setFiltro('todas')}
+          className="mt-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted underline decoration-line underline-offset-4 hover:text-ink"
+        >
+          Ver todas las sillas
+        </button>
+      )}
+
+      {visibles.length === 0 ? (
         <div className="mt-5">
           <EmptyState
             titulo="Día sin citas"
@@ -125,38 +174,45 @@ export default function Agenda() {
         </div>
       ) : (
         <ul className="mt-3">
-          {citas.map((c) => {
+          {visibles.map((c) => {
             const cliente = clienteDe(db, c.clienteId);
+            const silla = sillaDe(db, c.sillaId);
             const servicio = servicioDe(db, c.servicioId);
             if (!cliente) return null;
             const abierta = c.estado === 'pendiente' || c.estado === 'confirmada';
             const pasada = new Date(c.inicio).getTime() < Date.now();
 
             return (
-              <li key={c.id} className="border-b border-line-soft py-3.5">
-                <div className="flex items-start gap-3">
-                  <span
-                    className={cn(
-                      'num w-12 shrink-0 pt-0.5 font-serif text-[15px] leading-none',
-                      pasada && abierta ? 'text-clay' : 'text-ink',
-                    )}
-                  >
-                    {fmtHora(c.inicio)}
-                  </span>
+              <li key={c.id} className="border-b border-line-soft py-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-14 shrink-0">
+                    <span
+                      className={cn(
+                        'num block font-serif text-[21px] leading-none tracking-tight',
+                        pasada && abierta ? 'text-clay' : 'text-ink',
+                      )}
+                    >
+                      {fmtHora(c.inicio)}
+                    </span>
+                    <span className="mt-1 block text-[9.5px] uppercase tracking-[0.1em] text-faint">
+                      {silla ? silla.nombre : 'sin silla'}
+                    </span>
+                  </div>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         to={`/barbero/clientes/${cliente.id}`}
-                        className="truncate text-[13.5px] font-semibold leading-tight text-ink hover:underline"
+                        className="truncate text-[15px] font-semibold leading-tight text-ink hover:underline"
                       >
                         {cliente.nombre}
                       </Link>
                       <Pill tono={TONO[c.estado]}>{ETIQUETA_CITA[c.estado]}</Pill>
                     </div>
 
-                    <p className="mt-1 text-[11.5px] text-muted">
-                      {servicio?.nombre ?? 'Servicio'} · {servicio ? fmtDuracion(servicio.minutos) : ''}{' '}
+                    <p className="mt-1 text-[12.5px] text-muted">
+                      {servicio?.nombre ?? 'Servicio'} · {servicio ? fmtDuracion(servicio.minutos) : ''}
+                      {servicio ? ` · ${fmtEuros(servicio.precio)}` : ''}{' '}
                       <span className="text-faint">· {ETIQUETA_ORIGEN[c.origen]}</span>
                     </p>
 

@@ -34,6 +34,7 @@ const VACIO: Db = {
     },
   ],
   barberos: [],
+  sillas: [],
   servicios: [],
   clientes: [],
   llaveros: [],

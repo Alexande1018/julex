@@ -7,7 +7,9 @@ import type {
   EstadoCita,
   ID,
   Llavero,
+  Iso,
   Servicio,
+  Silla,
   Visita,
 } from './types';
 import { addDays, diasDesde, fmtFechaCorta, startOfDay, toDate } from './format';
@@ -23,6 +25,42 @@ export function barberiaActiva(db: Db): Barberia {
 
 export function barberiaPorSlug(db: Db, slug: string): Barberia | undefined {
   return db.barberias.find((b) => b.slug === slug);
+}
+
+export function sillasDe(db: Db, barberiaId: ID): Silla[] {
+  return (db.sillas ?? [])
+    .filter((s) => s.barberiaId === barberiaId)
+    .sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre));
+}
+
+/** Primera silla libre en un tramo, por orden. Null si están todas cogidas. */
+export function sillaLibre(
+  db: Db,
+  barberiaId: ID,
+  inicio: Iso,
+  minutos: number,
+): Silla | undefined {
+  const desde = toDate(inicio).getTime();
+  const hasta = desde + minutos * 60000;
+  return sillasDe(db, barberiaId)
+    .filter((s) => s.activa)
+    .find((silla) => {
+      const suyas = db.citas.filter(
+        (c) =>
+          c.sillaId === silla.id &&
+          (c.estado === 'pendiente' || c.estado === 'confirmada'),
+      );
+      return !suyas.some((c) => {
+        const ini = toDate(c.inicio).getTime();
+        const fin = ini + (servicioDe(db, c.servicioId)?.minutos ?? 30) * 60000;
+        return ini < hasta && fin > desde;
+      });
+    });
+}
+
+export function sillaDe(db: Db, id: ID | null | undefined): Silla | undefined {
+  if (!id) return undefined;
+  return (db.sillas ?? []).find((s) => s.id === id);
 }
 
 export function serviciosDe(db: Db, barberiaId: ID): Servicio[] {

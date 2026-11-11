@@ -440,6 +440,10 @@ export function buildSeed(): Db {
     version: SEED_VERSION,
     barberias: [barberia],
     barberos: [barbero],
+    sillas: [
+      { id: 'silla-1', barberiaId: barberia.id, nombre: 'Silla 1', orden: 1, activa: true },
+      { id: 'silla-2', barberiaId: barberia.id, nombre: 'Silla 2', orden: 2, activa: true },
+    ],
     servicios,
     clientes,
     llaveros,

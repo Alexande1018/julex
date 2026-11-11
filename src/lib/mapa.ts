@@ -5,6 +5,7 @@
 import type {
   Barberia,
   Barbero,
+  Silla,
   Cita,
   Cliente,
   ColaItem,
@@ -43,6 +44,16 @@ export function aBarbero(r: Fila): Barbero {
     barberiaId: s(r.barberia_id),
     nombre: s(r.nombre),
     rol: r.rol === 'dueno' ? 'dueno' : 'barbero',
+  };
+}
+
+export function aSilla(r: Fila): Silla {
+  return {
+    id: s(r.id),
+    barberiaId: s(r.barberia_id),
+    nombre: s(r.nombre),
+    orden: Number(r.orden ?? 1),
+    activa: r.activa !== false,
   };
 }
 
@@ -98,6 +109,7 @@ export function aCita(r: Fila): Cita {
     barberiaId: s(r.barberia_id),
     clienteId: s(r.cliente_id),
     servicioId: s(r.servicio_id),
+    sillaId: r.silla_id ? s(r.silla_id) : null,
     inicio: s(r.inicio),
     estado: (r.estado ?? 'pendiente') as Cita['estado'],
     origen: (r.origen ?? 'manual') as Cita['origen'],
@@ -110,6 +122,7 @@ export function aCola(r: Fila): ColaItem {
     id: s(r.id),
     barberiaId: s(r.barberia_id),
     clienteId: s(r.cliente_id),
+    sillaId: r.silla_id ? s(r.silla_id) : null,
     servicioId: r.servicio_id ? s(r.servicio_id) : null,
     estado: (r.estado ?? 'esperando') as ColaItem['estado'],
     llegadaEn: s(r.llegada_en),
@@ -184,6 +197,7 @@ export function dbVacio(barberia: Barberia): Db {
     version: 0,
     barberias: [barberia],
     barberos: [],
+    sillas: [],
     servicios: [],
     clientes: [],
     llaveros: [],

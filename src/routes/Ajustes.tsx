@@ -1,14 +1,17 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, LogOut, RotateCcw } from 'lucide-react';
+import { Check, Circle, Download, LogOut, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useDb } from '../lib/store';
 import {
   actualizarBarberia,
   actualizarServicio,
+  actualizarSilla,
+  crearSilla,
+  quitarSilla,
   reiniciarDemo,
   salir,
 } from '../lib/actions';
-import { barberiaActiva, cuotaMensual, resumenLlaveros } from '../lib/derive';
+import { barberiaActiva, cuotaMensual, resumenLlaveros, sillasDe } from '../lib/derive';
 import { fmtEuros } from '../lib/format';
 import { Shell } from '../components/Shell';
 import { haySupabase } from '../lib/supabase';
@@ -53,6 +56,7 @@ export default function Ajustes() {
   const llaveros = resumenLlaveros(db, barberia.id);
   const cuota = cuotaMensual(db, barberia.id);
   const servicios = db.servicios.filter((s) => s.barberiaId === barberia.id);
+  const sillas = sillasDe(db, barberia.id);
 
   const guardarDatos = () => {
     const m = Math.max(2, Math.min(30, Number(meta) || 10));
@@ -276,6 +280,71 @@ export default function Ajustes() {
         </div>
         <p className="mt-2 text-[10.5px] text-faint">
           Los cambios se aplican al instante en la agenda, la cola y la tarjeta del cliente.
+        </p>
+      </section>
+
+      <Rule className="my-6" />
+
+      {/* SILLAS */}
+      <section>
+        <div className="flex items-end justify-between">
+          <Eyebrow>Sillas</Eyebrow>
+          <span className="num text-[11px] text-faint">
+            {sillas.filter((x) => x.activa).length} activas
+          </span>
+        </div>
+        <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+          Cada silla es un puesto de trabajo. Con más de una, el mismo tramo admite varias citas a la
+          vez y cada silla lleva su propia cuenta.
+        </p>
+
+        <div className="mt-2">
+          {sillas.map((silla) => (
+            <div
+              key={silla.id}
+              className="flex items-center gap-2 border-b border-line-soft py-2.5"
+            >
+              <button
+                onClick={() => actualizarSilla(silla.id, { activa: !silla.activa })}
+                aria-label={silla.activa ? `Desactivar ${silla.nombre}` : `Activar ${silla.nombre}`}
+                className={cn(
+                  'shrink-0 rounded-full border p-1 transition-colors',
+                  silla.activa
+                    ? 'border-[var(--brand)] text-[var(--brand)]'
+                    : 'border-line text-faint hover:text-muted',
+                )}
+              >
+                {silla.activa ? <Check size={11} /> : <Circle size={11} />}
+              </button>
+
+              <input
+                defaultValue={silla.nombre}
+                onBlur={(e) => {
+                  const nombre = e.target.value.trim();
+                  if (nombre && nombre !== silla.nombre) actualizarSilla(silla.id, { nombre });
+                }}
+                className={cn(
+                  'min-w-0 flex-1 rounded-[2px] border border-transparent bg-transparent px-1 py-1 text-[13px] hover:border-line focus:border-ink/40 focus:bg-paper focus:outline-none',
+                  silla.activa ? 'text-ink' : 'text-faint line-through',
+                )}
+              />
+
+              <button
+                onClick={() => quitarSilla(silla.id)}
+                aria-label={`Quitar ${silla.nombre}`}
+                className="shrink-0 rounded-[2px] p-1 text-faint hover:bg-paper-2 hover:text-danger"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <Btn v="outline" t="sm" className="mt-3 w-full border-dashed" onClick={() => crearSilla('')}>
+          <Plus size={13} /> Añadir silla
+        </Btn>
+        <p className="mt-2 text-[10.5px] text-faint">
+          Desactivar una silla deja de ofrecer huecos en ella; su historial no se pierde.
         </p>
       </section>
 

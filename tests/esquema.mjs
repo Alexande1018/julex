@@ -357,6 +357,32 @@ async function main() {
   }
   ok(dobleReserva, 'Dos reservas en el mismo hueco: la segunda se rechaza');
 
+  /* Con dos sillas, el mismo tramo admite dos reservas y no tres */
+  await db.query(`insert into sillas (barberia_id, nombre, orden) values ($1, 'Silla 2', 2)`, [barberiaId]);
+  ok((await db.query(`select sillas_activas($1::uuid) as n`, [barberiaId])).rows[0].n === 2,
+    'Con dos sillas activas la capacidad sube a 2');
+
+  const libres2 = await db.query(`select huecos_publicos('barberia-paco', $1, 30, 30) as h`, [dia]);
+  ok(libres2.rows[0].h.includes(lista[0]), 'La segunda silla vuelve a abrir el hueco ocupado', lista[0]);
+
+  const c2 = await db.query(
+    `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), $2::timestamptz, 'Cliente Dos', '600111222') as id`,
+    [barberiaId, inicio],
+  );
+  const silla2 = await db.query(`select silla_id from citas where id = $1`, [c2.rows[0].id]);
+  ok(!!silla2.rows[0].silla_id, 'La reserva se queda con una silla concreta');
+
+  let tercera = false;
+  try {
+    await db.query(
+      `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), $2::timestamptz, 'Cliente Tres', '600333444')`,
+      [barberiaId, inicio],
+    );
+  } catch (e) {
+    tercera = e.message.includes('horario_ocupado');
+  }
+  ok(tercera, 'Con las dos sillas ocupadas, la tercera se rechaza');
+
   /* Un bloqueo de agenda quita el hueco */
   const otro = lista[1];
   const [h2, m2] = otro.split(':').map(Number);

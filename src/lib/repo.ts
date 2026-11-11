@@ -2,6 +2,7 @@ import { exigirCliente } from './supabase';
 import {
   aBarberia,
   aBarbero,
+  aSilla,
   aCita,
   aCliente,
   aCola,
@@ -36,9 +37,10 @@ export async function cargarTodo(): Promise<Db | null> {
   const barberiaId = barberia.id as string;
   const porLocal = (tabla: string) => sb.from(tabla).select('*').eq('barberia_id', barberiaId);
 
-  const [barberos, servicios, clientes, llaveros, citas, cola, visitas, movimientos, recompensas, mensajes, eventos] =
+  const [barberos, sillas, servicios, clientes, llaveros, citas, cola, visitas, movimientos, recompensas, mensajes, eventos] =
     await Promise.all([
       porLocal('barberos').order('creado_en'),
+      porLocal('sillas').order('orden'),
       porLocal('servicios').order('orden'),
       porLocal('clientes').order('creado_en'),
       porLocal('llaveros').order('creado_en'),
@@ -51,7 +53,7 @@ export async function cargarTodo(): Promise<Db | null> {
       porLocal('eventos').order('fecha', { ascending: false }).limit(300),
     ]);
 
-  const fallo = [barberos, servicios, clientes, llaveros, citas, cola, visitas, movimientos, recompensas, mensajes, eventos].find(
+  const fallo = [barberos, sillas, servicios, clientes, llaveros, citas, cola, visitas, movimientos, recompensas, mensajes, eventos].find(
     (r) => r.error,
   );
   if (fallo?.error) throw new Error(`cargando el local: ${fallo.error.message}`);
@@ -60,6 +62,7 @@ export async function cargarTodo(): Promise<Db | null> {
     version: 0,
     barberias: [aBarberia(barberia)],
     barberos: (barberos.data ?? []).map(aBarbero),
+    sillas: (sillas.data ?? []).map(aSilla),
     servicios: (servicios.data ?? []).map(aServicio),
     clientes: (clientes.data ?? []).map(aCliente),
     llaveros: (llaveros.data ?? []).map(aLlavero),
@@ -86,6 +89,35 @@ export async function actualizarLocal(patch: Partial<Record<string, unknown>>): 
   const sb = exigirCliente();
   const { error } = await sb.from('barberias').update(patch).eq('id', patch.id as string);
   if (error) fallo('actualizando el local', error);
+}
+
+export async function insertarSilla(input: {
+  barberiaId: string;
+  nombre: string;
+  orden: number;
+}): Promise<void> {
+  const sb = exigirCliente();
+  const { error } = await sb.from('sillas').insert({
+    barberia_id: input.barberiaId,
+    nombre: input.nombre,
+    orden: input.orden,
+  });
+  if (error) fallo('creando la silla', error);
+}
+
+export async function actualizarSilla(
+  id: string,
+  patch: { nombre?: string; activa?: boolean; orden?: number },
+): Promise<void> {
+  const sb = exigirCliente();
+  const { error } = await sb.from('sillas').update(patch).eq('id', id);
+  if (error) fallo('guardando la silla', error);
+}
+
+export async function eliminarSilla(id: string): Promise<void> {
+  const sb = exigirCliente();
+  const { error } = await sb.from('sillas').delete().eq('id', id);
+  if (error) fallo('quitando la silla', error);
 }
 
 export async function actualizarServicio(
@@ -261,6 +293,7 @@ export async function insertarCita(datos: {
   inicio: string;
   origen: OrigenCita;
   nota?: string;
+  sillaId?: string | null;
 }): Promise<ID> {
   const sb = exigirCliente();
   const { data, error } = await sb
@@ -273,6 +306,7 @@ export async function insertarCita(datos: {
       origen: datos.origen,
       nota: datos.nota ?? '',
       estado: 'pendiente',
+      silla_id: datos.sillaId ?? null,
     })
     .select('id')
     .single();

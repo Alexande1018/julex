@@ -12,6 +12,7 @@ import type {
 import { store } from './store';
 import { codigoCorto, siguienteCodigoCliente, tokenLlavero, uid } from './ids';
 import { addDays, startOfDay } from './format';
+import { sillaLibre } from './derive';
 import { haySupabase } from './supabase';
 import * as repo from './repo';
 import { salirRemoto } from './acceso';
@@ -473,8 +474,11 @@ export async function crearCita(input: {
   const db = store.read();
   const barberiaId = db.sesion?.barberiaId ?? db.barberias[0].id;
 
+  const minutos = db.servicios.find((s) => s.id === input.servicioId)?.minutos ?? 30;
+  const silla = sillaLibre(db, barberiaId, input.inicio, minutos);
+
   if (haySupabase) {
-    const id = await repo.insertarCita({ barberiaId, ...input });
+    const id = await repo.insertarCita({ barberiaId, ...input, sillaId: silla?.id ?? null });
     await refrescar();
     const creada = store.read().citas.find((c) => c.id === id);
     if (!creada) throw new Error('La cita se creó pero no se pudo releer.');
@@ -490,6 +494,7 @@ export async function crearCita(input: {
     estado: 'pendiente',
     origen: input.origen,
     nota: input.nota ?? '',
+    sillaId: silla?.id ?? null,
   };
   store.mutate((d) => {
     d.citas.push(cita);
@@ -574,6 +579,67 @@ export async function actualizarBarberia(patch: Partial<Db['barberias'][number]>
     const b = d.barberias.find((x) => x.id === barberiaId);
     if (!b) return;
     Object.assign(b, patch);
+  });
+}
+
+/* ------------------------------- Sillas ------------------------------- */
+
+export async function crearSilla(nombre: string): Promise<void> {
+  const db = store.get();
+  const barberia = db.barberias[0];
+  if (!barberia) return;
+  const limpio = nombre.trim() || `Silla ${(db.sillas?.length ?? 0) + 1}`;
+  const orden = (db.sillas ?? []).reduce((m, s) => Math.max(m, s.orden), 0) + 1;
+
+  if (haySupabase) {
+    if ((await intentar(() => repo.insertarSilla({ barberiaId: barberia.id, nombre: limpio, orden }), 'crear la silla')) !== null) {
+      await refrescar();
+    }
+    return;
+  }
+  store.mutate((d) => {
+    d.sillas = [...(d.sillas ?? []), {
+      id: uid('silla'),
+      barberiaId: barberia.id,
+      nombre: limpio,
+      orden,
+      activa: true,
+    }];
+  });
+}
+
+export async function actualizarSilla(
+  id: ID,
+  patch: { nombre?: string; activa?: boolean },
+): Promise<void> {
+  if (haySupabase) {
+    if ((await intentar(() => repo.actualizarSilla(id, patch), 'guardar la silla')) !== null) {
+      await refrescar();
+    }
+    return;
+  }
+  store.mutate((d) => {
+    const s = (d.sillas ?? []).find((x) => x.id === id);
+    if (!s) return;
+    Object.assign(s, patch);
+  });
+}
+
+export async function quitarSilla(id: ID): Promise<void> {
+  const db = store.get();
+  const activas = (db.sillas ?? []).filter((s) => s.activa);
+  if (activas.length <= 1 && activas.some((s) => s.id === id)) {
+    toast('Deja al menos una silla activa', 'aviso');
+    return;
+  }
+  if (haySupabase) {
+    if ((await intentar(() => repo.eliminarSilla(id), 'quitar la silla')) !== null) {
+      await refrescar();
+    }
+    return;
+  }
+  store.mutate((d) => {
+    d.sillas = (d.sillas ?? []).filter((s) => s.id !== id);
   });
 }
 
