@@ -185,6 +185,11 @@ Las variables van en **Build → Variables and secrets** y son de compilación: 
 publica en modo local, con datos de ejemplo y sin Supabase. A partir de ahí, cada `git push` a `main`
 publica solo.
 
+**Sin conectar nada**, la vía más rápida: `npm run build` en esta máquina (las variables ya están en
+`.env.local`, así que `dist/` sale en modo real) y en el panel, Workers & Pages → Upload assets,
+arrastras la carpeta `dist`. Queda publicado al momento; la pega es que cada actualización hay que
+volver a arrastrarla.
+
 **Por línea de comandos**, si prefieres subir `dist/` ya compilado:
 
 ```bash
