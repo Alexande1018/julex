@@ -12,15 +12,16 @@ Herramienta para barberías con llavero NFC: la cola del día, la ficha de cada 
 ## Producción
 
 ```
+App        https://julex.pages.dev                (Cloudflare Pages)
+Panel      https://julex.pages.dev/admin
 Supabase   proyecto lgcaqzraqhecyzxkgujh (Frankfurt)
-App        https://julex-379.netlify.app        (versión anterior, Netlify sin créditos)
-Panel      https://julex-379.netlify.app/admin
+Netlify    https://julex-379.netlify.app          (versión anterior, sin créditos)
 ```
 
-El sitio vive todavía en Netlify, pero **Netlify no acepta despliegues nuevos** desde el 11 de
-noviembre: cada despliegue de producción cuesta 15 créditos y el plan gratis da 300 al mes, ya
-gastados. La API responde `403 Account credit usage exceeded`: es facturación, no código. La casa
-nueva es **Cloudflare Pages**, que no cobra por despliegue; está explicado en [Publicar](#publicar).
+El sitio está en **Cloudflare Pages** desde el 11 de noviembre de 2026, que no cobra por despliegue.
+Netlify sigue sirviendo la versión anterior y ya **no acepta despliegues**: cada uno cuesta 15
+créditos y el plan gratis da 300 al mes, gastados; la API responde `403 Account credit usage
+exceeded`. Es facturación, no código.
 
 Las variables viven en `.env.local` (ignorado por git); sin ellas la app arranca en modo local con
 datos de ejemplo.
@@ -163,7 +164,7 @@ npm run build     # dist/
 Cualquier hosting estático sirve: la app es un `index.html`, un par de ficheros y unos assets con
 hash. No hay servidor propio.
 
-### Cloudflare Pages (la casa prevista)
+### Cloudflare Pages (la casa)
 
 Netlify dejó de publicar por créditos agotados: **cada despliegue de producción cuesta 15** y el plan
 gratis da 300 al mes. Cloudflare Pages no cobra por despliegue ni por tráfico estático, así que es a
@@ -188,7 +189,7 @@ publica solo.
 **Sin conectar nada**, la vía más rápida: `npm run build` en esta máquina (las variables ya están en
 `.env.local`, así que `dist/` sale en modo real) y en el panel, Workers & Pages → Upload assets,
 arrastras la carpeta `dist`. Queda publicado al momento; la pega es que cada actualización hay que
-volver a arrastrarla.
+volver a arrastrarla. Así se publicó la primera versión, el 11 de noviembre de 2026.
 
 **Por línea de comandos**, si prefieres subir `dist/` ya compilado:
 
