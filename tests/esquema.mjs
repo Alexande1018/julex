@@ -30,7 +30,23 @@ async function preparar() {
     create role authenticated;
 
     create schema auth;
-    create table auth.users (id uuid primary key);
+    create table auth.users (
+      id uuid primary key,
+      email text,
+      encrypted_password text,
+      email_confirmed_at timestamptz,
+      banned_until timestamptz,
+      updated_at timestamptz,
+      instance_id uuid,
+      aud text, role text, created_at timestamptz,
+      raw_app_meta_data jsonb, raw_user_meta_data jsonb,
+      is_sso_user boolean, is_anonymous boolean,
+      confirmation_token text, recovery_token text, email_change text,
+      email_change_token_new text, email_change_token_current text,
+      phone_change text, phone_change_token text, reauthentication_token text
+    );
+    create table auth.identities (id uuid primary key, user_id uuid, identity_data jsonb,
+      provider text, provider_id text, last_sign_in_at timestamptz, created_at timestamptz, updated_at timestamptz);
 
     -- El id del usuario se inyecta desde el test con set_config('test.uid', ...)
     create function auth.uid() returns uuid

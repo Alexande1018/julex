@@ -35,6 +35,9 @@ interface LocalAdmin {
   slug: string;
   llaveros: LlaveroAdmin[];
   clientes: number;
+  barberoId: string | null;
+  email: string | null;
+  activo: boolean;
 }
 
 type Filtro = 'todos' | 'activos' | 'libres' | 'retirados';
@@ -49,6 +52,9 @@ export default function Admin() {
   const [nuevo, setNuevo] = useState(false);
   const [form, setForm] = useState({ nombre: '', email: '', password: '', color: '#3E4A35' });
   const [nombres, setNombres] = useState<Record<string, string>>({});
+  const [cuentaAbierta, setCuentaAbierta] = useState<string | null>(null);
+  const [correo, setCorreo] = useState('');
+  const [clave, setClave] = useState('');
 
   const cargar = useCallback(async () => {
     if (!haySupabase) {
@@ -58,6 +64,9 @@ export default function Admin() {
           nombre: b.nombre,
           slug: b.slug,
           clientes: db.clientes.filter((c) => c.barberiaId === b.id).length,
+          barberoId: db.barberos.find((x) => x.barberiaId === b.id)?.id ?? null,
+          email: null,
+          activo: true,
           llaveros: db.llaveros
             .filter((l) => l.barberiaId === b.id)
             .map((l) => ({
@@ -76,7 +85,7 @@ export default function Admin() {
 
     const sb = supabase!;
     const [loc, lla, cli] = await Promise.all([
-      sb.from('barberias').select('id, nombre, slug').order('creado_en'),
+      sb.rpc('admin_locales'),
       sb.from('llaveros').select('id, barberia_id, codigo_corto, token, lote, estado, cliente_id'),
       sb.from('clientes').select('id, nombre, barberia_id'),
     ]);
@@ -85,6 +94,14 @@ export default function Admin() {
       setLocales([]);
       return;
     }
+    type FilaLocal = {
+      id: string;
+      nombre: string;
+      slug: string;
+      barbero_id: string | null;
+      email: string | null;
+      activo: boolean;
+    };
 
     const nombresPorId: Record<string, string> = {};
     for (const c of cli.data ?? []) nombresPorId[c.id as string] = c.nombre as string;
@@ -106,12 +123,15 @@ export default function Admin() {
     }
 
     setLocales(
-      (loc.data ?? []).map((b) => ({
-        id: b.id as string,
-        nombre: b.nombre as string,
-        slug: b.slug as string,
+      ((loc.data ?? []) as FilaLocal[]).map((b) => ({
+        id: b.id,
+        nombre: b.nombre,
+        slug: b.slug,
         clientes: (cli.data ?? []).filter((c) => c.barberia_id === b.id).length,
-        llaveros: porLocal.get(b.id as string) ?? [],
+        llaveros: porLocal.get(b.id) ?? [],
+        barberoId: b.barbero_id,
+        email: b.email,
+        activo: b.activo,
       })),
     );
   }, [db]);
@@ -194,6 +214,34 @@ export default function Admin() {
       toast(`Local creado · /${slug}`, 'ok');
       setNuevo(false);
       setForm({ nombre: '', email: '', password: '', color: '#3E4A35' });
+      await cargar();
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const accionCuenta = async (
+    rpc: 'admin_cambiar_password' | 'admin_cambiar_email' | 'admin_activar',
+    args: Record<string, unknown>,
+    exito: string,
+  ) => {
+    if (!haySupabase || ocupado) return;
+    setOcupado(true);
+    try {
+      const { error } = await supabase!.rpc(rpc, args);
+      if (error) {
+        const m = error.message.includes('email_en_uso')
+          ? 'Ese correo ya está en uso'
+          : error.message.includes('password_corta')
+            ? 'La contraseña necesita 6 caracteres'
+            : error.message.includes('email_invalido')
+              ? 'El correo no es válido'
+              : 'No se pudo guardar';
+        toast(m, 'aviso');
+        return;
+      }
+      toast(exito, 'ok');
+      setClave('');
       await cargar();
     } finally {
       setOcupado(false);
@@ -360,7 +408,99 @@ export default function Admin() {
                     >
                       Ver reservas
                     </Link>
+                    <button
+                      onClick={() => {
+                        setCuentaAbierta(cuentaAbierta === l.id ? null : l.id);
+                        setCorreo(l.email ?? '');
+                        setClave('');
+                      }}
+                      className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted underline decoration-line underline-offset-4 hover:text-ink"
+                    >
+                      Cuenta
+                    </button>
                   </div>
+
+                  {cuentaAbierta === l.id && (
+                    <div className="mt-2.5 rounded-[4px] border border-line bg-paper px-3.5 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[11px] text-muted">
+                          Acceso: <span className="font-semibold text-ink">{l.email ?? '—'}</span>
+                        </p>
+                        <Pill tono={l.activo ? 'ok' : 'danger'}>
+                          {l.activo ? 'con acceso' : 'bloqueado'}
+                        </Pill>
+                      </div>
+
+                      {!l.barberoId ? (
+                        <p className="mt-2 text-[11px] text-faint">Este local no tiene cuenta asociada.</p>
+                      ) : (
+                        <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                          <div className="flex gap-1.5">
+                            <input
+                              value={correo}
+                              onChange={(e) => setCorreo(e.target.value)}
+                              placeholder="correo@barberia.com"
+                              className={cn(inputClases, 'min-w-0 flex-1')}
+                            />
+                            <Btn
+                              v="outline"
+                              t="sm"
+                              disabled={ocupado || correo.trim() === (l.email ?? '')}
+                              onClick={() =>
+                                void accionCuenta(
+                                  'admin_cambiar_email',
+                                  { p_usuario: l.barberoId, p_email: correo.trim() },
+                                  'Correo actualizado',
+                                )
+                              }
+                            >
+                              Guardar
+                            </Btn>
+                          </div>
+
+                          <div className="flex gap-1.5">
+                            <input
+                              value={clave}
+                              onChange={(e) => setClave(e.target.value)}
+                              placeholder="nueva contraseña"
+                              className={cn(inputClases, 'min-w-0 flex-1')}
+                            />
+                            <Btn
+                              v="outline"
+                              t="sm"
+                              disabled={ocupado || clave.length < 6}
+                              onClick={() =>
+                                void accionCuenta(
+                                  'admin_cambiar_password',
+                                  { p_usuario: l.barberoId, p_password: clave },
+                                  'Contraseña cambiada',
+                                )
+                              }
+                            >
+                              Guardar
+                            </Btn>
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <Btn
+                              v={l.activo ? 'quiet' : 'outline'}
+                              t="sm"
+                              disabled={ocupado}
+                              onClick={() =>
+                                void accionCuenta(
+                                  'admin_activar',
+                                  { p_usuario: l.barberoId, p_activo: !l.activo },
+                                  l.activo ? 'Acceso bloqueado' : 'Acceso devuelto',
+                                )
+                              }
+                            >
+                              {l.activo ? 'Bloquear acceso' : 'Devolver acceso'}
+                            </Btn>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

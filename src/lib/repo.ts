@@ -30,7 +30,20 @@ export async function cargarTodo(): Promise<Db | null> {
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return null;
 
-  const { data: barberia, error } = await sb.from('barberias').select('*').maybeSingle();
+  // El local del barbero, no «el que deje ver la RLS»: un administrador
+  // ve todos los locales y aquí hace falta exactamente uno.
+  const { data: mío } = await sb
+    .from('barberos')
+    .select('barberia_id')
+    .eq('id', auth.user.id)
+    .maybeSingle();
+  if (!mío?.barberia_id) return null;
+
+  const { data: barberia, error } = await sb
+    .from('barberias')
+    .select('*')
+    .eq('id', mío.barberia_id)
+    .maybeSingle();
   if (error) throw new Error(`barberias: ${error.message}`);
   if (!barberia) return null;
 
