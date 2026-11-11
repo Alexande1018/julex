@@ -86,7 +86,7 @@ export default function Landing() {
 
             <div className="mt-7 flex flex-wrap gap-2">
               <Link to="/barbero/cola" className={btnClases('primary', 'lg', 'px-6')}>
-                Entrar en la demo
+                {haySupabase ? 'Entrar en mi barbería' : 'Entrar en la demo'}
               </Link>
               {!haySupabase && (
                 <Link to={tarjetaDemo} className={btnClases('outline', 'lg')}>
@@ -188,7 +188,8 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* SIMULADOR */}
+        {/* SIMULADOR: solo tiene sentido con los datos de ejemplo */}
+        {!haySupabase && (
         <section className="mt-12 lg:mt-16">
           <div className="flex items-baseline justify-between gap-4">
             <Eyebrow>Simulador de llavero</Eyebrow>
@@ -220,6 +221,7 @@ export default function Landing() {
             />
           </div>
         </section>
+        )}
 
         {/* PRECIO */}
         <section className="mt-12 border-t border-line pt-6 lg:mt-16">
@@ -244,8 +246,9 @@ export default function Landing() {
 
         <footer className="mt-14 border-t border-line pt-5">
           <p className="max-w-[64ch] text-[11.5px] leading-relaxed text-faint">
-            Demo con datos falsos y aislados. No se envía ningún mensaje, no se cobra nada y no hay
-            ninguna integración externa conectada. Los cambios se guardan en este navegador.
+            {haySupabase
+              ? 'Cada barbería guarda sus datos en su propia base de datos. No se envía ningún mensaje automático, el cobro de la cuota se calcula y no se factura, y no se comparte nada con terceros.'
+              : 'Demo con datos falsos y aislados. No se envía ningún mensaje, no se cobra nada y no hay ninguna integración externa conectada. Los cambios se guardan en este navegador.'}
           </p>
 
           <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-[11.5px]">

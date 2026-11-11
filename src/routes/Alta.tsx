@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Nfc } from 'lucide-react';
 import { useDb } from '../lib/store';
+import { haySupabase } from '../lib/supabase';
 import { actualizarCliente, crearCliente, asignarLlavero, anadirACola } from '../lib/actions';
 import { barberiaActiva, resumenLlaveros, serviciosDe } from '../lib/derive';
 import { fmtDuracion, fmtEuros } from '../lib/format';
@@ -283,8 +284,9 @@ export default function Alta() {
         </div>
 
         <p className="mt-3 text-[10.5px] leading-relaxed text-faint">
-          En demo estos consentimientos solo se guardan en este navegador. No se envía ningún SMS ni
-          mensaje.
+          {haySupabase
+            ? 'Estos consentimientos se guardan en la ficha del cliente. No se envía ningún SMS ni mensaje.'
+            : 'En demo estos consentimientos solo se guardan en este navegador. No se envía ningún SMS ni mensaje.'}
         </p>
       </div>
 

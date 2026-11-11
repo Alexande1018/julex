@@ -156,8 +156,8 @@ export default function Panel() {
         )}
 
         <p className="mt-2 text-[10.5px] leading-relaxed text-faint">
-          Solo aparecen clientes con consentimiento de avisos. Los mensajes de la demo se registran
-          como simulados: no se envía nada.
+          Solo aparecen clientes con consentimiento de avisos. El mensaje queda registrado en el
+          historial: el envío automático todavía no está conectado.
         </p>
       </section>
 
@@ -261,8 +261,8 @@ export default function Panel() {
               hueco esta semana? — {barberia.nombre}
             </p>
             <p className="text-[11px] leading-relaxed text-faint">
-              En demo solo se registra el mensaje en el historial. En producción saldrá por WhatsApp
-              Business o SMS, con baja incluida.
+              Hoy solo se registra en el historial. El envío por WhatsApp Business o SMS, con la baja
+              incluida, llegará después.
             </p>
           </div>
         )}

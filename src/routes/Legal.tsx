@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { haySupabase } from '../lib/supabase';
 import { Eyebrow, Rule, Wordmark } from '../components/ui';
 
 export default function Legal() {
@@ -8,7 +9,7 @@ export default function Legal() {
         <Wordmark />
 
         <header className="mt-10">
-          <Eyebrow>Textos legales · versión demo</Eyebrow>
+          <Eyebrow>{haySupabase ? 'Textos legales · borrador' : 'Textos legales · versión demo'}</Eyebrow>
           <h1 className="mt-2 font-serif text-[28px] leading-tight text-ink">
             Privacidad, avisos y datos
           </h1>
@@ -66,11 +67,13 @@ export default function Legal() {
         <Rule className="my-8" />
 
         <section>
-          <h2 className="text-[18px] leading-snug text-ink">5 · Sobre esta demo</h2>
+          <h2 className="text-[18px] leading-snug text-ink">
+            {haySupabase ? '5 · Dónde están los datos' : '5 · Sobre esta demo'}
+          </h2>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-            Todo lo que ves aquí son datos inventados guardados en tu navegador. No hay servidor, no
-            hay base de datos, no se envía ningún SMS ni mensaje de WhatsApp, y no se comparte nada con
-            terceros. Si recargas o reinicias la demo, los datos vuelven a su estado inicial.
+            {haySupabase
+              ? 'Los datos de clientes, visitas, citas y llaveros viven en una base de datos de Supabase (Fráncfort) y solo los ve la barbería a la que pertenecen. No se envía ningún SMS ni mensaje de WhatsApp todavía, y no se comparte nada con terceros. La tarjeta del cliente puede protegerse con un PIN.'
+              : 'Todo lo que ves aquí son datos inventados guardados en tu navegador. No hay servidor, no hay base de datos, no se envía ningún SMS ni mensaje de WhatsApp, y no se comparte nada con terceros. Si recargas o reinicias la demo, los datos vuelven a su estado inicial.'}
           </p>
         </section>
 

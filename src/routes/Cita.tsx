@@ -19,6 +19,7 @@ import {
   primerNombre,
   startOfDay,
 } from '../lib/format';
+import { haySupabase } from '../lib/supabase';
 import { Btn, Check as CheckBox, Eyebrow, Pill, Rule, cn, inputClases, toast } from '../components/ui';
 import { Logotipo } from '../components/Logotipo';
 import { Salir } from '../components/Salir';
@@ -263,7 +264,10 @@ export default function Cita() {
           )}
 
           <p className="mt-6 text-[10.5px] leading-relaxed text-faint">
-            Demo: la cita se guarda en este navegador. No se envía ningún mensaje de confirmación.
+            La cita queda guardada en la barbería.
+            {haySupabase
+              ? ' No se envía ningún mensaje de confirmación.'
+              : ' En la demo se guarda en este navegador.'}
           </p>
         </div>
       </div>
