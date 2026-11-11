@@ -63,13 +63,10 @@ try {
   /* 1b. La portada despliega las tres puertas */
   await page.getByText('Entrar', { exact: true }).click();
   ok(await visible(page.getByRole('link', { name: /soy negocio/i })), 'La portada despliega «Soy negocio»');
-  ok(await visible(page.getByRole('link', { name: /soy cliente/i })), 'Y «Soy cliente»');
   ok(await visible(page.getByRole('link', { name: /^admin/i })), 'Y «Admin»');
-
-  await page.goto(`${BASE}/cliente`, { waitUntil: 'networkidle' });
   ok(
-    await visible(page.getByRole('heading', { name: /tu tarjeta vive en tu llavero/i })),
-    'La puerta del cliente explica qué hacer',
+    (await page.getByRole('link', { name: /soy cliente/i }).count()) === 0,
+    'Y no hay puerta de cliente: su tarjeta llega por el llavero o el enlace',
   );
 
   /* 2. Ruta protegida y acceso */

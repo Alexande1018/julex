@@ -12,11 +12,6 @@ const ENTRADAS = [
     to: '/barbero/login',
   },
   {
-    titulo: 'Soy cliente',
-    texto: 'Tu tarjeta, tus sellos y pedir cita. Sin cuenta y sin instalar nada.',
-    to: '/cliente',
-  },
-  {
     titulo: 'Admin',
     texto: 'Locales, llaveros activos y la cuota del mes. La trastienda del producto.',
     to: '/admin',
@@ -116,7 +111,7 @@ export default function Landing() {
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-line px-1 py-5 [&::-webkit-details-marker]:hidden">
             <span className="font-serif text-[21px] leading-tight text-ink">Entrar</span>
             <span className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
-              <span className="hidden sm:inline">Negocio · cliente · admin</span>
+              <span className="hidden sm:inline">Negocio · admin</span>
               <ChevronDown
                 size={16}
                 className="transition-transform duration-200 group-open:rotate-180"

@@ -18,7 +18,6 @@ import Nfc from './routes/Nfc';
 import Admin from './routes/Admin';
 import AdminLocal from './routes/AdminLocal';
 import Legal from './routes/Legal';
-import Cliente from './routes/Cliente';
 import NoEncontrado from './routes/NoEncontrado';
 
 function Requiere({ children }: { children: React.ReactNode }) {
@@ -122,7 +121,6 @@ export default function App() {
 
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/local/:id" element={<AdminLocal />} />
-        <Route path="/cliente" element={<Cliente />} />
         <Route path="/legal" element={<Legal />} />
         <Route path="*" element={<NoEncontrado />} />
       </Routes>
