@@ -105,6 +105,10 @@ historial salen del servidor hasta que el PIN es correcto.
 - **Alcance.** Es opcional por tarjeta y protege el enlace, no el móvil del barbero: con sesión
   abierta en el local, el llavero sigue abriendo la ficha sin PIN. El PIN se recuerda solo en la
   pestaña donde se escribió (`sessionStorage`).
+- **Para que exista en el proyecto real** hay que aplicar `supabase/migrations/0010_pin_tarjeta.sql`
+  (SQL Editor o `npx supabase db push`). Se puede aplicar antes de desplegar la app: las funciones
+  nuevas llevan el PIN con valor por defecto, así que la versión anterior sigue funcionando mientras
+  tanto.
 
 ---
 
