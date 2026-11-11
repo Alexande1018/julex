@@ -107,16 +107,15 @@ try {
   await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
   ok(await visible(page.getByText('La cola')), 'Y vuelve a ser una barbería');
 
-  /* 2c. Ajustes: el QR de reservas del local */
+  /* 2c. El QR ya no está en el panel del local: solo lo ve el administrador */
   await page.goto(`${BASE}/barbero/ajustes`, { waitUntil: 'networkidle' });
-  ok(await visible(page.getByText('QR de reservas')), 'Ajustes trae el QR de reservas');
   ok(
-    (await page.locator('[data-imprimir] canvas').count()) > 0,
-    'El QR se genera como imagen en la página',
+    (await page.getByText('QR de reservas').count()) === 0,
+    'El panel del local ya no ofrece el QR de reservas',
   );
   ok(
-    await visible(page.getByText(/\/cita\/barberia-pablo$/).first()),
-    'El QR apunta a la reserva pública del local',
+    (await page.getByText('Administración').count()) === 0,
+    'Ni la sección de administración',
   );
   await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
 

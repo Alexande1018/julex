@@ -17,7 +17,6 @@ import { TIPOS, vocabulario } from '../lib/vocabulario';
 import type { Barberia } from '../lib/types';
 import { fmtEuros } from '../lib/format';
 import { Shell } from '../components/Shell';
-import { CodigoQr } from '../components/CodigoQr';
 import { haySupabase, supabase } from '../lib/supabase';
 import { subirLogo } from '../lib/repo';
 import { Logotipo } from '../components/Logotipo';
@@ -57,7 +56,6 @@ export default function Ajustes() {
   const inputLogo = useRef<HTMLInputElement>(null);
   const [reset, setReset] = useState(false);
   const [salirConfirm, setSalirConfirm] = useState(false);
-  const [esAdmin, setEsAdmin] = useState(false);
   const [domicilioLegal, setDomicilioLegal] = useState(barberia.domicilioLegal);
   const [correoLegal, setCorreoLegal] = useState(barberia.correoLegal);
   const [solicitudes, setSolicitudes] = useState<
@@ -66,11 +64,6 @@ export default function Ajustes() {
 
   const llaveros = resumenLlaveros(db, barberia.id);
   const cuota = cuotaMensual(db, barberia.id);
-  useEffect(() => {
-    if (!haySupabase || !supabase) return;
-    void supabase.rpc('soy_admin').then(({ data }) => setEsAdmin(data === true));
-  }, []);
-
   const cargarSolicitudes = useCallback(async () => {
     if (!haySupabase || !supabase) return;
     const { data } = await supabase
@@ -295,16 +288,6 @@ export default function Ajustes() {
         </div>
       </section>
 
-      <Rule className="my-6" />
-
-      {/* QR DE RESERVAS: uno por local, nada personal */}
-      <section className="mt-7">
-        <CodigoQr
-          url={`${window.location.origin}/cita/${barberia.slug}`}
-          nombreFichero={`julex-${barberia.slug}-reservas`}
-        />
-      </section>
-
       {/* SERVICIOS */}
       <section>
         <div className="flex items-baseline justify-between">
@@ -486,29 +469,6 @@ export default function Ajustes() {
           cada cliente. El envío automático por WhatsApp o SMS llegará en la próxima actualización.
         </p>
       </section>
-
-      <Rule className="my-6" />
-
-      {esAdmin && (
-        <>
-          <Rule className="my-6" />
-          <section>
-            <Eyebrow>Administración</Eyebrow>
-            <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
-              Esta cuenta es de administrador: gestiona todos los locales, sus llaveros y sus accesos.
-            </p>
-            <Link
-              to="/admin"
-              className={cn(
-                btnClases('outline', 'md'),
-                'mt-2.5 inline-flex w-full items-center justify-center gap-1.5',
-              )}
-            >
-              Abrir panel de administrador
-            </Link>
-          </section>
-        </>
-      )}
 
       <Rule className="my-6" />
 
