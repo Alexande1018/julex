@@ -15,6 +15,7 @@ import {
 import { barberiaActiva, cuotaMensual, resumenLlaveros, sillasDe } from '../lib/derive';
 import { fmtEuros } from '../lib/format';
 import { Shell } from '../components/Shell';
+import { CodigoQr } from '../components/CodigoQr';
 import { haySupabase, supabase } from '../lib/supabase';
 import { subirLogo } from '../lib/repo';
 import { Logotipo } from '../components/Logotipo';
@@ -242,6 +243,14 @@ export default function Ajustes() {
       </section>
 
       <Rule className="my-6" />
+
+      {/* QR DE RESERVAS: uno por local, nada personal */}
+      <section className="mt-7">
+        <CodigoQr
+          url={`${window.location.origin}/cita/${barberia.slug}`}
+          nombreFichero={`julex-${barberia.slug}-reservas`}
+        />
+      </section>
 
       {/* SERVICIOS */}
       <section>

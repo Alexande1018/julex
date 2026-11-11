@@ -217,3 +217,28 @@
   color: var(--color-faint);
   text-transform: uppercase;
 }
+
+/* ------------------------------------------------------------------ */
+/* Imprimir un solo bloque                                            */
+/* ------------------------------------------------------------------ */
+/* Cuando hay un bloque marcado con [data-imprimir] —el QR de           */
+/* reservas—, se imprime solo eso, centrado y sin la app alrededor.     */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  [data-imprimir],
+  [data-imprimir] * {
+    visibility: visible;
+  }
+
+  [data-imprimir] {
+    position: absolute;
+    left: 50%;
+    top: 24mm;
+    transform: translateX(-50%);
+    border: 0;
+    box-shadow: none;
+  }
+}

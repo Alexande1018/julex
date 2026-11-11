@@ -4,6 +4,7 @@ import { ArrowLeft, Copy, Nfc, Plus, Search } from 'lucide-react';
 import { haySupabase, supabase } from '../lib/supabase';
 import { fmtEuros } from '../lib/format';
 import { Salir } from '../components/Salir';
+import { CodigoQr } from '../components/CodigoQr';
 import {
   Btn,
   Eyebrow,
@@ -204,6 +205,16 @@ export default function AdminLocal() {
           <Stat valor={clientes} etiqueta="Clientes" />
           <Stat valor={activos.length} etiqueta="Activos" nota={`de ${llaveros.length}`} />
           <Stat valor={fmtEuros(cuota)} etiqueta="Cuota" />
+        </section>
+
+        <Rule className="my-6" />
+
+        {/* QR DE RESERVAS: uno por local, nada personal */}
+        <section>
+          <CodigoQr
+            url={`${window.location.origin}/cita/${local.slug}`}
+            nombreFichero={`julex-${local.slug}-reservas`}
+          />
         </section>
 
         <Rule className="my-6" />

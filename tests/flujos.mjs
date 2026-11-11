@@ -68,6 +68,19 @@ try {
   ok(page.url().includes('/barbero/cola'), 'Tras entrar se vuelve a la cola');
   ok(await visible(page.getByText('La cola')), 'La cola se pinta');
 
+  /* 2b. Ajustes: el QR de reservas del local */
+  await page.goto(`${BASE}/barbero/ajustes`, { waitUntil: 'networkidle' });
+  ok(await visible(page.getByText('QR de reservas')), 'Ajustes trae el QR de reservas');
+  ok(
+    (await page.locator('[data-imprimir] canvas').count()) > 0,
+    'El QR se genera como imagen en la página',
+  );
+  ok(
+    await visible(page.getByText(/\/cita\/barberia-pablo$/).first()),
+    'El QR apunta a la reserva pública del local',
+  );
+  await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
+
   /* 3. Cerrar un servicio */
   const antes = (await db()).visitas.length;
   const terminar = page.getByRole('button', { name: /^Terminar$/i });
