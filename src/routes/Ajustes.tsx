@@ -57,6 +57,12 @@ export default function Ajustes() {
   const inputLogo = useRef<HTMLInputElement>(null);
   const [reset, setReset] = useState(false);
   const [salirConfirm, setSalirConfirm] = useState(false);
+  const [suscripcion, setSuscripcion] = useState<{
+    estado: string;
+    periodo_fin: string | null;
+    pausa_hasta: string | null;
+  } | null>(null);
+  const [cobrando, setCobrando] = useState(false);
   const [pedir, setPedir] = useState(false);
   const [cantidadPedido, setCantidadPedido] = useState(5);
   const [domicilioLegal, setDomicilioLegal] = useState(barberia.domicilioLegal);
@@ -80,6 +86,49 @@ export default function Ajustes() {
     }
     setPedir(false);
     toast(`Pedido enviado: ${cantidadPedido} llaveros`, 'ok');
+  };
+
+  const cargarSuscripcion = useCallback(async () => {
+    if (!haySupabase || !supabase) return;
+    const { data } = await supabase
+      .from('suscripciones')
+      .select('estado, periodo_fin, pausa_hasta')
+      .eq('barberia_id', barberia.id)
+      .maybeSingle();
+    setSuscripcion((data ?? null) as typeof suscripcion);
+  }, [barberia.id]);
+
+  useEffect(() => {
+    void cargarSuscripcion();
+  }, [cargarSuscripcion]);
+
+  const irAStripe = async (funcion: string, cuerpo?: Record<string, unknown>) => {
+    if (!haySupabase || !supabase) {
+      toast('En la demo no hay cobros', 'info');
+      return;
+    }
+    setCobrando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(funcion, { body: cuerpo ?? {} });
+      if (error) throw new Error(error.message);
+      if (data?.url) {
+        window.location.href = data.url as string;
+        return;
+      }
+      if (data?.pausada_hasta || data?.reanudada) {
+        toast(
+          data.pausada_hasta
+            ? `Pausada hasta el ${new Date(`${data.pausada_hasta}T12:00:00`).toLocaleDateString('es-ES')}`
+            : 'Suscripción reanudada',
+          'ok',
+        );
+        await cargarSuscripcion();
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo abrir el pago', 'aviso');
+    } finally {
+      setCobrando(false);
+    }
   };
 
   const cargarSolicitudes = useCallback(async () => {
@@ -501,6 +550,93 @@ export default function Ajustes() {
         <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
           Los recordatorios de cita y las solicitudes de reseña ya quedan registrados en el historial de
           cada cliente. El envío automático por WhatsApp o SMS llegará en la próxima actualización.
+        </p>
+      </section>
+
+      <Rule className="my-6" />
+
+      {/* PAGO AUTOMÁTICO */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3">
+          <Eyebrow>Pago automático</Eyebrow>
+          <Pill
+            tono={
+              suscripcion?.estado === 'activa'
+                ? 'ok'
+                : suscripcion?.estado === 'pausada'
+                  ? 'warn'
+                  : suscripcion?.estado === 'impagada'
+                    ? 'danger'
+                    : 'neutral'
+            }
+          >
+            {suscripcion?.estado === 'activa'
+              ? 'AL DÍA'
+              : suscripcion?.estado === 'pausada'
+                ? 'PAUSADA'
+                : suscripcion?.estado === 'impagada'
+                  ? 'PAGO PENDIENTE'
+                  : suscripcion?.estado === 'cancelada'
+                    ? 'CANCELADA'
+                    : 'SIN ACTIVAR'}
+          </Pill>
+        </div>
+
+        <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+          {suscripcion?.estado === 'activa'
+            ? `Se cobra sola cada mes con la tarjeta que diste. Próximo cobro: ${
+                suscripcion.periodo_fin
+                  ? new Date(suscripcion.periodo_fin).toLocaleDateString('es-ES', {
+                      day: 'numeric',
+                      month: 'long',
+                    })
+                  : '—'
+              }.`
+            : suscripcion?.estado === 'pausada'
+              ? `Pausada hasta el ${
+                  suscripcion.pausa_hasta
+                    ? new Date(`${suscripcion.pausa_hasta}T12:00:00`).toLocaleDateString('es-ES')
+                    : '—'
+                }. No se cobra mientras dure.`
+              : suscripcion?.estado === 'impagada'
+                ? 'El último cobro no pasó. Actualiza la tarjeta para no perder el acceso.'
+                : 'Activa el cobro automático: 30 € de alta con los 15 llaveros y el primer mes incluidos, y después tu cuota mensual.'}
+        </p>
+
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {!suscripcion || suscripcion.estado === 'sin_activar' || suscripcion.estado === 'cancelada' ? (
+            <Btn onClick={() => void irAStripe('stripe-checkout')} disabled={cobrando}>
+              {cobrando ? 'Abriendo…' : 'Activar pago automático'}
+            </Btn>
+          ) : (
+            <>
+              <Btn v="outline" onClick={() => void irAStripe('stripe-portal')} disabled={cobrando}>
+                Gestionar suscripción
+              </Btn>
+              {suscripcion.estado === 'pausada' ? (
+                <Btn
+                  v="quiet"
+                  onClick={() => void irAStripe('stripe-pausa', { accion: 'reanudar' })}
+                  disabled={cobrando}
+                >
+                  Reanudar ahora
+                </Btn>
+              ) : (
+                <Btn
+                  v="quiet"
+                  onClick={() => void irAStripe('stripe-pausa', { accion: 'pausar' })}
+                  disabled={cobrando}
+                >
+                  Pausar 30 días
+                </Btn>
+              )}
+            </>
+          )}
+        </div>
+
+        <p className="mt-2 text-[10.5px] leading-relaxed text-faint">
+          La pausa es para vacaciones o un cierre: deja de cobrarse y se reanuda sola en 30 días,
+          como máximo. Los cobros los gestiona Stripe; JULEX no guarda tu tarjeta.
         </p>
       </section>
 
