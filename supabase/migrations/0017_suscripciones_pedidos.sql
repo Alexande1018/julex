@@ -101,8 +101,7 @@ declare
   v_local    uuid := public.mi_barberia();
   v_activos  int;
   v_id       uuid;
-  v_gratis   int;   -- llaveros que aún no suben la cuota (hasta 40 activos)
-  v_extra    int;   -- los que se cobran a 1 € una sola vez
+  v_extra    int;   -- llaveros que se cobran a 1 € una sola vez (material)
   v_cuota    numeric;
 begin
   if v_local is null then return null; end if;
@@ -111,8 +110,8 @@ begin
   select count(*) into v_activos
     from llaveros where barberia_id = v_local and estado = 'activo';
 
-  v_gratis := greatest(0, public.llaveros_incluidos() - v_activos);
-  v_extra  := greatest(0, p_cantidad - v_gratis);
+  -- El material se paga por cada llavero nuevo: el alta ya incluyó 15.
+  v_extra  := p_cantidad;
 
   -- Cuota resultante si se activan todos los que quepan en el tope.
   v_cuota := least(

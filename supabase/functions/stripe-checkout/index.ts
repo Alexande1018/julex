@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
 
     const total = Math.max(15, count ?? 0);
     const cantidad = Math.min(40, total);
-    const extras = Math.max(0, total - 40);
+    // El material se paga desde el llavero 16; el tope de 40 es solo de cuota.
+    const extras = Math.max(0, total - 15);
 
     const { data: sus } = await admin
       .from('suscripciones')

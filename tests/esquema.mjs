@@ -779,7 +779,11 @@ async function main() {
     [topeId],
   );
   ok(activos40.rows[0].n === 40, 'Cuarenta llaveros activos');
-  ok(cargos40.rows[0].n === 0, 'Los 40 primeros no generan cargo extra');
+  ok(
+    cargos40.rows[0].n === 25,
+    'Con 40 llaveros, 25 pasan de los 15 incluidos: 25 € de material',
+    JSON.stringify(cargos40.rows[0]),
+  );
 
   // El 41 y el 42 sí.
   for (const g of [41, 42]) {
@@ -795,8 +799,8 @@ async function main() {
     [topeId],
   );
   ok(
-    cargos42.rows[0].n === 2 && Number(cargos42.rows[0].s) === 2,
-    'Pasando de 40, cada llavero nuevo apunta 1 €',
+    cargos42.rows[0].n === 27 && Number(cargos42.rows[0].s) === 27,
+    'De los 42 llaveros, 27 pasan de los 15 incluidos y se apuntan a 1 €',
     JSON.stringify(cargos42.rows[0]),
   );
 
@@ -816,7 +820,7 @@ async function main() {
     `select count(*)::int n from cargos_llavero where barberia_id = $1 and cobrado_en is null`,
     [topeId],
   );
-  ok(cobrado.rows[0].n === 2 && pendiente.rows[0].n === 0, 'El material se marca como cobrado');
+  ok(cobrado.rows[0].n === 27 && pendiente.rows[0].n === 0, 'El material se marca como cobrado');
   await db.query(`delete from admins where user_id = $1`, [dueno]);
 
   /* ------------------------------------------------------------------ */
@@ -869,6 +873,31 @@ async function main() {
   ok(tagPide.rows[0].estado === 'retirado', 'Y el llavero queda retirado');
   ok(estadoPet.rows[0].estado === 'resuelta', 'La petición queda cerrada');
   await db.query(`delete from admins where user_id = $1`, [dueno]);
+
+  /* ------------------------------------------------------------------ */
+  /* El llavero extra se cobra desde el 16.º, una vez                    */
+  /* ------------------------------------------------------------------ */
+
+  const l16 = await db.query(
+    `insert into barberias (nombre, slug) values ('Prueba Llaveros', 'prueba-llaveros') returning id`,
+  );
+  const l16id = l16.rows[0].id;
+
+  await db.query(
+    `insert into llaveros (barberia_id, token, codigo_corto, estado)
+     select $1, 'tok16-' || g, 'X-' || g, 'sin_asignar' from generate_series(1, 20) g`,
+    [l16id],
+  );
+
+  const cargos16 = await db.query(
+    `select count(*)::int n, coalesce(sum(importe), 0)::numeric s from cargos_llavero where barberia_id = $1`,
+    [l16id],
+  );
+  ok(
+    cargos16.rows[0].n === 5 && Number(cargos16.rows[0].s) === 5,
+    'Los 15 primeros llaveros no se cobran; del 16 al 20, 1 € cada uno',
+    JSON.stringify(cargos16.rows[0]),
+  );
 
   await db.close();
 }

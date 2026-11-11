@@ -514,8 +514,8 @@ export default function Ajustes() {
           <p className="mt-2.5 text-[11px] leading-relaxed text-muted">
             {cuota.tope ? (
               <>
-                Has llegado al tope: la cuota no sube de 40 €. Los {cuota.extras} llaveros que pasan de
-                40 se cobran a 1 € una sola vez, no cada mes.
+                Has llegado al tope: la cuota no sube de 40 €. Cada llavero que pidas cuesta 1 € una
+                sola vez, y su euro mensual ya va dentro de esos 40 €.
               </>
             ) : cuota.minimo ? (
               'Mínimo de 15 €: se factura por los 15 llaveros incluidos en el alta, estén asignados o no.'
@@ -533,9 +533,8 @@ export default function Ajustes() {
           </Btn>
 
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
-            ¿Necesitas más? Se piden de 5 en 5 como mínimo: escríbenos y te los preparamos. A partir
-            del 41, cada uno cuesta 1 € una sola vez{' '}
-            <strong className="font-semibold text-ink">y no sube tu cuota</strong>.
+            ¿Necesitas más? Se piden de 5 en 5 como mínimo: escríbenos y te los preparamos. Cada uno
+            cuesta 1 € una sola vez por el llavero, aparte de su euro mensual mientras esté activo.
           </p>
         </div>
       </section>
@@ -850,12 +849,10 @@ export default function Ajustes() {
               </span>{' '}
               al mes
             </p>
-            {cuota.activos + cantidadPedido > 40 && (
-              <p className="text-clay">
-                {cuota.activos + cantidadPedido - 40} llaveros pasan del tope: se cobran 1 € una sola
-                vez por cada uno, y la cuota se queda en 40 €.
-              </p>
-            )}
+            <p className="text-clay">
+              {cantidadPedido} llaveros a 1 € = {fmtEuros(cantidadPedido)} una sola vez, por el
+              llavero.
+            </p>
             <p>Se te avisa cuando salgan y cuando lleguen. El importe aparece en tu factura.</p>
           </div>
         </div>

@@ -43,16 +43,16 @@ export function Condiciones() {
               'Desde el día 1 del mes siguiente al alta',
             ],
             [
-              'Llavero por encima de 40',
-              '1 € + IVA, una sola vez por llavero',
-              'Al vincularlo; no se repite ni sube la cuota',
+              'Llavero adicional',
+              '1 € + IVA, una sola vez por llavero, desde el decimosexto',
+              'Al pedirlo; no se repite',
             ],
           ]}
         />
         <p>
-          Ejemplos: con 15 llaveros se pagan 15 €/mes; con 30, 30 €; con 40, 40 €. Con 50 llaveros se
-          siguen pagando 40 €/mes y se abonan 10 € una sola vez por los diez que pasan del tope. Con
-          100, 40 €/mes y 60 € una sola vez.
+          Ejemplos: con los 15 del alta se pagan 15 €/mes. Con 30 llaveros, 30 €/mes y 15 € una sola
+          vez por los quince que no venían incluidos. Con 50, 40 €/mes (tope) y 35 € una sola vez. Con
+          100, 40 €/mes y 85 € una sola vez.
         </p>
         <p>
           Los importes se facturan con el IVA que corresponda. La cuota se devenga por meses completos

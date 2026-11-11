@@ -40,7 +40,7 @@ export default function AltaNegocio() {
 
   const v = vocabulario(form.tipo);
   const total = 15 + form.extras;
-  const extrasCobro = Math.max(0, total - 40);
+  const extrasCobro = Math.max(0, total - 15);
   const cuota = Math.min(40, Math.max(15, total));
 
   const set = (k: keyof typeof form, valor: string | number) =>
@@ -292,7 +292,7 @@ export default function AltaNegocio() {
             </div>
             {extrasCobro > 0 && (
               <p className="mt-2 text-[10.5px] leading-relaxed text-clay">
-                {extrasCobro} llaveros pasan de 40: se cobran a 1 € cada uno una sola vez.
+                {extrasCobro} llaveros de más: 1 € cada uno una sola vez, por el llavero.
               </p>
             )}
           </div>
@@ -325,7 +325,7 @@ export default function AltaNegocio() {
             {extrasCobro > 0 && (
               <div className="mt-1 flex items-baseline justify-between">
                 <span className="text-[12px] text-muted">
-                  {extrasCobro} llaveros {v.serviciosMin} de más
+                  {extrasCobro} llaveros de más
                 </span>
                 <span className="num text-[13px] text-ink">{extrasCobro},00 €</span>
               </div>
