@@ -36,8 +36,8 @@ function AccesoLocal({ next }: { next: string }) {
 
   return (
     <Marco>
-      <Eyebrow>Acceso del barbero</Eyebrow>
-      <h1 className="mt-3 font-serif text-[30px] leading-[1.1] text-ink">Entra en tu barbería.</h1>
+      <Eyebrow>Acceso del negocio</Eyebrow>
+      <h1 className="mt-3 font-serif text-[30px] leading-[1.1] text-ink">Entra en tu negocio.</h1>
       <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
         La sesión se queda abierta en este navegador. Es lo que permite que el llavero abra la ficha
         directamente al acercarlo.
@@ -94,7 +94,7 @@ function AccesoReal({ next, admin = false }: { next: string; admin?: boolean }) 
       }
       if (resultado === 'sin_local') {
         setError(
-          'Tu cuenta no tiene barbería asignada. Pídele al administrador que te cree el local.',
+          'Tu cuenta no tiene ningún local asignado. Pídele al administrador que te cree el local.',
         );
         return;
       }
@@ -114,7 +114,7 @@ function AccesoReal({ next, admin = false }: { next: string; admin?: boolean }) 
       </h1>
       <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
         {admin
-          ? 'Barberías, llaveros y cuentas. Si la cuenta también es de una barbería, la sesión es la misma: al entrar irás al panel y desde ahí puedes volver a tu cola.'
+          ? 'Locales, llaveros y cuentas. Si la cuenta también es de un local, la sesión es la misma: al entrar irás al panel y desde ahí puedes volver a tu cola.'
           : 'La sesión se queda abierta. Es lo que permite que el llavero abra la ficha al acercarlo.'}
       </p>
 
@@ -181,7 +181,7 @@ function AccesoReal({ next, admin = false }: { next: string; admin?: boolean }) 
             to="/barbero/login"
             className="font-semibold text-ink-soft underline decoration-line underline-offset-4 hover:text-ink"
           >
-            Soy de una barbería
+            Soy de un local
           </Link>
         ) : (
           <Link

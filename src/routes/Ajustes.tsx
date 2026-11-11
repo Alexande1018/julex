@@ -63,6 +63,7 @@ export default function Ajustes() {
     pausa_hasta: string | null;
   } | null>(null);
   const [cobrando, setCobrando] = useState(false);
+  const [diasPausa, setDiasPausa] = useState(30);
   const [pedir, setPedir] = useState(false);
   const [cantidadPedido, setCantidadPedido] = useState(5);
   const [domicilioLegal, setDomicilioLegal] = useState(barberia.domicilioLegal);
@@ -544,12 +545,14 @@ export default function Ajustes() {
       {/* AVISOS */}
       <section>
         <Eyebrow>Avisos y mensajes</Eyebrow>
-        <div className="mt-2 flex items-center gap-2">
-          <Pill tono="neutral">Próximamente</Pill>
-        </div>
-        <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
-          Los recordatorios de cita y las solicitudes de reseña ya quedan registrados en el historial de
-          cada cliente. El envío automático por WhatsApp o SMS llegará en la próxima actualización.
+        <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
+          A quien lleva más de 60 días sin venir le puedes escribir desde el panel, en «Mensaje»: abre
+          tu aplicación de SMS o el chat de WhatsApp con el texto y el enlace de reserva ya escritos. El
+          mensaje sale de tu número y queda registrado en su historial.
+        </p>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
+          Solo se ofrece a quien aceptó promociones. El envío automático, sin que lo mandes tú, llegará
+          más adelante.
         </p>
       </section>
 
@@ -622,21 +625,34 @@ export default function Ajustes() {
                   Reanudar ahora
                 </Btn>
               ) : (
-                <Btn
-                  v="quiet"
-                  onClick={() => void irAStripe('stripe-pausa', { accion: 'pausar' })}
-                  disabled={cobrando}
-                >
-                  Pausar 30 días
-                </Btn>
+                <>
+                  <select
+                    value={diasPausa}
+                    onChange={(e) => setDiasPausa(Number(e.target.value))}
+                    className={cn(inputClases, 'h-9 w-auto text-[11.5px]')}
+                    aria-label="Días de pausa"
+                  >
+                    <option value={7}>7 días</option>
+                    <option value={15}>15 días</option>
+                    <option value={30}>30 días</option>
+                  </select>
+                  <Btn
+                    v="quiet"
+                    onClick={() => void irAStripe('stripe-pausa', { accion: 'pausar', dias: diasPausa })}
+                    disabled={cobrando}
+                  >
+                    Pausar
+                  </Btn>
+                </>
               )}
             </>
           )}
         </div>
 
         <p className="mt-2 text-[10.5px] leading-relaxed text-faint">
-          La pausa es para vacaciones o un cierre: deja de cobrarse y se reanuda sola en 30 días,
-          como máximo. Los cobros los gestiona Stripe; JULEX no guarda tu tarjeta.
+          La pausa es para vacaciones o un cierre: deja de cobrarse y se reanuda sola el día que
+          elijas, hasta un máximo de 30 días. Los cobros los gestiona Stripe; JULEX no guarda tu
+          tarjeta.
         </p>
       </section>
 

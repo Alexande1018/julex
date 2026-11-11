@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { accion } = await req.json().catch(() => ({ accion: 'pausar' }));
+    const { accion, dias } = await req.json().catch(() => ({ accion: 'pausar' }));
     if (!['pausar', 'reanudar'].includes(accion)) return json({ error: 'accion_invalida' }, 400);
 
     const token = req.headers.get('Authorization')?.replace('Bearer ', '');
@@ -60,7 +60,8 @@ Deno.serve(async (req) => {
     if (!sus?.stripe_subscription_id) return json({ error: 'sin_suscripcion' }, 404);
 
     if (accion === 'pausar') {
-      const hasta = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const n = Math.min(30, Math.max(1, Number(dias ?? 30)));
+      const hasta = new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
       await stripe.subscriptions.update(sus.stripe_subscription_id as string, {
         pause_collection: {
