@@ -365,6 +365,13 @@ Todo esto se ejecuta, muta datos y **sobrevive a recargar** (localStorage `julex
 
 ---
 
+## Manual del negocio
+
+`docs/Manual-JULEX-negocios.pdf` (17 páginas): qué es JULEX, cómo dejar el local listo, dar de alta
+clientes, la cola, las citas, la ficha, la fidelización, el panel, los llaveros, la tarjeta del
+cliente, el dinero, la privacidad y las averías típicas. Se genera desde `docs/manual/manual.html`
+con `node scripts/manual-pdf.mjs`.
+
 ## Cumplimiento
 
 Lo que está implantado y lo que no.

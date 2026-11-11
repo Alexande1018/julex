@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>JULEX · Manual del negocio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..600&family=Manrope:wght@300..700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #1a1b17;
+    --olive: #3e4a35;
+    --muted: #5c5b52;
+    --faint: #8b897f;
+    --line: #d8d3c5;
+    --paper: #f6f2e8;
+    --clay: #a2553c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Manrope', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: var(--ink);
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1, h2, h3, .serif { font-family: 'Fraunces', Georgia, serif; font-weight: 400; }
+  h1 { font-size: 26pt; line-height: 1.08; margin: 0 0 6mm; letter-spacing: -0.01em; }
+  h2 { font-size: 17pt; line-height: 1.15; margin: 0 0 4mm; }
+  h3 { font-size: 11.5pt; margin: 6mm 0 2mm; }
+  p { margin: 0 0 3mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  a { color: var(--ink); }
+  .eyebrow {
+    font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.16em;
+    color: var(--faint); margin-bottom: 2mm;
+  }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+  .small { font-size: 8.5pt; }
+  strong { font-weight: 650; }
+
+  .page { padding: 0; }
+  .section { page-break-before: always; }
+  .keep { page-break-inside: avoid; }
+
+  /* Portada */
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; }
+  .cover .marca { font-family: 'Fraunces', Georgia, serif; font-size: 16pt; letter-spacing: 0.02em; }
+  .cover .marca span { color: var(--clay); }
+  .cover h1 { font-size: 40pt; margin: 0; }
+  .cover .sub { font-size: 12.5pt; color: var(--muted); margin-top: 4mm; max-width: 120mm; }
+  .cover .pie { border-top: 1px solid var(--line); padding-top: 3mm; font-size: 8.5pt; color: var(--faint); }
+
+  .rule { border: 0; border-top: 1px solid var(--line); margin: 5mm 0; }
+
+  .paso { display: flex; gap: 3mm; margin-bottom: 3.5mm; page-break-inside: avoid; }
+  .paso .n {
+    flex: 0 0 7mm; height: 7mm; border: 1px solid var(--line); border-radius: 1mm;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', Georgia, serif; font-size: 10pt; color: var(--olive);
+  }
+  .paso .c { flex: 1; }
+  .paso .c p { margin: 0 0 1mm; }
+  .paso .t { font-weight: 650; }
+
+  .nota {
+    border-left: 2px solid var(--olive); background: var(--paper);
+    padding: 3mm 4mm; margin: 3mm 0 4mm; font-size: 9.5pt; page-break-inside: avoid;
+  }
+  .aviso { border-left-color: var(--clay); }
+  .nota p:last-child { margin-bottom: 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9.5pt; }
+  th, td { text-align: left; padding: 2mm 2.5mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.1em; color: var(--faint); font-weight: 600; }
+  td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .dos { display: flex; gap: 6mm; }
+  .dos > div { flex: 1; }
+
+  .destacado { font-family: 'Fraunces', Georgia, serif; font-size: 13pt; line-height: 1.35; }
+  .toc { margin-top: 6mm; }
+  .toc div { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 1.6mm 0; font-size: 10pt; }
+  .toc .n { color: var(--faint); font-family: 'Fraunces', Georgia, serif; }
+  .cierre { page-break-before: always; display: flex; align-items: center; justify-content: center; height: 200mm; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- ================= PORTADA ================= -->
+<section class="cover">
+  <div class="marca">JULEX <span>•</span></div>
+  <div>
+    <div class="eyebrow">Manual del negocio</div>
+    <h1>Todo lo que<br />necesitas para<br />empezar con JULEX.</h1>
+    <p class="sub">Cómo dejar tu local listo, dar de alta a tus clientes, usar los llaveros y llevar el día a día. Sin tecnicismos.</p>
+  </div>
+  <div class="pie">
+    Versión 1 · noviembre de 2026 · gestionjulex@gmail.com
+  </div>
+</section>
+
+<!-- ================= ÍNDICE ================= -->
+<section class="page">
+  <div class="eyebrow">Índice</div>
+  <h2>Lo que vas a encontrar</h2>
+  <div class="toc">
+    <div><span>1 · En un minuto: qué es JULEX</span><span class="n">3</span></div>
+    <div><span>2 · Tu primer día: dejar el local listo</span><span class="n">4</span></div>
+    <div><span>3 · Dar de alta a un cliente</span><span class="n">5</span></div>
+    <div><span>4 · El día a día: la cola</span><span class="n">6</span></div>
+    <div><span>5 · Citas y reservas</span><span class="n">7</span></div>
+    <div><span>6 · La ficha del cliente</span><span class="n">8</span></div>
+    <div><span>7 · Fidelización</span><span class="n">9</span></div>
+    <div><span>8 · El panel: tus números</span><span class="n">10</span></div>
+    <div><span>9 · Los llaveros</span><span class="n">11</span></div>
+    <div><span>10 · Tu tarjeta, vista por el cliente</span><span class="n">12</span></div>
+    <div><span>11 · Dinero: alta, cuota y facturas</span><span class="n">13</span></div>
+    <div><span>12 · Datos y privacidad</span><span class="n">14</span></div>
+    <div><span>13 · Problemas típicos</span><span class="n">15</span></div>
+    <div><span>14 · Soporte</span><span class="n">16</span></div>
+  </div>
+
+  <div class="nota" style="margin-top: 10mm">
+    <p><strong>Antes de empezar.</strong> Guarda esta dirección: <strong>julex.pages.dev</strong>. Es la puerta de
+    entrada para ti y la dirección que llevan tus llaveros.</p>
+  </div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section class="page section">
+  <div class="eyebrow">1 · En un minuto</div>
+  <h2>Qué es JULEX</h2>
+
+  <p class="destacado">JULEX es la libreta de tu local, pero digital y con llaveros: quién eres de cada cliente,
+  qué se hizo la última vez, cuánto lleva sin venir y quién está esperando ahora mismo.</p>
+
+  <p>Tiene tres piezas y conviene tenerlas claras desde el principio:</p>
+
+  <h3>El panel del negocio</h3>
+  <p>Donde trabajas tú. Se entra en <strong>julex.pages.dev</strong> con tu correo y tu contraseña. Tiene cinco
+  pestañas: <strong>Cola</strong>, <strong>Agenda</strong>, <strong>Clientes</strong>, <strong>Panel</strong> y
+  <strong>Ajustes</strong>.</p>
+
+  <h3>El llavero del cliente</h3>
+  <p>Es un llavero normal con un chip dentro. No guarda datos: solo una dirección. Al acercarlo:</p>
+  <ul>
+    <li>Si lo toca <strong>tu móvil</strong>, con tu sesión abierta, se abre la ficha de ese cliente.</li>
+    <li>Si lo toca <strong>el móvil del cliente</strong>, se abre su tarjeta: sus sellos, su próxima cita y su botón
+    para pedir cita.</li>
+  </ul>
+
+  <h3>La tarjeta del cliente</h3>
+  <p>Es una página personal, privada, que solo se abre con su llavero o con su enlace. Ahí ve su historial, sus
+  recompensas y puede pedir cita o pedir la baja.</p>
+
+  <div class="nota">
+    <p><strong>Lo que JULEX no es.</strong> No es una app para tus clientes: ellos no se descargan nada. No
+    sustituye a la caja ni a la máquina de tarjeta. Y no envía mensajes solo: los escribes tú desde tu móvil.</p>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="page section">
+  <div class="eyebrow">2 · Primer día</div>
+  <h2>Dejar el local listo</h2>
+  <p>Esto se hace una vez y se tarda una media hora. Todo está en <strong>Ajustes</strong>.</p>
+
+  <div class="paso"><div class="n">1</div><div class="c">
+    <p class="t">Tus datos y tu imagen</p>
+    <p>Nombre del local, tipo de negocio, teléfono, dirección y color de marca. Si quieres, sube tu logo.</p>
+    <p class="small muted">El tipo de negocio cambia las palabras de la app —«corte» o «servicio», «sillón» o
+    «puesto»— y los servicios que vienen de partida. No cambia tus datos.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">2</div><div class="c">
+    <p class="t">Tus servicios</p>
+    <p>Cada servicio lleva nombre, precio y duración. La duración es lo que la agenda usa para no pisar dos citas.</p>
+    <p class="small muted">Ejemplo: Corte · 15 € · 30 min. Corte + barba · 22 € · 45 min.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">3</div><div class="c">
+    <p class="t">Tus puestos</p>
+    <p>Cada sillón o mesa es un puesto de trabajo. Si sois dos, crea dos: la cola y la agenda reparten las citas
+    entre ellos.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">4</div><div class="c">
+    <p class="t">Tu horario</p>
+    <p>Qué días abres y de qué hora a qué hora. Es lo que se ofrece al cliente cuando reserva.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">5</div><div class="c">
+    <p class="t">Tu meta de fidelización</p>
+    <p>Cada cuántas visitas se gana la recompensa. Por defecto, 10. Tú decides si son 5, 8 o 12.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">6</div><div class="c">
+    <p class="t">Tus datos legales</p>
+    <p>Domicilio legal (vale solo la ciudad) y correo para derechos y reclamaciones. Con eso se rellenan tus
+    páginas legales, que el cliente puede abrir desde su tarjeta y desde la reserva.</p>
+  </div></div>
+
+  <div class="nota">
+    <p><strong>Consejo.</strong> Antes de dar el primer llavero, haz una reserva de prueba desde el móvil de un
+    amigo o desde el tuyo cerrando sesión. Verás lo que ve un cliente y te quitarás las dudas.</p>
+  </div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="page section">
+  <div class="eyebrow">3 · Clientes</div>
+  <h2>Dar de alta a un cliente</h2>
+  <p>Se tarda un minuto y se hace delante de él, en el mostrador. Botón <strong>«Nuevo cliente»</strong>, en
+  Clientes o en la Cola.</p>
+
+  <div class="paso"><div class="n">1</div><div class="c">
+    <p class="t">Nombre y teléfono</p>
+    <p>El teléfono es opcional, pero sin él no podrás escribirle por SMS ni WhatsApp.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">2</div><div class="c">
+    <p class="t">«Cómo corta»</p>
+    <p>Aquí va lo que no quieres volver a preguntar: el degradado, la máquina, el flequillo. Es opcional y se
+    puede escribir después.</p>
+    <p class="small muted">No escribas datos de salud: alergias, medicación, diagnósticos. La app los rechaza y,
+    además, no los necesitas para cortar el pelo.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">3</div><div class="c">
+    <p class="t">Permisos</p>
+    <p>Marca solo lo que el cliente acepte delante de ti. Van desmarcados a propósito:</p>
+    <ul>
+      <li><strong>Información entregada</strong> (obligatoria): consta que le has dado la información de privacidad.</li>
+      <li><strong>Avisos de turno</strong>: parte del servicio, marcado por defecto.</li>
+      <li><strong>Fidelización, preferencias y promociones</strong>: opcionales.</li>
+    </ul>
+  </div></div>
+
+  <div class="paso"><div class="n">4</div><div class="c">
+    <p class="t">El llavero</p>
+    <p>Al terminar, elige uno de los llaveros libres y asígnalo. Queda unido a ese cliente para siempre.</p>
+    <p class="small muted">Si aún no tienes llaveros a mano, se puede crear la ficha sin llavero y asignarlo
+    después desde su ficha.</p>
+  </div></div>
+
+  <div class="nota aviso">
+    <p><strong>Un llavero, un cliente.</strong> Los llaveros se pueden retirar, pero no reutilizar: un llavero
+    retirado queda muerto. Si un cliente se va, retíralo; si vuelve, se le da uno nuevo.</p>
+  </div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="page section">
+  <div class="eyebrow">4 · El día a día</div>
+  <h2>La cola</h2>
+  <p>Es la pantalla que tendrás abierta todo el día. Cuenta quién está esperando y quién está en cada sillón.</p>
+
+  <div class="paso"><div class="n">1</div><div class="c">
+    <p class="t">Añadir a la cola</p>
+    <p>Cuando llega alguien: <strong>«Añadir a la cola»</strong>, buscas su nombre y eliges el servicio. Si es
+    nuevo, lo creas desde ahí mismo.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">2</div><div class="c">
+    <p class="t">Pasar al sillón</p>
+    <p>Cuando se sienta, toca <strong>«A sillón»</strong>. La cola marca quién lleva más tiempo esperando.</p>
+  </div></div>
+
+  <div class="paso"><div class="n">3</div><div class="c">
+    <p class="t">Terminar</p>
+    <p>Al acabar, <strong>«Terminar»</strong>. Ahí se apunta la visita: suma a su historial, cuenta para la
+    fidelización y, si toca, genera la recompensa.</p>
+  </div></div>
+
+  <div class="nota">
+    <p><strong>El relevo automático.</strong> Si tienes varias sillas, al terminar un corte la app avisa y pasa
+    al siguiente de la cola a la silla que se ha quedado libre. Tienes unos segundos para corregirlo si hace
+    falta.</p>
+  </div>
+
+  <h3>Si alguien no viene</h3>
+  <p>Desde la agenda se marca <strong>«No vino»</strong>. No cuenta como visita, pero queda en su historial y te
+  ayuda a ver quién falla.</p>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="page section">
+  <div class="eyebrow">5 · Citas</div>
+  <h2>Citas y reservas</h2>
+
+  <h3>La agenda</h3>
+  <p>Un día por pantalla, con una columna por sillón. Se cambia de día con las flechas y se filtra por puesto.
+  Desde ahí puedes crear una cita a mano y mover su estado: pendiente, confirmada, atendida, no vino o
+  cancelada.</p>
+
+  <h3>Que el cliente reserve solo</h3>
+  <p>Cada local tiene una página pública de reservas: <strong>julex.pages.dev/cita/tu-local</strong>. El cliente
+  elige servicio, día y hora, y deja su nombre y teléfono. La cita aparece en tu agenda al momento.</p>
+  <p>Hay dos formas de que llegue ahí:</p>
+  <ul>
+    <li><strong>El cartel con QR</strong> en el mostrador. Se imprime desde el enlace de reservas.</li>
+    <li><strong>Su llavero</strong>: al tocarlo ve su tarjeta, y desde ahí pide cita con sus datos ya puestos.</li>
+  </ul>
+
+  <h3>Tu agenda se actualiza sola</h3>
+  <p>Si un cliente reserva desde su móvil mientras tú tienes la app abierta, la cita aparece en cuanto cambias de
+  pantalla o vuelves a la pestaña. Si no la ves, mira que estés en el día correcto: la agenda abre en el día
+  de hoy.</p>
+
+  <div class="nota">
+    <p><strong>El cliente puede cancelar</strong> desde su tarjeta hasta dos horas antes. Después, tienes que
+    hacerlo tú desde la agenda.</p>
+  </div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section class="page section">
+  <div class="eyebrow">6 · Clientes</div>
+  <h2>La ficha del cliente</h2>
+  <p>Se abre tocando su nombre, o acercando su llavero a tu móvil. Es lo que te permite atenderle sin preguntar
+  nada.</p>
+
+  <table>
+    <tr><th>Lo que ves</th><th>Para qué sirve</th></tr>
+    <tr><td><strong>Cómo corta</strong></td><td>Su degradado, su máquina, lo que no quiere. Editable.</td></tr>
+    <tr><td><strong>Notas</strong></td><td>Detalles prácticos: «viene los sábados», «le gusta el silencio».</td></tr>
+    <tr><td><strong>Historial</strong></td><td>Sus últimas visitas, con fecha, servicio e importe.</td></tr>
+    <tr><td><strong>Sellos y recompensas</strong></td><td>Cuánto le falta y qué tiene disponible.</td></tr>
+    <tr><td><strong>Llavero</strong></td><td>Su código, y el botón para copiar el enlace de su tarjeta.</td></tr>
+    <tr><td><strong>PIN</strong></td><td>Si lo tiene, puedes quitárselo (por ejemplo, si lo olvidó).</td></tr>
+  </table>
+
+  <div class="nota">
+    <p><strong>Privacidad en la ficha.</strong> Solo tú y tu equipo veis esto. No se comparte con nadie y no se
+    usa para publicidad.</p>
+  </div>
+
+  <h3>Si el cliente cambia de opinión</h3>
+  <p>Él mismo puede cambiar su teléfono, sus preferencias y sus permisos desde su tarjeta, en «Mis datos». Tú no
+  tienes que hacer nada.</p>
+</section>
+
+<!-- ================= 7 ================= -->
+<section class="page section">
+  <div class="eyebrow">7 · Fidelización</div>
+  <h2>Que vuelvan</h2>
+  <p>El programa es simple: cada visita suma, y al llegar a la meta se genera una recompensa que se puede aplicar
+  en la siguiente visita.</p>
+
+  <div class="dos">
+    <div>
+      <h3>Cómo se cuenta</h3>
+      <p>La visita se apunta al pulsar <strong>«Terminar»</strong> en la cola o al marcar una cita como
+      atendida. No hay que hacer nada más.</p>
+    </div>
+    <div>
+      <h3>Cómo se aplica</h3>
+      <p>Cuando el cliente tiene una recompensa disponible, la ficha lo indica. Se aplica al terminar el
+      servicio y queda registrada.</p>
+    </div>
+  </div>
+
+  <h3>La meta la pones tú</h3>
+  <p>En Ajustes, «Meta de fidelización». Cambiarla no borra los sellos de nadie: solo cambia cuándo se genera la
+  siguiente recompensa.</p>
+
+  <div class="nota">
+    <p><strong>Sin letra pequeña.</strong> El cliente ve sus sellos en su tarjeta, siempre. Si un día cambias la
+    meta, verá el nuevo objetivo desde ese momento, no antes.</p>
+  </div>
+</section>
+
+<!-- ================= 8 ================= -->
+<section class="page section">
+  <div class="eyebrow">8 · Panel</div>
+  <h2>Tus números</h2>
+  <p>Todo lo que sale aquí viene de las visitas y citas que has registrado. Nada está estimado a ojo.</p>
+
+  <table>
+    <tr><th>Número</th><th>Qué mide</th></tr>
+    <tr><td><strong>Clientes</strong></td><td>Cuántos tienes y cuántos han venido en los últimos 30 días.</td></tr>
+    <tr><td><strong>Citas del mes</strong></td><td>Cuántas y cuántas llegaron por el QR.</td></tr>
+    <tr><td><strong>Ingresos del mes</strong></td><td>Lo registrado a precio de tarifa.</td></tr>
+    <tr><td><strong>Actividad · 8 semanas</strong></td><td>Cada barra es una semana de visitas.</td></tr>
+    <tr><td><strong>Origen de las citas</strong></td><td>QR, llavero u otras: de dónde vienen.</td></tr>
+  </table>
+
+  <h3>Clientes que no vuelven</h3>
+  <p>Abajo del todo aparece quien lleva <strong>más de 60 días sin venir</strong>, con dos botones por cliente:</p>
+  <ul>
+    <li><strong>Baja</strong>: le pide al administrador que retire su llavero. No se ejecuta sola.</li>
+    <li><strong>Mensaje</strong>: abre tu app de SMS o WhatsApp con el texto y el enlace de reserva ya escritos.
+    Solo aparece si el cliente aceptó promociones.</li>
+  </ul>
+
+  <div class="nota">
+    <p><strong>El mensaje sale de tu número.</strong> JULEX no envía nada por su cuenta: abre tu aplicación con
+    el texto listo y tú le das a enviar. Queda registrado en el historial del cliente.</p>
+  </div>
+</section>
+
+<!-- ================= 9 ================= -->
+<section class="page section">
+  <div class="eyebrow">9 · Llaveros</div>
+  <h2>Los llaveros</h2>
+  <p>El alta incluye <strong>15 llaveros</strong> ya grabados. Se asignan a los clientes desde la app; no hay que
+  escribir nada.</p>
+
+  <h3>Qué lleva dentro</h3>
+  <p>El chip solo guarda una dirección: <strong>julex.pages.dev/nfc/…</strong>. Esa dirección es la que decide qué
+  enseñar:</p>
+  <ul>
+    <li>Tú, con sesión: la ficha del cliente.</li>
+    <li>El cliente: su tarjeta.</li>
+  </ul>
+
+  <h3>Si necesitas más</h3>
+  <p>En Ajustes, <strong>«Pedir más llaveros»</strong>, de <strong>5 en 5</strong>. Cada llavero que pase de los 15
+  del alta cuesta <strong>1 € + IVA una sola vez</strong>, aparte de su euro mensual mientras esté activo.</p>
+
+  <h3>Si un cliente se va</h3>
+  <p>Retira su llavero desde la ficha. El llavero deja de abrir su tarjeta para siempre y no vuelve a usarse:
+  los llaveros no se reciclan.</p>
+
+  <div class="nota aviso">
+    <p><strong>Si el cliente pierde el llavero</strong>, que te avise: se retira y se le asigna otro. Su historial
+    no se pierde, porque vive en la app, no en el llavero.</p>
+  </div>
+</section>
+
+<!-- ================= 10 ================= -->
+<section class="page section">
+  <div class="eyebrow">10 · El cliente</div>
+  <h2>Su tarjeta</h2>
+  <p>Es lo que ve cuando toca el llavero. No se descarga nada: se abre en el navegador.</p>
+
+  <table>
+    <tr><th>En su tarjeta</th><th>Qué puede hacer</th></tr>
+    <tr><td>Su nombre y su local</td><td>Ver dónde está y desde cuándo es cliente.</td></tr>
+    <tr><td>Sellos y recompensas</td><td>Saber cuánto le falta.</td></tr>
+    <tr><td>Próxima cita</td><td>Verla, cancelarla si aún queda tiempo, o pedir otra.</td></tr>
+    <tr><td>Historial</td><td>Sus últimas visitas.</td></tr>
+    <tr><td>Mis datos</td><td>Cambiar teléfono y preferencias, y quitar permisos.</td></tr>
+    <tr><td>PIN</td><td>Proteger la tarjeta para que nadie la vea si pierde el llavero.</td></tr>
+    <tr><td>Descargar mis datos</td><td>Llevarse una copia.</td></tr>
+    <tr><td>Solicitar la baja</td><td>Pedir que se borren sus datos.</td></tr>
+  </table>
+
+  <div class="dos">
+    <div>
+      <h3>El PIN</h3>
+      <p>Es opcional. Si lo pone, quien tenga el enlace sin el PIN solo ve «tarjeta protegida». Si lo olvida,
+      puedes quitárselo desde su ficha.</p>
+    </div>
+    <div>
+      <h3>La baja</h3>
+      <p>Cuando el cliente pide la baja, llega a <strong>Ajustes → Solicitudes de baja</strong>. Tienes un mes
+      para resolverla: anonimizar o bloquear.</p>
+    </div>
+  </div>
+
+  <div class="nota aviso">
+    <p><strong>Anonimizar o bloquear.</strong> Anonimizar borra su nombre, teléfono y notas, y retira su llavero;
+    las visitas quedan sin sus datos. Bloquear conserva la ficha, pero ni la tarjeta ni el llavero vuelven a
+    abrirla. En los dos casos, el llavero se retira.</p>
+  </div>
+</section>
+
+<!-- ================= 11 ================= -->
+<section class="page section">
+  <div class="eyebrow">11 · Dinero</div>
+  <h2>Alta, cuota y facturas</h2>
+
+  <table>
+    <tr><th>Concepto</th><th>Importe</th><th>Cuándo</th></tr>
+    <tr><td>Alta</td><td class="num">30 € + IVA</td><td>Una vez. Incluye 15 llaveros y el primer mes.</td></tr>
+    <tr><td>Cuota mensual</td><td class="num">15 € + IVA mínimo</td><td>1 € por llavero activo, con tope de 40 €/mes.</td></tr>
+    <tr><td>Llavero adicional</td><td class="num">1 € + IVA</td><td>Una sola vez, desde el 16.º llavero.</td></tr>
+    <tr><td>Envío</td><td class="num">Incluido</td><td>A toda España.</td></tr>
+  </table>
+
+  <h3>Ejemplos de cuota</h3>
+  <table>
+    <tr><th>Llaveros</th><th>Cuota mensual</th></tr>
+    <tr><td>15</td><td class="num">15 €</td></tr>
+    <tr><td>30</td><td class="num">30 €</td></tr>
+    <tr><td>40 o más</td><td class="num">40 € (tope)</td></tr>
+  </table>
+
+  <h3>El pago automático</h3>
+  <p>Se activa en <strong>Ajustes → Pago automático</strong>: metes la tarjeta en la página segura de Stripe y
+  listo. A partir de ahí se cobra solo cada mes. JULEX no guarda tu tarjeta.</p>
+  <ul>
+    <li><strong>Gestionar suscripción</strong>: cambiar tarjeta, ver facturas y darte de baja.</li>
+    <li><strong>Pausar</strong>: entre 1 y 30 días, para vacaciones o un cierre. Deja de cobrarse y se reanuda
+    sola.</li>
+  </ul>
+
+  <div class="nota aviso">
+    <p><strong>Si un cobro falla.</strong> Primero se te avisa y todo sigue funcionando. A los 8 días la app pasa
+    a <strong>solo lectura</strong> (puedes consultar, no editar; tus clientes sí pueden reservar). A partir del
+    día 16, se suspende: no puedes entrar y los llaveros dejan de abrir. Al pagar, todo vuelve.</p>
+  </div>
+</section>
+
+<!-- ================= 12 ================= -->
+<section class="page section">
+  <div class="eyebrow">12 · Datos</div>
+  <h2>Privacidad, en corto</h2>
+
+  <h3>Qué tienes que hacer tú</h3>
+  <ul>
+    <li>Dar al cliente la información de privacidad antes de coger sus datos. La tienes en la app y en tu página
+    legal; en el alta marcas que se la has dado.</li>
+    <li>No escribir datos de salud en las notas.</li>
+    <li>Atender lo que te pida: ver sus datos, corregirlos o darse de baja.</li>
+  </ul>
+
+  <h3>Qué hace JULEX</h3>
+  <ul>
+    <li>Guarda los datos en Europa, con acceso aislado: cada local solo ve lo suyo.</li>
+    <li>No vende datos ni los usa para publicidad.</li>
+    <li>Borra o anonimiza cuando el cliente lo pide y tú lo resuelves.</li>
+  </ul>
+
+  <h3>Las solicitudes de baja</h3>
+  <p>Están en <strong>Ajustes → Solicitudes de baja</strong>. El cliente apaga sus comunicaciones al momento y tú
+  tienes un mes para anonimizar o bloquear. Queda registrado.</p>
+
+  <div class="nota">
+    <p><strong>Los textos completos</strong> están en julex.pages.dev/legal, y los de tu local en las páginas de
+    tu reserva: identidad, privacidad, reservas y fidelización.</p>
+  </div>
+</section>
+
+<!-- ================= 13 ================= -->
+<section class="page section">
+  <div class="eyebrow">13 · Ayuda</div>
+  <h2>Problemas típicos</h2>
+
+  <table>
+    <tr><th>Qué pasa</th><th>Qué hacer</th></tr>
+    <tr>
+      <td>El llavero no abre</td>
+      <td>Mira que el NFC del móvil esté encendido, quita la funda y acerca el llavero a la parte de arriba, junto
+      a la cámara. Si sigue, prueba con otro móvil.</td>
+    </tr>
+    <tr>
+      <td>El llavero abre la tarjeta en vez de la ficha</td>
+      <td>Ese móvil no tiene tu sesión abierta. Entra en la app con tu correo y vuelve a probar.</td>
+    </tr>
+    <tr>
+      <td>No veo una cita que acaban de pedir</td>
+      <td>Cambia de pantalla o recarga: la agenda se actualiza al navegar. Comprueba también que estás en el día
+      correcto.</td>
+    </tr>
+    <tr>
+      <td>No puedo crear un cliente</td>
+      <td>Falta el nombre o la casilla de «información entregada». Esa casilla se marca después de informar al
+      cliente, no antes.</td>
+    </tr>
+    <tr>
+      <td>El botón «Mensaje» está apagado</td>
+      <td>Ese cliente no aceptó promociones. No se puede forzar.</td>
+    </tr>
+    <tr>
+      <td>El cliente olvidó su PIN</td>
+      <td>Se lo quitas desde su ficha, en el bloque del PIN.</td>
+    </tr>
+    <tr>
+      <td>He olvidado mi contraseña</td>
+      <td>Pídesela al administrador de JULEX: te la cambia en un minuto.</td>
+    </tr>
+    <tr>
+      <td>La app va lenta o no carga</td>
+      <td>Recarga la página. Si sigue, comprueba la conexión: la app necesita internet.</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ================= 14 ================= -->
+<section class="page section">
+  <div class="eyebrow">14 · Soporte</div>
+  <h2>Estamos al otro lado</h2>
+
+  <p class="destacado">Cualquier duda, cualquier cosa que no cuadre: escribe a
+  <strong>gestionjulex@gmail.com</strong> y se resuelve.</p>
+
+  <p>Cuando escribas, ayuda mucho que cuentes:</p>
+  <ul>
+    <li>El nombre de tu local.</li>
+    <li>Qué estabas haciendo cuando pasó.</li>
+    <li>Qué esperabas que pasara y qué pasó.</li>
+    <li>Si puedes, una captura de la pantalla.</li>
+  </ul>
+
+  <hr class="rule" />
+
+  <h3>Lo que viene</h3>
+  <p>Esto es lo que hay hoy, y esto es lo que está en camino:</p>
+  <ul>
+    <li>Enviar recordatorios y avisos automáticos, sin que los mandes tú.</li>
+    <li>La caja del día: efectivo, tarjeta y bonos.</li>
+    <li>Que cada empleado tenga su propia cuenta, con su nombre.</li>
+  </ul>
+
+  <div class="nota">
+    <p><strong>Una última cosa.</strong> Si algo no se entiende, no es culpa tuya: es que lo hemos explicado mal.
+    Dilo y lo cambiamos.</p>
+  </div>
+</section>
+
+<section class="cierre">
+  <div>
+    <div class="marca" style="font-family:'Fraunces',Georgia,serif; font-size:22pt;">JULEX <span style="color:#a2553c">•</span></div>
+    <p class="muted" style="margin-top:4mm">El oficio es tuyo. La memoria, nuestra.</p>
+  </div>
+</section>
+
+</body>
+</html>
