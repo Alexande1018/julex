@@ -51,8 +51,22 @@ export default function Admin() {
   const db = useDb();
   const navegar = useNavigate();
   const [locales, setLocales] = useState<LocalAdmin[] | null>(null);
+  const [cobro, setCobro] = useState<Map<string, string>>(new Map());
+  const [bajasCliente, setBajasCliente] = useState(0);
   const [pedidos, setPedidos] = useState<
-    { id: string; cantidad: number; estado: string; creado_en: string; barberias: { nombre: string } | null }[]
+    {
+      id: string;
+      cantidad: number;
+      estado: string;
+      creado_en: string;
+      origen: string | null;
+      barberias: {
+        nombre: string;
+        direccion_envio: string | null;
+        cp_envio: string | null;
+        ciudad_envio: string | null;
+      } | null;
+    }[]
   >([]);
   const [peticiones, setPeticiones] = useState<
     {
@@ -105,10 +119,17 @@ export default function Admin() {
 
     const ped = await sb
       .from('pedidos_llavero')
-      .select('id, cantidad, estado, creado_en, barberias(nombre)')
-      .in('estado', ['pedido', 'enviado'])
+      .select('id, cantidad, estado, creado_en, origen, barberias(nombre, direccion_envio, cp_envio, ciudad_envio)')
+      .eq('estado', 'pedido')
       .order('creado_en');
     setPedidos((ped.data ?? []) as unknown as typeof pedidos);
+
+    const [sus, bajas] = await Promise.all([
+      sb.from('suscripciones').select('barberia_id, estado'),
+      sb.from('solicitudes_baja').select('id').neq('estado', 'resuelta'),
+    ]);
+    setCobro(new Map((sus.data ?? []).map((x) => [x.barberia_id as string, x.estado as string])));
+    setBajasCliente((bajas.data ?? []).length);
 
     const [loc, lla, cli] = await Promise.all([
       sb.rpc('admin_locales'),
@@ -238,13 +259,16 @@ export default function Admin() {
     await cargar();
   };
 
-  const moverPedido = async (id: string, estado: 'enviado' | 'entregado') => {
+  const moverPedido = async (id: string, estado: 'enviado' | 'cancelado') => {
     const { error } = await supabase!.rpc('mover_pedido', { p_id: id, p_estado: estado });
     if (error) {
       toast(error.message, 'aviso');
       return;
     }
-    toast(estado === 'enviado' ? 'Pedido marcado como enviado' : 'Pedido entregado', 'ok');
+    toast(
+      estado === 'enviado' ? 'Pedido marcado como enviado' : 'Pedido cancelado',
+      'ok',
+    );
     await cargar();
   };
 
@@ -290,6 +314,52 @@ export default function Admin() {
         </section>
 
         <Rule className="my-7" />
+
+        {/* PENDIENTES */}
+        {(() => {
+          const sinPago = (locales ?? []).filter((l) => {
+            const e = cobro.get(l.id);
+            return !e || e === 'sin_activar' || e === 'cancelada';
+          }).length;
+          const suspendidos = (locales ?? []).filter((l) => !l.activo).length;
+          const filas = [
+            { n: pedidos.length, texto: 'llaveros por enviar', nota: 'marca enviado o cancelar' },
+            { n: peticiones.length, texto: 'bajas de llavero pedidas por un local', nota: '' },
+            { n: bajasCliente, texto: 'solicitudes de baja de clientes', nota: 'el local las resuelve en un mes' },
+            { n: sinPago, texto: 'locales sin pago activado', nota: '' },
+            { n: suspendidos, texto: 'locales suspendidos', nota: '' },
+          ].filter((f) => f.n > 0);
+
+          if (filas.length === 0) {
+            return (
+              <section className="mb-5 rounded-[3px] border border-line bg-paper px-3.5 py-3">
+                <p className="text-[11.5px] text-muted">Nada pendiente. Todo al día.</p>
+              </section>
+            );
+          }
+
+          return (
+            <section className="mb-5 rounded-[3px] border border-clay/40 bg-clay/5 px-3.5 py-3">
+              <div className="flex items-baseline justify-between">
+                <Eyebrow>Pendiente</Eyebrow>
+                <span className="num text-[11px] text-clay">
+                  {filas.reduce((t, f) => t + f.n, 0)}
+                </span>
+              </div>
+              <ul className="mt-1.5 space-y-1">
+                {filas.map((f) => (
+                  <li key={f.texto} className="flex items-baseline gap-2 text-[12px]">
+                    <span className="num w-4 shrink-0 text-right font-semibold text-clay">{f.n}</span>
+                    <span className="text-ink-soft">
+                      {f.texto}
+                      {f.nota ? <span className="text-faint"> · {f.nota}</span> : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })()}
 
         <section>
           <div className="flex items-baseline justify-between">
@@ -409,28 +479,34 @@ export default function Admin() {
           {pedidos.length > 0 && (
             <section className="mb-5">
               <div className="flex items-baseline justify-between">
-                <Eyebrow>Llaveros pedidos</Eyebrow>
-                <span className="num text-[11px] text-faint">{pedidos.length}</span>
+                <Eyebrow>Llaveros por enviar</Eyebrow>
+                <span className="num text-[11px] text-clay">{pedidos.length}</span>
               </div>
               <ul className="mt-2 divide-y divide-line-soft rounded-[3px] border border-line bg-paper px-3.5">
                 {pedidos.map((p) => (
                   <li key={p.id} className="flex flex-wrap items-center gap-3 py-3">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[12.5px] font-semibold text-ink">
-                        {p.cantidad} llaveros · {p.barberias?.nombre}
+                        {p.cantidad} llaveros · {p.barberias?.nombre}{' '}
+                        <span className="rounded-[2px] bg-paper-2 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-muted">
+                          {p.origen === 'alta' ? 'alta' : 'pedido'}
+                        </span>
                       </p>
                       <p className="text-[10.5px] text-muted">
-                        {p.estado} · {new Date(p.creado_en).toLocaleDateString('es-ES')}
+                        {[p.barberias?.direccion_envio, p.barberias?.cp_envio, p.barberias?.ciudad_envio]
+                          .filter(Boolean)
+                          .join(' · ') || 'Sin dirección: pídesela al local'}
+                      </p>
+                      <p className="text-[10px] text-faint">
+                        {new Date(p.creado_en).toLocaleDateString('es-ES')}
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {p.estado === 'pedido' && (
-                        <Btn t="sm" onClick={() => void moverPedido(p.id, 'enviado')}>
-                          Enviado
-                        </Btn>
-                      )}
-                      <Btn v="quiet" t="sm" onClick={() => void moverPedido(p.id, 'entregado')}>
-                        Entregado
+                      <Btn t="sm" onClick={() => void moverPedido(p.id, 'enviado')}>
+                        Enviado
+                      </Btn>
+                      <Btn v="quiet" t="sm" onClick={() => void moverPedido(p.id, 'cancelado')}>
+                        Cancelar
                       </Btn>
                     </div>
                   </li>

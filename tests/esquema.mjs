@@ -899,6 +899,46 @@ async function main() {
     JSON.stringify(cargos16.rows[0]),
   );
 
+  /* ------------------------------------------------------------------ */
+  /* El alta deja un pedido pendiente para el administrador             */
+  /* ------------------------------------------------------------------ */
+
+  const altaPublica = await db.query(
+    `select crear_alta_publica(
+       'Negocio Prueba', 'negocio-prueba', 'alta@prueba.test', 'ClaveLarga.2026',
+       'barberia', 'Madrid', 'alta@prueba.test', 'Calle Prueba 1', '28001', 'Madrid', 'Madrid', '600111222', 20
+     ) as r`,
+  );
+  const altaId = altaPublica.rows[0].r.barberia_id;
+  const pedidoAlta = await db.query(
+    `select cantidad, estado, origen from pedidos_llavero where barberia_id = $1`,
+    [altaId],
+  );
+  const tagsAlta = await db.query(
+    `select count(*)::int n from llaveros where barberia_id = $1`,
+    [altaId],
+  );
+  ok(
+    pedidoAlta.rows[0]?.cantidad === 20 &&
+      pedidoAlta.rows[0]?.estado === 'pedido' &&
+      pedidoAlta.rows[0]?.origen === 'alta',
+    'El alta abre un pedido de envío pendiente con sus llaveros',
+    JSON.stringify(pedidoAlta.rows[0] ?? {}),
+  );
+  ok(tagsAlta.rows[0].n === 20, 'Y crea los 20 llaveros del alta');
+  ok(
+    (await db.query(`select count(*)::int n from cargos_llavero where barberia_id = $1`, [altaId]))
+      .rows[0].n >= 5,
+    'Los llaveros del alta que pasan de 15 se cobran una vez',
+  );
+
+  const idPedido = (await db.query(`select id from pedidos_llavero where barberia_id = $1`, [altaId])).rows[0].id;
+  await db.query(`insert into admins (user_id) values ($1) on conflict do nothing`, [dueno]);
+  await db.query(`select mover_pedido($1, 'enviado')`, [idPedido]);
+  const trasEnviar = await db.query(`select estado from pedidos_llavero where id = $1`, [idPedido]);
+  ok(trasEnviar.rows[0].estado === 'enviado', 'El aviso se cierra al marcarlo enviado');
+  await db.query(`delete from admins where user_id = $1`, [dueno]);
+
   await db.close();
 }
 
