@@ -37,6 +37,8 @@ export interface Barberia {
   proximoPago: string | null;
   /** Nota del administrador sobre el cobro. */
   notaCobro: string;
+  /** Enlace a las reseñas del negocio en Google. */
+  googleResenaUrl: string;
   altaEn: Iso;
 }
 

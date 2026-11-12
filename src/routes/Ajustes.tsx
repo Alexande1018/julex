@@ -64,6 +64,7 @@ export default function Ajustes() {
   } | null>(null);
   const [cobrando, setCobrando] = useState(false);
   const [diasPausa, setDiasPausa] = useState(30);
+  const [resenaUrl, setResenaUrl] = useState(barberia.googleResenaUrl);
   const [pedir, setPedir] = useState(false);
   const [cantidadPedido, setCantidadPedido] = useState(5);
   const [domicilioLegal, setDomicilioLegal] = useState(barberia.domicilioLegal);
@@ -532,6 +533,44 @@ export default function Ajustes() {
 
       {/* AVISOS */}
       <section>
+        <Eyebrow>Reseñas de Google</Eyebrow>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
+          Dos horas después de cerrar un servicio, el cliente entra en la lista de reseñas del panel.
+          Desde ahí le abres WhatsApp o SMS con el mensaje y el enlace ya escritos.
+        </p>
+        <div className="mt-2.5 flex flex-wrap items-end gap-2">
+          <div className="min-w-[240px] flex-1">
+            <Field label="Enlace de reseñas" hint="el que abre el botón «Escribir reseña» de tu ficha de Google">
+              <input
+                value={resenaUrl}
+                onChange={(e) => setResenaUrl(e.target.value)}
+                className={inputClases}
+                placeholder="https://g.page/r/…/review"
+                inputMode="url"
+              />
+            </Field>
+          </div>
+          <Btn
+            v="outline"
+            t="md"
+            onClick={() =>
+              void actualizarBarberia({ googleResenaUrl: resenaUrl.trim() }).then(() =>
+                toast('Enlace de reseñas guardado', 'ok'),
+              )
+            }
+          >
+            Guardar enlace
+          </Btn>
+        </div>
+        {!resenaUrl.trim() && (
+          <p className="mt-1.5 text-[10.5px] leading-relaxed text-clay">
+            Sin enlace, el mensaje sale sin el botón de reseña. Búscalo en tu ficha de Google Maps →
+            «Compartir» → «Escribir reseña», o en el panel de empresa de Google.
+          </p>
+        )}
+
+        <Rule className="my-6" />
+
         <Eyebrow>Avisos y mensajes</Eyebrow>
         <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
           A quien lleva más de 60 días sin venir le puedes escribir desde el panel, en «Mensaje»: abre

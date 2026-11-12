@@ -180,6 +180,7 @@ export function buildSeed(): Db {
     estadoCobro: 'al_dia',
     proximoPago: null,
     notaCobro: '',
+    googleResenaUrl: '',
     altaEn: fecha(-215, 10),
   };
 

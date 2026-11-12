@@ -40,6 +40,7 @@ export function aBarberia(r: Fila): Barberia {
     estadoCobro: (s(r.estado_cobro, 'al_dia') as Barberia['estadoCobro']) ?? 'al_dia',
     proximoPago: s(r.proximo_pago) || null,
     notaCobro: s(r.nota_cobro),
+    googleResenaUrl: s(r.google_resena_url),
     altaEn: s(r.creado_en),
   };
 }

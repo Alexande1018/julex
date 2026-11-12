@@ -627,6 +627,7 @@ export async function actualizarBarberia(patch: Partial<Db['barberias'][number]>
     if (patch.tipo !== undefined) fila.tipo = patch.tipo;
     if (patch.domicilioLegal !== undefined) fila.domicilio_legal = patch.domicilioLegal;
     if (patch.correoLegal !== undefined) fila.correo_legal = patch.correoLegal;
+    if (patch.googleResenaUrl !== undefined) fila.google_resena_url = patch.googleResenaUrl;
     if (patch.logo !== undefined) fila.logo_url = patch.logo;
     if ((await intentar(() => repo.actualizarLocal(fila), 'guardar el local')) !== null) await refrescar();
     return;

@@ -205,6 +205,17 @@ async function main() {
   const r = atencion.rows[0].r;
   ok(r.cortesTotales === 1, 'atender_cola() cuenta el corte', JSON.stringify(r));
 
+  const resena = await db.query(
+    `select estado, programada_para > now() + interval '1 hour 50 minutes' as a_dos_horas
+       from resenas where cliente_id = $1 order by creada_en desc limit 1`,
+    [clienteId],
+  );
+  ok(
+    resena.rows[0]?.estado === 'pendiente' && resena.rows[0]?.a_dos_horas === true,
+    'Cerrar el servicio programa la reseña para dos horas después',
+    JSON.stringify(resena.rows[0] ?? {}),
+  );
+
   const post = await db.query(
     `select
        (select count(*)::int from visitas where cliente_id = $1) as visitas,

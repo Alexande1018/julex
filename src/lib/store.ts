@@ -36,6 +36,7 @@ const VACIO: Db = {
       estadoCobro: 'al_dia',
       proximoPago: null,
       notaCobro: '',
+      googleResenaUrl: '',
       altaEn: '',
     },
   ],

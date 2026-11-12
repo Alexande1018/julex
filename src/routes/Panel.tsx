@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, MessageCircle, TrendingUp, UserMinus } from 'lucide-react';
 import { useDb } from '../lib/store';
+import { haySupabase, supabase } from '../lib/supabase';
 import type { Cliente } from '../lib/types';
 import { peticionBajaCliente, registrarMensaje } from '../lib/actions';
 import {
@@ -32,6 +33,13 @@ export default function Panel() {
   const barberia = barberiaActiva(db);
   const [recordar, setRecordar] = useState<string | null>(null);
   const [pedidas, setPedidas] = useState<Set<string>>(new Set());
+  const [resenas, setResenas] = useState<
+    {
+      id: string;
+      programada_para: string;
+      clientes: { nombre: string; telefono: string | null } | null;
+    }[]
+  >([]);
 
   const clientes = db.clientes.filter((c) => c.barberiaId === barberia.id);
   const activos = clientesActivos(db, barberia.id, 30);
@@ -51,6 +59,63 @@ export default function Panel() {
 
   const maxSemana = Math.max(1, ...semanas.map((s) => s.visitas));
   const totalSemanas = semanas.reduce((s, w) => s + w.visitas, 0);
+
+  useEffect(() => {
+    if (!haySupabase || !supabase) return;
+    void supabase
+      .from('resenas')
+      .select('id, programada_para, clientes(nombre, telefono)')
+      .eq('estado', 'pendiente')
+      .lte('programada_para', new Date().toISOString())
+      .order('programada_para')
+      .then(({ data }) => setResenas((data ?? []) as unknown as typeof resenas));
+  }, []);
+
+  const textoResena = (nombre: string) =>
+    `Hola ${nombre.split(' ')[0]}, gracias por tu visita a ${barberia.nombre}. Si te apetece, déjanos una reseña: ${barberia.googleResenaUrl}`;
+
+  const enviarResena = async (r: (typeof resenas)[number], canal: 'sms' | 'whatsapp') => {
+    const nombre = r.clientes?.nombre ?? '';
+    const tel = (r.clientes?.telefono ?? '').replace(/[^\d+]/g, '');
+    const texto = textoResena(nombre || 'hola');
+
+    if (!barberia.googleResenaUrl) {
+      toast('Pon antes el enlace de reseñas en Ajustes', 'aviso');
+      return;
+    }
+    if (tel.length < 6) {
+      toast('Ese cliente no tiene teléfono', 'aviso');
+      return;
+    }
+
+    if (canal === 'whatsapp') {
+      const t = tel.startsWith('34') && tel.length >= 11 ? tel : tel.length === 9 ? `34${tel}` : tel;
+      window.open(`https://wa.me/${t}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+    } else {
+      const movil = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (!movil) {
+        await navigator.clipboard.writeText(texto).catch(() => undefined);
+        toast('Texto copiado: pégalo en un SMS', 'info');
+      } else {
+        const sep = /iPhone|iPad/i.test(navigator.userAgent) ? '&' : '?';
+        window.location.href = `sms:${tel}${sep}body=${encodeURIComponent(texto)}`;
+      }
+    }
+
+    if (supabase) {
+      await supabase
+        .from('resenas')
+        .update({ estado: 'enviada', enviada_en: new Date().toISOString(), canal })
+        .eq('id', r.id);
+      setResenas((x) => x.filter((y) => y.id !== r.id));
+    }
+  };
+
+  const descartarResena = async (id: string) => {
+    if (!supabase) return;
+    await supabase.from('resenas').update({ estado: 'descartada' }).eq('id', id);
+    setResenas((x) => x.filter((y) => y.id !== id));
+  };
 
   const enlaceCita = `${window.location.origin}/cita/${barberia.slug}`;
   const mensajeCita = (c: Cliente) =>
@@ -165,6 +230,52 @@ export default function Panel() {
       <Rule className="my-6" />
 
       <section>
+        {resenas.length > 0 && (
+          <>
+            <div className="flex items-baseline justify-between">
+              <Eyebrow>Reseñas pendientes</Eyebrow>
+              <span className="num text-[11px] text-clay">{resenas.length}</span>
+            </div>
+            <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+              Estos clientes salieron hace más de dos horas. Un mensaje con el enlace de tu ficha de
+              Google y listo.
+            </p>
+            <ul className="mt-1">
+              {resenas.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-center gap-2 border-b border-line-soft py-2.5 last:border-0"
+                >
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                    {r.clientes?.nombre}
+                  </span>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => void enviarResena(r, 'whatsapp')}
+                      className="inline-flex items-center gap-1 rounded-[2px] border border-line px-2 py-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-soft hover:border-ink/30 hover:text-ink"
+                    >
+                      WhatsApp
+                    </button>
+                    <button
+                      onClick={() => void enviarResena(r, 'sms')}
+                      className="inline-flex items-center gap-1 rounded-[2px] border border-line px-2 py-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-soft hover:border-ink/30 hover:text-ink"
+                    >
+                      SMS
+                    </button>
+                    <button
+                      onClick={() => void descartarResena(r.id)}
+                      className="rounded-[2px] px-2 py-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-faint hover:text-clay"
+                    >
+                      Descartar
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Rule className="my-6" />
+          </>
+        )}
+
         <div className="flex items-baseline justify-between">
           <Eyebrow>Sin venir más de 60 días</Eyebrow>
           <span className="num text-[11px] text-faint">{inactivos.length}</span>

@@ -3888,3 +3888,277 @@ begin
          for select to authenticated using (public.soy_admin());', t, t);
   end loop;
 end $$;
+
+-- ---------- 0022_aviso_alta.sql ----------
+
+-- ============================================================
+-- JULEX · el alta deja un aviso de envío
+--
+-- Antes, el alta creaba los llaveros y no dejaba rastro para el
+-- administrador: un negocio se daba de alta solo y nadie sabía que
+-- había que enviarle nada. Ahora cada alta abre un pedido pendiente
+-- que solo desaparece al marcarlo como enviado o cancelado.
+-- ============================================================
+
+alter table pedidos_llavero
+  add column if not exists origen text not null default 'reposicion';
+
+create or replace function public.crear_alta_publica(
+  p_nombre      text,
+  p_slug        text,
+  p_email       text,
+  p_password    text,
+  p_tipo        tipo_negocio default 'barberia',
+  p_domicilio   text default '',
+  p_correo      text default '',
+  p_direccion   text default '',
+  p_cp          text default '',
+  p_ciudad      text default '',
+  p_provincia   text default '',
+  p_telefono    text default '',
+  p_llaveros    int default 15
+) returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_uid      uuid := gen_random_uuid();
+  v_barberia uuid;
+  v_slug     text;
+  v_email    text := lower(trim(p_email));
+  v_llaveros int := greatest(15, least(200, coalesce(p_llaveros, 15)));
+  v_prefijo  text;
+begin
+  if length(trim(p_nombre)) < 2 then raise exception 'nombre_invalido'; end if;
+  if length(trim(p_password)) < 8 then raise exception 'password_corta'; end if;
+  if v_email !~ '^[^@\s]+@[^@\s]+\.[a-z]{2,}$' then raise exception 'email_invalido'; end if;
+  if length(trim(p_direccion)) < 5 or length(trim(p_ciudad)) < 2 then
+    raise exception 'direccion_incompleta';
+  end if;
+  if exists (select 1 from auth.users where email = v_email) then
+    raise exception 'email_en_uso';
+  end if;
+
+  v_slug := lower(regexp_replace(trim(p_slug), '[^a-zA-Z0-9]+', '-', 'g'));
+  v_slug := trim(both '-' from v_slug);
+  if length(v_slug) < 2 then raise exception 'slug_invalido'; end if;
+  if exists (select 1 from barberias where slug = v_slug) then
+    v_slug := v_slug || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 4);
+  end if;
+
+  -- Cuenta con el correo ya confirmado: el alta no espera verificación.
+  insert into auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_sso_user, is_anonymous, confirmation_token, recovery_token, email_change,
+    email_change_token_new, email_change_token_current, phone_change,
+    phone_change_token, reauthentication_token)
+  values (
+    '00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
+    v_email, extensions.crypt(p_password, extensions.gen_salt('bf')), now(), now(), now(),
+    '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+    false, false, '', '', '', '', '', '', '', '');
+
+  insert into auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+  values (gen_random_uuid(), v_uid,
+          jsonb_build_object('sub', v_uid::text, 'email', v_email),
+          'email', v_uid::text, now(), now(), now());
+
+  insert into barberias (
+    nombre, slug, color, tipo, domicilio_legal, correo_legal,
+    direccion_envio, cp_envio, ciudad_envio, provincia_envio, telefono_contacto)
+  values (
+    trim(p_nombre), v_slug, '#3E4A35', p_tipo,
+    trim(coalesce(p_domicilio, '')), trim(coalesce(p_correo, '')),
+    trim(p_direccion), trim(coalesce(p_cp, '')), trim(p_ciudad),
+    trim(coalesce(p_provincia, '')), trim(coalesce(p_telefono, '')))
+  returning id into v_barberia;
+
+  insert into barberos (id, barberia_id, nombre, rol)
+  values (v_uid, v_barberia, trim(p_nombre), 'dueno');
+
+  perform public.sembrar_local(v_barberia, p_tipo);
+
+  insert into horarios (barberia_id, dia_semana, abre, cierra)
+  select v_barberia, d, '10:00', '20:00' from generate_series(0, 6) as d;
+
+  -- Los llaveros existen desde ya, sin asignar. Se graban y se envían
+  -- cuando el pago está confirmado.
+  v_prefijo := upper(substr(regexp_replace(v_slug, '[^a-z0-9]', '', 'g'), 1, 3));
+
+  insert into llaveros (barberia_id, token, codigo_corto, lote, estado)
+  select v_barberia,
+         substr(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 1, 12),
+         v_prefijo || '-' || lpad(g::text, 3, '0'),
+         'alta',
+         'sin_asignar'
+    from generate_series(1, v_llaveros) g;
+
+  -- El alta deja el envío pendiente: el administrador lo ve como aviso
+  -- hasta que lo marca como enviado o lo cancela.
+  insert into pedidos_llavero (barberia_id, cantidad, nota, origen)
+  values (v_barberia, v_llaveros, 'Alta: ' || v_llaveros || ' llaveros', 'alta');
+
+  return json_build_object(
+    'barberia_id', v_barberia,
+    'slug', v_slug,
+    'email', v_email,
+    'llaveros', v_llaveros
+  );
+end;
+$$;
+
+revoke all on function public.crear_alta_publica(text, text, text, text, tipo_negocio, text, text, text, text, text, text, text, int) from public;
+grant execute on function public.crear_alta_publica(text, text, text, text, tipo_negocio, text, text, text, text, text, text, text, int) to anon, authenticated;
+
+-- ---------- 0023_resenas.sql ----------
+
+-- ============================================================
+-- JULEX · reseñas de Google
+--
+-- Dos horas después de cerrar un servicio, el cliente entra en la
+-- cola de reseñas del local. El mensaje no se envía solo: JULEX no
+-- tiene proveedor de mensajería, así que en el panel aparece como
+-- pendiente y se manda desde el móvil del negocio con un toque.
+-- ============================================================
+
+alter table barberias
+  add column if not exists google_resena_url text not null default '';
+
+create table if not exists resenas (
+  id               uuid primary key default gen_random_uuid(),
+  barberia_id      uuid not null references barberias (id) on delete cascade,
+  cliente_id       uuid not null references clientes (id) on delete cascade,
+  visita_id        uuid references visitas (id) on delete set null,
+  programada_para  timestamptz not null default now() + interval '2 hours',
+  estado           text not null default 'pendiente',
+  canal            text,
+  enviada_en       timestamptz,
+  creada_en        timestamptz not null default now()
+);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'resenas_estado_chk') then
+    alter table resenas
+      add constraint resenas_estado_chk
+      check (estado in ('pendiente', 'enviada', 'descartada'));
+  end if;
+end $$;
+
+create index if not exists resenas_local_idx
+  on resenas (barberia_id, programada_para desc);
+
+alter table resenas enable row level security;
+
+drop policy if exists "su local las ve" on resenas;
+create policy "su local las ve" on resenas
+  for select to authenticated
+  using (barberia_id = public.mi_barberia() or public.soy_admin());
+
+drop policy if exists "su local las mueve" on resenas;
+create policy "su local las mueve" on resenas
+  for update to authenticated
+  using (barberia_id = public.mi_barberia())
+  with check (barberia_id = public.mi_barberia());
+
+-- ------------------------------------------------------------
+-- Al cerrar un servicio, se programa la reseña
+-- ------------------------------------------------------------
+
+create or replace function public.programar_resena(
+  p_barberia uuid,
+  p_cliente  uuid,
+  p_visita   uuid
+) returns void language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  insert into resenas (barberia_id, cliente_id, visita_id)
+  values (p_barberia, p_cliente, p_visita);
+end;
+$$;
+
+revoke all on function public.programar_resena(uuid, uuid, uuid) from public;
+grant execute on function public.programar_resena(uuid, uuid, uuid) to authenticated;
+
+-- `atender_cola` es la que cierra el servicio: ahí se engancha.
+-- Se recrea entera para añadir la llamada.
+create or replace function public.atender_cola(p_cola_id uuid, p_servicio_id uuid default null)
+returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_cola     cola%rowtype;
+  v_servicio servicios%rowtype;
+  v_barberia barberias%rowtype;
+  v_ahora    timestamptz := now();
+  v_cortes   int;
+  v_ganada   boolean := false;
+  v_cita     uuid;
+  v_visita   uuid;
+begin
+  select * into v_cola
+    from cola where id = p_cola_id and barberia_id = public.mi_barberia();
+
+  if not found then raise exception 'cola_no_encontrada'; end if;
+  if v_cola.estado <> 'sillon' then raise exception 'no_esta_en_sillon'; end if;
+
+  select * into v_servicio
+    from servicios
+   where id = coalesce(p_servicio_id, v_cola.servicio_id)
+     and barberia_id = v_cola.barberia_id;
+
+  if not found then raise exception 'servicio_no_valido'; end if;
+
+  select * into v_barberia from barberias where id = v_cola.barberia_id;
+
+  update cola
+     set estado = 'terminado', fin_en = v_ahora, servicio_id = v_servicio.id
+   where id = v_cola.id;
+
+  insert into visitas (barberia_id, cliente_id, servicio_id, fecha, precio, pagado)
+  values (v_cola.barberia_id, v_cola.cliente_id, v_servicio.id, v_ahora, v_servicio.precio, true)
+  returning id into v_visita;
+
+  insert into movimientos_fidelizacion (barberia_id, cliente_id, tipo, fecha, nota)
+  values (v_cola.barberia_id, v_cola.cliente_id, 'corte', v_ahora, v_servicio.nombre);
+
+  select count(*) into v_cortes from visitas where cliente_id = v_cola.cliente_id;
+
+  v_ganada := (v_cortes % v_barberia.fidelidad_meta) = 0;
+
+  if v_ganada then
+    insert into recompensas (barberia_id, cliente_id)
+    values (v_cola.barberia_id, v_cola.cliente_id);
+
+    insert into movimientos_fidelizacion (barberia_id, cliente_id, tipo, fecha, nota)
+    values (v_cola.barberia_id, v_cola.cliente_id, 'recompensa_ganada', v_ahora,
+            'Corte gratis nº ' || (v_cortes / v_barberia.fidelidad_meta));
+
+    insert into eventos (barberia_id, cliente_id, tipo, meta)
+    values (v_cola.barberia_id, v_cola.cliente_id, 'recompensa_obtenida',
+            jsonb_build_object('corte', v_cortes));
+  end if;
+
+  -- La reseña, dos horas después.
+  perform public.programar_resena(v_cola.barberia_id, v_cola.cliente_id, v_visita);
+
+  select id into v_cita
+    from citas
+   where cliente_id = v_cola.cliente_id
+     and barberia_id = v_cola.barberia_id
+     and estado in ('pendiente', 'confirmada')
+     and inicio::date = current_date
+   order by inicio
+   limit 1;
+
+  if v_cita is not null then
+    update citas set estado = 'atendida' where id = v_cita;
+  end if;
+
+  insert into eventos (barberia_id, cliente_id, tipo, meta)
+  values (v_cola.barberia_id, v_cola.cliente_id, 'servicio_terminado',
+          jsonb_build_object('servicio', v_servicio.nombre, 'precio', v_servicio.precio));
+
+  return json_build_object(
+    'cortesTotales', v_cortes,
+    'recompensaGanada', v_ganada,
+    'servicio', v_servicio.nombre,
+    'precio', v_servicio.precio
+  );
+end;
+$$;
