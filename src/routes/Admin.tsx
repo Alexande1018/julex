@@ -323,11 +323,36 @@ export default function Admin() {
           }).length;
           const suspendidos = (locales ?? []).filter((l) => !l.activo).length;
           const filas = [
-            { n: pedidos.length, texto: 'llaveros por enviar', nota: 'marca enviado o cancelar' },
-            { n: peticiones.length, texto: 'bajas de llavero pedidas por un local', nota: '' },
-            { n: bajasCliente, texto: 'solicitudes de baja de clientes', nota: 'el local las resuelve en un mes' },
-            { n: sinPago, texto: 'locales sin pago activado', nota: '' },
-            { n: suspendidos, texto: 'locales suspendidos', nota: '' },
+            {
+              n: pedidos.length,
+              uno: 'llavero por enviar',
+              varios: 'llaveros por enviar',
+              nota: 'marca enviado o cancelar',
+            },
+            {
+              n: peticiones.length,
+              uno: 'baja de llavero pedida por un local',
+              varios: 'bajas de llavero pedidas por un local',
+              nota: '',
+            },
+            {
+              n: bajasCliente,
+              uno: 'solicitud de baja de un cliente',
+              varios: 'solicitudes de baja de clientes',
+              nota: 'el local las resuelve en un mes',
+            },
+            {
+              n: sinPago,
+              uno: 'local sin pago activado',
+              varios: 'locales sin pago activado',
+              nota: '',
+            },
+            {
+              n: suspendidos,
+              uno: 'local suspendido',
+              varios: 'locales suspendidos',
+              nota: '',
+            },
           ].filter((f) => f.n > 0);
 
           if (filas.length === 0) {
@@ -348,10 +373,10 @@ export default function Admin() {
               </div>
               <ul className="mt-1.5 space-y-1">
                 {filas.map((f) => (
-                  <li key={f.texto} className="flex items-baseline gap-2 text-[12px]">
+                  <li key={f.varios} className="flex items-baseline gap-2 text-[12px]">
                     <span className="num w-4 shrink-0 text-right font-semibold text-clay">{f.n}</span>
                     <span className="text-ink-soft">
-                      {f.texto}
+                      {f.n === 1 ? f.uno : f.varios}
                       {f.nota ? <span className="text-faint"> · {f.nota}</span> : null}
                     </span>
                   </li>
