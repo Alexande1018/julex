@@ -92,8 +92,18 @@ export function construirSistema(local: DatosLocal, cliente: DatosCliente): stri
     ? `Su última visita fue el ${fecha.format(new Date(cliente.ultimaVisita))}.`
     : 'Todavía no ha venido nunca.';
 
+  const hoy = new Intl.DateTimeFormat('es-ES', {
+    timeZone: 'Europe/Madrid',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date());
+
   return [
     quien,
+    '',
+    `Hoy es ${hoy}.`,
     '',
     `Local: ${local.nombre}.`,
     local.direccion ? `Dirección: ${local.direccion}.` : '',
