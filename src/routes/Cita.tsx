@@ -325,7 +325,7 @@ export default function Cita() {
               nombreLocal={barberia.nombre}
             />
             <p className="mt-7 text-[9.5px] font-bold uppercase tracking-[0.18em] text-faint">
-              O elige tú servicio, día y hora
+              O elígelo tú: servicio, día y hora
             </p>
           </>
         )}
