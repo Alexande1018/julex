@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "node tests/flujos.mjs",
     "test:esquema": "node tests/esquema.mjs",
+    "test:asistente": "node tests/asistente.mjs",
     "preflight": "node scripts/preflight.mjs",
     "build:demo": "VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= vite build --outDir dist-demo",
     "preview:demo": "vite preview --outDir dist-demo --port 4173 --strictPort",

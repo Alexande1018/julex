@@ -25,6 +25,7 @@ import {
 import { estadoPin, quitarPinComoBarbero } from '../lib/publico';
 import { fmtFechaCorta, fmtDuracion, fmtEuros, fmtHora, telefonoBonito, ultimaVisitaTexto } from '../lib/format';
 import { Shell } from '../components/Shell';
+import { PropuestaFicha } from '../components/PropuestaFicha';
 import { vocabulario } from '../lib/vocabulario';
 import { AVISO_SENSIBLE, terminoSensible } from '../lib/privacidad';
 import { Sellos } from '../components/Timer';
@@ -254,6 +255,9 @@ export default function Ficha() {
           </button>
         )}
       </section>
+
+      {/* LO QUE DIJO EL CLIENTE DESDE SU LLAVERO */}
+      <PropuestaFicha clienteId={cliente.id} />
 
       {/* DATOS DE UN VISTAZO */}
       <section className="mt-6 grid grid-cols-3 gap-3">

@@ -20,6 +20,7 @@ import { Shell } from '../components/Shell';
 import { haySupabase, supabase } from '../lib/supabase';
 import { subirLogo } from '../lib/repo';
 import { Logotipo } from '../components/Logotipo';
+import { AsistenteAjustes } from '../components/AsistenteAjustes';
 import { imagenAWebp, imagenAWebpBlob } from '../lib/imagen';
 import {
   Btn,
@@ -546,6 +547,11 @@ export default function Ajustes() {
           </p>
         </div>
       </section>
+
+      <Rule className="my-6" />
+
+      {/* ASISTENTE DEL LLAVERO */}
+      {haySupabase && <AsistenteAjustes barberiaId={barberia.id} />}
 
       <Rule className="my-6" />
 

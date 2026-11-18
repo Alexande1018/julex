@@ -950,6 +950,273 @@ async function main() {
   ok(trasEnviar.rows[0].estado === 'enviado', 'El aviso se cierra al marcarlo enviado');
   await db.query(`delete from admins where user_id = $1`, [dueno]);
 
+  /* ------------------------------------------------------------------ */
+  /* Asistente del llavero                                              */
+  /* ------------------------------------------------------------------ */
+
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+
+  const asis = await db.query(
+    `insert into clientes (barberia_id, codigo, nombre, telefono)
+     values ($1, 'P-9001', 'Pablo Prueba', '600999888') returning id, token_publico`,
+    [barberiaId],
+  );
+  const aCli = asis.rows[0].id;
+  const aTok = asis.rows[0].token_publico;
+
+  await db.query(
+    `insert into visitas (barberia_id, cliente_id, servicio_id, fecha, precio)
+     values ($1, $2, (select id from servicios where barberia_id = $1 limit 1),
+             now() - interval '10 days', 15)`,
+    [barberiaId, aCli],
+  );
+
+  const pub1 = (await db.query(`select asistente_publico($1) as r`, [aTok])).rows[0].r;
+  ok(
+    pub1.estado === 'abierta' && pub1.variante === 'normal',
+    'El asistente abre con el saludo normal',
+    pub1.variante,
+  );
+  ok(
+    pub1.cliente.sellos.meta >= 2 && pub1.cliente.sellos.en_ciclo === 1,
+    'Cuenta los sellos con la meta del local',
+    JSON.stringify(pub1.cliente.sellos),
+  );
+
+  const svc = (
+    await db.query(
+      `select id, minutos from servicios where barberia_id = $1 order by orden limit 1`,
+      [barberiaId],
+    )
+  ).rows[0];
+
+  const cita = await db.query(
+    `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado, origen)
+     values ($1, $2, $3, now() + interval '2 days', 'confirmada', 'manual') returning id`,
+    [barberiaId, aCli, svc.id],
+  );
+  const citaId = cita.rows[0].id;
+
+  const pub2 = (await db.query(`select asistente_publico($1) as r`, [aTok])).rows[0].r;
+  ok(
+    pub2.variante === 'cita' && pub2.proxima?.id === citaId,
+    'Con cita próxima, el saludo es el de la cita',
+    pub2.variante,
+  );
+
+  /* Proponer la ficha no toca la ficha */
+  const prop1 = (
+    await db.query(`select proponer_ficha($1, $2, $3, $4) as id`, [
+      aTok,
+      'Fade bajo, 3 arriba',
+      'Prefiere los viernes',
+      'fade bajo tres arriba y los viernes mejor',
+    ])
+  ).rows[0].id;
+
+  const pend = (await db.query(`select estado from ficha_propuesta where id = $1`, [prop1])).rows[0];
+  ok(pend.estado === 'pendiente', 'La propuesta nace pendiente');
+
+  const antes = (await db.query(`select como_corta from clientes where id = $1`, [aCli])).rows[0];
+  ok(antes.como_corta === '', 'Proponer no escribe en la ficha del cliente');
+
+  const prop2 = (
+    await db.query(`select proponer_ficha($1, $2, '', '') as id`, [aTok, 'Maquinilla 2'])
+  ).rows[0].id;
+  const nPend = (
+    await db.query(
+      `select count(*)::int n from ficha_propuesta where cliente_id = $1 and estado = 'pendiente'`,
+      [aCli],
+    )
+  ).rows[0].n;
+  ok(prop2 === prop1 && nPend === 1, 'Una segunda propuesta reescribe la pendiente, no acumula');
+
+  /* Otro local no puede aceptarla */
+  const duenoAjeno = (
+    await db.query(`select id from barberos where barberia_id = $1 limit 1`, [altaId])
+  ).rows[0].id;
+  await db.query(`select set_config('test.uid', $1, false)`, [duenoAjeno]);
+  const aceptaAjeno = (await db.query(`select aceptar_propuesta($1) as ok`, [prop1])).rows[0].ok;
+  ok(aceptaAjeno === false, 'Otro local no puede aceptar la propuesta');
+
+  /* El barbero la acepta */
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+  const aceptada = (await db.query(`select aceptar_propuesta($1) as ok`, [prop1])).rows[0].ok;
+  const trasAceptar = (await db.query(`select como_corta, preferencias from clientes where id = $1`, [aCli]))
+    .rows[0];
+  ok(
+    aceptada === true && trasAceptar.como_corta === 'Maquinilla 2',
+    'El barbero acepta y la ficha se actualiza',
+    JSON.stringify(trasAceptar),
+  );
+
+  /* Una propuesta con un campo vacío no borra el otro */
+  const prop3 = (
+    await db.query(`select proponer_ficha($1, '', 'Le gusta hablar poco', '') as id`, [aTok])
+  ).rows[0].id;
+  await db.query(`select aceptar_propuesta($1)`, [prop3]);
+  const tras3 = (await db.query(`select como_corta, preferencias from clientes where id = $1`, [aCli]))
+    .rows[0];
+  ok(
+    tras3.como_corta === 'Maquinilla 2' && tras3.preferencias === 'Le gusta hablar poco',
+    'El campo vacío no borra lo que ya había',
+    JSON.stringify(tras3),
+  );
+
+  /* Descartar no toca nada */
+  const prop4 = (
+    await db.query(`select proponer_ficha($1, 'Otra cosa', '', '') as id`, [aTok])
+  ).rows[0].id;
+  await db.query(`select descartar_propuesta($1)`, [prop4]);
+  const tras4 = (await db.query(`select como_corta from clientes where id = $1`, [aCli])).rows[0];
+  ok(tras4.como_corta === 'Maquinilla 2', 'Descartar deja la ficha como estaba');
+
+  /* Mover la cita */
+  const nueva = (
+    await db.query(`select mover_cita($1, $2, (select now() + interval '4 days')) as id`, [
+      aTok,
+      citaId,
+    ])
+  ).rows[0].id;
+  const vieja = (await db.query(`select estado from citas where id = $1`, [citaId])).rows[0];
+  const creada = (await db.query(`select origen, estado from citas where id = $1`, [nueva])).rows[0];
+  ok(
+    vieja.estado === 'cancelada' && creada.estado === 'confirmada' && creada.origen === 'asistente',
+    'Mover cancela la vieja y crea la nueva con origen asistente',
+    JSON.stringify(creada),
+  );
+
+  /* Un hueco ocupado en todos los sillones no se puede coger */
+  const nSillas = (await db.query(`select sillas_activas($1) as n`, [barberiaId])).rows[0].n;
+  const sillones = (
+    await db.query(`select id from sillas where barberia_id = $1 and activa order by orden limit $2`, [
+      barberiaId,
+      nSillas,
+    ])
+  ).rows;
+  for (const s of sillones) {
+    await db.query(
+      `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado, origen, silla_id)
+       values ($1, $2, $3, now() + interval '6 days', 'confirmada', 'manual', $4)`,
+      [barberiaId, aCli, svc.id, s.id],
+    );
+  }
+  let ocupado = false;
+  try {
+    await db.query(`select mover_cita($1, $2, (select now() + interval '6 days'))`, [aTok, nueva]);
+  } catch (e) {
+    ocupado = e.message.includes('horario_ocupado');
+  }
+  ok(ocupado, 'No se puede mover a un hueco sin sillón libre');
+
+  /* Y no se mueve una cita que empieza en menos de dos horas */
+  const pronta = (
+    await db.query(
+      `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado, origen)
+       values ($1, $2, $3, now() + interval '1 hour', 'confirmada', 'manual') returning id`,
+      [barberiaId, aCli, svc.id],
+    )
+  ).rows[0].id;
+  let demasiadoTarde = false;
+  try {
+    await db.query(`select mover_cita($1, $2, (select now() + interval '7 days'))`, [aTok, pronta]);
+  } catch (e) {
+    demasiadoTarde = e.message.includes('demasiado_tarde');
+  }
+  ok(demasiadoTarde, 'No se mueve una cita con menos de dos horas');
+
+  /* Huecos como instantes reales, en la zona del local */
+  const diaPrueba = (await db.query(`select (now() + interval '10 days')::date as d`)).rows[0].d;
+  const horas = (
+    await db.query(`select huecos_asistente('barberia-paco', $1::date, 30) as h`, [diaPrueba])
+  ).rows[0].h;
+  ok(Array.isArray(horas) && horas.length > 0, 'huecos_asistente() devuelve instantes', String(horas.length));
+
+  const primera = horas[0];
+  const enMadrid = (
+    await db.query(
+      `select extract(hour from ($1::timestamptz at time zone 'Europe/Madrid'))::int as h`,
+      [primera],
+    )
+  ).rows[0].h;
+  ok(enMadrid >= 10 && enMadrid <= 19, 'Los instantes caen en el horario del local', `${enMadrid}h`);
+
+  /* Ocupados todos los sillones a esa hora, el hueco desaparece */
+  const sillonesDia = (
+    await db.query(`select id from sillas where barberia_id = $1 and activa`, [barberiaId])
+  ).rows;
+  for (const s of sillonesDia) {
+    await db.query(
+      `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado, origen, silla_id)
+       values ($1, $2, $3, $4, 'confirmada', 'manual', $5)`,
+      [barberiaId, aCli, svc.id, primera, s.id],
+    );
+  }
+  const trasOcupar = (
+    await db.query(`select huecos_asistente('barberia-paco', $1::date, 30) as h`, [diaPrueba])
+  ).rows[0].h;
+  ok(
+    Array.isArray(trasOcupar) && !trasOcupar.includes(primera),
+    'Con el hueco ocupado, deja de ofrecerse',
+  );
+
+  /* Las citas vivas del cliente, para cancelar y mover */
+  const mcs = (await db.query(`select mis_citas($1) as r`, [aTok])).rows[0].r;
+  ok(
+    Array.isArray(mcs.citas) && mcs.citas.length >= 1 && !!mcs.citas[0].servicio_id,
+    'mis_citas() devuelve las citas vivas con su servicio',
+    String(mcs.citas?.length ?? 0),
+  );
+
+  /* Local suspendido: el recuadro no atiende */
+  await db.query(`update barberias set estado_cobro = 'suspendido' where id = $1`, [barberiaId]);
+  const sus = (await db.query(`select asistente_publico($1) as r`, [aTok])).rows[0].r;
+  ok(sus.estado === 'suspendido', 'Con el local suspendido, el recuadro no atiende');
+  await db.query(`update barberias set estado_cobro = 'al_dia' where id = $1`, [barberiaId]);
+
+  /* El barbero lo apaga, le pone nombre y lo vuelve a encender */
+  await db.query(
+    `insert into asistente_config (barberia_id, nombre, activo) values ($1, 'Julia', false)`,
+    [barberiaId],
+  );
+  const apagado = (await db.query(`select asistente_publico($1) as r`, [aTok])).rows[0].r;
+  ok(apagado.estado === 'apagado', 'El barbero puede apagar el recuadro');
+
+  await db.query(`update asistente_config set activo = true where barberia_id = $1`, [barberiaId]);
+  const conNombre = (await db.query(`select asistente_publico($1) as r`, [aTok])).rows[0].r;
+  ok(conNombre.asistente.nombre === 'Julia', 'El nombre del asistente lo pone el local');
+
+  /* Consumo del mes y limpieza */
+  await db.query(`insert into asistente_conversacion (barberia_id, cliente_id) values ($1, $2)`, [
+    barberiaId,
+    aCli,
+  ]);
+  const consumo = (await db.query(`select asistente_consumo($1) as r`, [barberiaId])).rows[0].r;
+  ok(
+    consumo.conversaciones === 1 && consumo.limite === 300,
+    'El consumo del mes se cuenta',
+    JSON.stringify(consumo),
+  );
+
+  await db.query(
+    `insert into asistente_conversacion (barberia_id, cliente_id, abierta_en)
+     values ($1, $2, now() - interval '120 days')`,
+    [barberiaId, aCli],
+  );
+  const borradas = (await db.query(`select limpiar_asistente() as n`)).rows[0].n;
+  ok(borradas >= 1, 'La limpieza borra las conversaciones de más de 90 días');
+
+  /* El PIN manda: sin él ni saluda */
+  await db.query(`select pin_poner($1, '4821')`, [aTok]);
+  const protegida = (await db.query(`select asistente_publico($1) as r`, [aTok])).rows[0].r;
+  ok(
+    protegida.estado === 'denegada' && !protegida.cliente,
+    'Con PIN, el recuadro no saluda por su nombre',
+  );
+
+  const conPin = (await db.query(`select asistente_publico($1, '4821') as r`, [aTok])).rows[0].r;
+  ok(conPin.estado === 'abierta', 'Con el PIN correcto, sí');
+
   await db.close();
 }
 

@@ -24,6 +24,7 @@ import { Btn, Check as CheckBox, Eyebrow, Pill, Rule, cn, inputClases, toast } f
 import { Logotipo } from '../components/Logotipo';
 import { Salir } from '../components/Salir';
 import { Candado } from '../components/Candado';
+import { Asistente } from '../components/Asistente';
 
 interface Destino {
   local: LocalPublico;
@@ -210,9 +211,9 @@ export default function Cita() {
           <div className="mt-7 inline-flex size-9 items-center justify-center rounded-full border border-sage/40 bg-sage/10 text-olive">
             <Check size={17} strokeWidth={2.5} />
           </div>
-          <h1 className="mt-4 font-serif text-[27px] leading-tight text-ink">Cita solicitada.</h1>
+          <h1 className="mt-4 font-serif text-[27px] leading-tight text-ink">Cita confirmada.</h1>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-            {barberia.nombre} te confirmará en breve. Queda guardada como pendiente.
+            Ya está en la agenda de {barberia.nombre}. No hace falta que hagas nada más.
           </p>
 
           <Rule className="my-6" />
@@ -225,7 +226,7 @@ export default function Cita() {
               {servicio ? fmtEuros(servicio.precio) : ''}
             </p>
             <div className="mt-2">
-              <Pill tono="warn">Pendiente de confirmar</Pill>
+              <Pill tono="ok">Confirmada</Pill>
             </div>
           </div>
 
@@ -313,6 +314,21 @@ export default function Cita() {
             </p>
           )}
         </header>
+
+        {/* El asistente, si el cliente viene identificado por su llavero */}
+        {token && destino?.cliente && (
+          <>
+            <Asistente
+              token={token}
+              pin={pin}
+              nombreCliente={destino.cliente}
+              nombreLocal={barberia.nombre}
+            />
+            <p className="mt-7 text-[9.5px] font-bold uppercase tracking-[0.18em] text-faint">
+              O elige tú servicio, día y hora
+            </p>
+          </>
+        )}
 
         {/* 1. Servicio */}
         <section className="mt-7">
@@ -448,7 +464,7 @@ export default function Cita() {
             <p className="text-[10.5px] text-faint">{servicio ? fmtEuros(servicio.precio) : ''}</p>
           </div>
           <Btn t="lg" onClick={() => void confirmar()} disabled={!puedeConfirmar} className="px-5">
-            Solicitar cita
+            Reservar cita
           </Btn>
         </div>
       </div>

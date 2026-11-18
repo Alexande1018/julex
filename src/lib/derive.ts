@@ -344,6 +344,7 @@ export const ETIQUETA_ORIGEN: Record<string, string> = {
   manual: 'Mostrador',
   web: 'Web',
   mostrador: 'Mostrador',
+  asistente: 'Asistente',
 };
 
 export const ETIQUETA_LLAVERO: Record<string, string> = {

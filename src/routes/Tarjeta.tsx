@@ -13,6 +13,7 @@ import {
   type ResultadoFicha,
 } from '../lib/publico';
 import { Candado } from '../components/Candado';
+import { Asistente } from '../components/Asistente';
 import { vocabulario } from '../lib/vocabulario';
 import {
   etiquetaDia,
@@ -322,6 +323,15 @@ export default function Tarjeta() {
           </h2>
           <p className="mt-1 text-[13px] text-muted">Qué bueno verte por aquí.</p>
         </section>
+
+        {token && (
+          <Asistente
+            token={token}
+            pin={pin}
+            nombreCliente={cliente.nombre}
+            nombreLocal={barberia.nombre}
+          />
+        )}
 
         {/* EN LA COLA */}
         {ficha.cola && (

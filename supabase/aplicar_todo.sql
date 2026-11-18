@@ -4162,3 +4162,595 @@ begin
   );
 end;
 $$;
+
+-- ---------- 0024_asistente.sql ----------
+
+-- ============================================================
+-- JULEX · asistente del llavero (1/2): datos
+--
+-- El recuadro que aparece al tocar el llavero guarda aquí su
+-- configuración, sus conversaciones y las propuestas de ficha que
+-- el cliente deja al barbero.
+--
+-- Nada de esto lo lee el navegador: el público solo entra por
+-- funciones security definer, como en el resto del esquema.
+-- ============================================================
+
+-- Una cita pedida hablando se distingue de las demás en la agenda,
+-- en el panel y en las métricas.
+alter type origen_cita add value if not exists 'asistente';
+
+-- ---------- configuración del asistente ----------
+-- No nace con el local: si no hay fila, se usan los valores por
+-- defecto (sin nombre propio, tono cercano, encendido). El barbero
+-- la crea o la edita desde Ajustes.
+create table asistente_config (
+  barberia_id    uuid primary key references barberias (id) on delete cascade,
+  nombre         text not null default '' check (length(nombre) <= 40),
+  tono           text not null default 'cercano' check (tono in ('cercano','formal','divertido')),
+  activo         boolean not null default true,
+  creado_en      timestamptz not null default now(),
+  actualizado_en timestamptz not null default now()
+);
+
+-- ---------- conversaciones ----------
+-- coste y tokens se guardan desde el primer turno: la factura de la
+-- IA se mide, no se estima.
+create table asistente_conversacion (
+  id             uuid primary key default gen_random_uuid(),
+  barberia_id    uuid not null references barberias (id) on delete cascade,
+  cliente_id     uuid not null references clientes (id) on delete cascade,
+  canal          text not null default 'llavero' check (canal in ('llavero','enlace')),
+  estado         text not null default 'abierta' check (estado in ('abierta','cerrada','derivada')),
+  resultado      text check (resultado in ('cita','ficha','consulta','ninguno')),
+  tokens_entrada int not null default 0 check (tokens_entrada >= 0),
+  tokens_salida  int not null default 0 check (tokens_salida >= 0),
+  coste          numeric(10,6) not null default 0 check (coste >= 0),
+  abierta_en     timestamptz not null default now(),
+  cerrada_en     timestamptz
+);
+create index asistente_conversacion_local on asistente_conversacion (barberia_id, abierta_en desc);
+create index asistente_conversacion_cliente on asistente_conversacion (cliente_id, abierta_en desc);
+
+create table asistente_mensaje (
+  id              uuid primary key default gen_random_uuid(),
+  conversacion_id uuid not null references asistente_conversacion (id) on delete cascade,
+  papel           text not null check (papel in ('cliente','asistente','sistema')),
+  texto           text not null check (length(texto) between 1 and 4000),
+  tokens          int not null default 0 check (tokens >= 0),
+  creado_en       timestamptz not null default now()
+);
+create index asistente_mensaje_conversacion on asistente_mensaje (conversacion_id, creado_en);
+
+-- ---------- propuestas de ficha ----------
+-- El cliente no escribe en su ficha: propone. El barbero acepta o
+-- descarta. Se guardan sus palabras exactas y el resumen.
+create table ficha_propuesta (
+  id              uuid primary key default gen_random_uuid(),
+  barberia_id     uuid not null references barberias (id) on delete cascade,
+  cliente_id      uuid not null references clientes (id) on delete cascade,
+  conversacion_id uuid references asistente_conversacion (id) on delete set null,
+  como_corta      text not null default '' check (length(como_corta) <= 600),
+  preferencias    text not null default '' check (length(preferencias) <= 400),
+  texto_original  text not null default '' check (length(texto_original) <= 1200),
+  estado          text not null default 'pendiente' check (estado in ('pendiente','aceptada','descartada')),
+  creada_en       timestamptz not null default now(),
+  resuelta_en     timestamptz,
+  -- una propuesta resuelta siempre dice cuándo se resolvió
+  constraint propuesta_resuelta check (estado = 'pendiente' or resuelta_en is not null),
+  -- y una propuesta no puede estar vacía
+  constraint propuesta_con_algo check (
+    length(trim(como_corta)) > 0 or length(trim(preferencias)) > 0
+  )
+);
+create index ficha_propuesta_pendiente on ficha_propuesta (barberia_id, estado, creada_en desc);
+
+-- ---------- RLS ----------
+alter table asistente_config       enable row level security;
+alter table asistente_conversacion enable row level security;
+alter table asistente_mensaje      enable row level security;
+alter table ficha_propuesta        enable row level security;
+
+create policy "solo su local" on asistente_config
+  for all to authenticated
+  using (barberia_id = public.mi_barberia())
+  with check (barberia_id = public.mi_barberia());
+
+create policy "solo su local" on asistente_conversacion
+  for all to authenticated
+  using (barberia_id = public.mi_barberia())
+  with check (barberia_id = public.mi_barberia());
+
+create policy "solo su local" on ficha_propuesta
+  for all to authenticated
+  using (barberia_id = public.mi_barberia())
+  with check (barberia_id = public.mi_barberia());
+
+-- asistente_mensaje se queda sin políticas a propósito: RLS encendida
+-- y nadie pasa. Solo lo tocan las funciones security definer y el
+-- servicio que habla con la IA (service_role).
+
+grant select, insert, update, delete on asistente_config, asistente_conversacion, ficha_propuesta
+  to authenticated;
+
+create trigger asistente_config_actualizado before update on asistente_config
+  for each row execute function public.set_actualizado_en();
+
+-- ---------- 0025_asistente_funciones.sql ----------
+
+-- ============================================================
+-- JULEX · asistente del llavero (2/2): funciones
+--
+-- Lo que el cliente puede hacer sin cuenta (mirar, proponer su
+-- ficha, mover su cita) va por funciones security definer, igual
+-- que la tarjeta y la reserva. Lo que hace el barbero, por funciones
+-- que exigen sesión.
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 1. Lo que ve el recuadro al abrirse
+-- ------------------------------------------------------------
+-- Devuelve solo lo necesario para saludar. La frase la compone la
+-- interfaz; aquí se decide QUÉ saludo toca (variante), no cómo se dice.
+create or replace function public.asistente_publico(p_token text, p_pin text default null)
+returns json language plpgsql volatile security definer set search_path = public, pg_temp as $$
+declare
+  v_cliente     clientes%rowtype;
+  v_local       barberias%rowtype;
+  v_config      asistente_config%rowtype;
+  v_estado      text;
+  v_meta        int;
+  v_cortes      int;
+  v_disponibles int;
+  v_restante    int;
+  v_faltan      int;
+  v_proxima     json;
+  v_cola        json;
+  v_ultima      timestamptz;
+  v_variante    text;
+begin
+  select * into v_cliente from clientes where token_publico = p_token;
+  if not found then
+    return null;
+  end if;
+
+  -- El PIN manda: sin él no sale ni el nombre.
+  v_estado := public.pin_comprobar(v_cliente.id, p_pin);
+  if v_estado <> 'abierta' then
+    return json_build_object('estado', v_estado);
+  end if;
+
+  select * into v_local from barberias where id = v_cliente.barberia_id;
+  if v_local.estado_cobro = 'suspendido' or not v_local.activo then
+    return json_build_object('estado', 'suspendido');
+  end if;
+
+  select * into v_config from asistente_config where barberia_id = v_local.id;
+  if v_config.barberia_id is not null and not v_config.activo then
+    return json_build_object('estado', 'apagado');
+  end if;
+
+  -- Próxima cita viva.
+  select json_build_object(
+           'id', ci.id, 'inicio', ci.inicio, 'estado', ci.estado,
+           'servicio', s.nombre, 'silla', si.nombre)
+    into v_proxima
+    from citas ci
+    join servicios s on s.id = ci.servicio_id
+    left join sillas si on si.id = ci.silla_id
+   where ci.cliente_id = v_cliente.id
+     and ci.estado in ('pendiente', 'confirmada')
+     and ci.inicio >= now()
+   order by ci.inicio
+   limit 1;
+
+  -- En la cola ahora mismo (esperando o en el sillón).
+  select json_build_object(
+           'estado', q.estado,
+           'silla', si.nombre,
+           'posicion', (select count(*) + 1
+                          from cola q2
+                         where q2.barberia_id = q.barberia_id
+                           and q2.estado = 'esperando'
+                           and q2.llegada_en < q.llegada_en))
+    into v_cola
+    from cola q
+    left join sillas si on si.id = q.silla_id
+   where q.cliente_id = v_cliente.id
+     and q.estado in ('esperando', 'sillon')
+   order by q.llegada_en desc
+   limit 1;
+
+  -- Fidelización, con la misma cuenta que hace la app.
+  v_meta    := greatest(1, v_local.fidelidad_meta);
+  v_cortes  := (select count(*) from visitas v where v.cliente_id = v_cliente.id);
+  v_disponibles := (select count(*) from recompensas r
+                     where r.cliente_id = v_cliente.id and r.estado = 'disponible');
+  v_restante := v_cortes % v_meta;
+  v_faltan   := case when v_disponibles > 0 then 0 else v_meta - v_restante end;
+  v_ultima   := (select max(v.fecha) from visitas v where v.cliente_id = v_cliente.id);
+
+  -- Qué saludo toca, por prioridad. La interfaz solo elige la frase.
+  v_variante := case
+    when v_cola is not null                 then 'cola'
+    when v_proxima is not null              then 'cita'
+    when v_disponibles > 0                  then 'premio'
+    when coalesce(v_cortes, 0) = 0          then 'nuevo'
+    when v_ultima < now() - interval '45 days' then 'ausencia'
+    else 'normal'
+  end;
+
+  return json_build_object(
+    'estado', 'abierta',
+    'barberia_id', v_local.id,
+    'asistente', json_build_object('nombre', nullif(trim(coalesce(v_config.nombre, '')), '')),
+    'local', json_build_object(
+      'nombre', v_local.nombre, 'slug', v_local.slug,
+      'telefono', v_local.telefono, 'direccion', v_local.direccion),
+    'cliente', json_build_object(
+      'id', v_cliente.id,
+      'nombre', v_cliente.nombre,
+      'sellos', json_build_object(
+        'en_ciclo', case when v_disponibles > 0 then v_meta else v_restante end,
+        'meta', v_meta, 'faltan', v_faltan, 'disponibles', v_disponibles)),
+    'variante', v_variante,
+    'proxima', v_proxima,
+    'cola', v_cola,
+    'ultima_visita', v_ultima
+  );
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 2. El cliente propone su ficha
+-- ------------------------------------------------------------
+-- No toca clientes: crea o actualiza UNA propuesta pendiente. El
+-- barbero decide después. Así el cliente no puede reescribir sus
+-- notas a espaldas del local.
+create or replace function public.proponer_ficha(
+  p_token          text,
+  p_como_corta     text default '',
+  p_preferencias   text default '',
+  p_texto_original text default '',
+  p_pin            text default null
+) returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_cliente uuid;
+  v_id      uuid;
+  v_corta   text := left(coalesce(trim(p_como_corta), ''), 600);
+  v_prefs   text := left(coalesce(trim(p_preferencias), ''), 400);
+  v_texto   text := left(coalesce(trim(p_texto_original), ''), 1200);
+begin
+  select id into v_cliente from clientes where token_publico = p_token;
+  if v_cliente is null then
+    raise exception 'tarjeta_no_valida';
+  end if;
+  if public.pin_comprobar(v_cliente, p_pin) <> 'abierta' then
+    raise exception 'tarjeta_protegida';
+  end if;
+
+  if v_corta = '' and v_prefs = '' then
+    raise exception 'propuesta_vacia';
+  end if;
+
+  -- Si ya había una pendiente, se reescribe en vez de acumular.
+  select id into v_id from ficha_propuesta
+   where cliente_id = v_cliente and estado = 'pendiente'
+   order by creada_en desc
+   limit 1;
+
+  if v_id is not null then
+    update ficha_propuesta
+       set como_corta = v_corta, preferencias = v_prefs,
+           texto_original = v_texto, creada_en = now()
+     where id = v_id;
+    return v_id;
+  end if;
+
+  insert into ficha_propuesta (barberia_id, cliente_id, como_corta, preferencias, texto_original)
+  select barberia_id, id, v_corta, v_prefs, v_texto from clientes where id = v_cliente
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 3. El barbero acepta o descarta
+-- ------------------------------------------------------------
+create or replace function public.aceptar_propuesta(p_propuesta uuid)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_p ficha_propuesta%rowtype;
+begin
+  select * into v_p from ficha_propuesta
+   where id = p_propuesta and estado = 'pendiente';
+  if not found then
+    return false;
+  end if;
+  if v_p.barberia_id <> public.mi_barberia() then
+    return false;
+  end if;
+
+  update clientes
+     set como_corta = coalesce(nullif(trim(v_p.como_corta), ''), como_corta),
+         preferencias = coalesce(nullif(trim(v_p.preferencias), ''), preferencias),
+         actualizado_en = now()
+   where id = v_p.cliente_id;
+
+  update ficha_propuesta
+     set estado = 'aceptada', resuelta_en = now()
+   where id = p_propuesta;
+
+  return true;
+end;
+$$;
+
+create or replace function public.descartar_propuesta(p_propuesta uuid)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_local uuid;
+begin
+  select barberia_id into v_local from ficha_propuesta
+   where id = p_propuesta and estado = 'pendiente';
+  if v_local is null or v_local <> public.mi_barberia() then
+    return false;
+  end if;
+
+  update ficha_propuesta
+     set estado = 'descartada', resuelta_en = now()
+   where id = p_propuesta;
+
+  return true;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 4. Mover una cita sin perder el hueco
+-- ------------------------------------------------------------
+-- Una transacción: se libera la cita vieja, se busca sillón para la
+-- nueva y, si algo falla, la excepción deshace todo. Mismo cerrojo
+-- por local que solicitar_cita().
+create or replace function public.mover_cita(
+  p_token  text,
+  p_cita   uuid,
+  p_inicio timestamptz,
+  p_pin    text default null
+) returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_cliente  uuid;
+  v_cita     citas%rowtype;
+  v_servicio servicios%rowtype;
+  v_fin      timestamptz;
+  v_silla    uuid;
+  v_nueva    uuid;
+begin
+  select id into v_cliente from clientes where token_publico = p_token;
+  if v_cliente is null then
+    raise exception 'tarjeta_no_valida';
+  end if;
+  if public.pin_comprobar(v_cliente, p_pin) <> 'abierta' then
+    raise exception 'tarjeta_protegida';
+  end if;
+
+  select * into v_cita from citas
+   where id = p_cita and cliente_id = v_cliente
+     and estado in ('pendiente', 'confirmada');
+  if not found then
+    raise exception 'cita_no_valida';
+  end if;
+
+  if v_cita.inicio <= now() + interval '2 hours' then
+    raise exception 'demasiado_tarde';
+  end if;
+  if p_inicio <= now() + interval '30 minutes' then
+    raise exception 'hora_pasada';
+  end if;
+
+  select * into v_servicio from servicios where id = v_cita.servicio_id;
+  if not found then
+    raise exception 'servicio_no_valido';
+  end if;
+
+  v_fin := p_inicio + make_interval(mins => v_servicio.minutos);
+
+  perform pg_advisory_xact_lock(hashtext(v_cita.barberia_id::text));
+
+  -- Primero se libera el hueco viejo; si el nuevo no vale, la
+  -- excepción devuelve la cita a donde estaba.
+  update citas set estado = 'cancelada' where id = p_cita;
+
+  v_silla := public.silla_libre(v_cita.barberia_id, p_inicio, v_fin);
+  if v_silla is null then
+    raise exception 'horario_ocupado';
+  end if;
+
+  if exists (
+    select 1 from bloqueos_agenda b
+     where b.barberia_id = v_cita.barberia_id
+       and tstzrange(b.desde, b.hasta, '[)') && tstzrange(p_inicio, v_fin, '[)')
+  ) then
+    raise exception 'horario_bloqueado';
+  end if;
+
+  insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado, origen, silla_id)
+  values (v_cita.barberia_id, v_cliente, v_cita.servicio_id, p_inicio, 'confirmada', 'asistente', v_silla)
+  returning id into v_nueva;
+
+  return v_nueva;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 5. Consumo y limpieza
+-- ------------------------------------------------------------
+-- El barbero ve cuántas conversaciones lleva este mes (tope de 300).
+create or replace function public.asistente_consumo(p_barberia uuid)
+returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_n int;
+begin
+  if p_barberia is null or p_barberia <> public.mi_barberia() then
+    return null;
+  end if;
+
+  select count(*)::int into v_n
+    from asistente_conversacion
+   where barberia_id = p_barberia
+     and abierta_en >= date_trunc('month', now());
+
+  return json_build_object(
+    'conversaciones', v_n,
+    'limite', 300,
+    'porcentaje', round(coalesce(v_n, 0) * 100.0 / 300)
+  );
+end;
+$$;
+
+-- Las conversaciones caducan a los 90 días. Las propuestas se quedan:
+-- son historial de la ficha, no chat.
+create or replace function public.limpiar_asistente()
+returns int language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_n int;
+begin
+  delete from asistente_conversacion
+   where abierta_en < now() - interval '90 days';
+  get diagnostics v_n = row_count;
+  return v_n;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 6. Permisos
+-- ------------------------------------------------------------
+revoke all on function public.asistente_publico(text, text) from public;
+revoke all on function public.proponer_ficha(text, text, text, text, text) from public;
+revoke all on function public.mover_cita(text, uuid, timestamptz, text) from public;
+revoke all on function public.aceptar_propuesta(uuid) from public;
+revoke all on function public.descartar_propuesta(uuid) from public;
+revoke all on function public.asistente_consumo(uuid) from public;
+revoke all on function public.limpiar_asistente() from public;
+
+grant execute on function public.asistente_publico(text, text) to anon, authenticated;
+grant execute on function public.proponer_ficha(text, text, text, text, text) to anon, authenticated;
+grant execute on function public.mover_cita(text, uuid, timestamptz, text) to anon, authenticated;
+grant execute on function public.aceptar_propuesta(uuid) to authenticated;
+grant execute on function public.descartar_propuesta(uuid) to authenticated;
+grant execute on function public.asistente_consumo(uuid) to authenticated;
+
+-- ------------------------------------------------------------
+-- 7. Limpieza diaria, si el plan deja usar pg_cron
+-- ------------------------------------------------------------
+do $$
+begin
+  create extension if not exists pg_cron;
+  perform cron.schedule('limpiar-asistente', '30 3 * * *', 'select public.limpiar_asistente()');
+exception
+  when others then
+    raise notice 'pg_cron no disponible: limpiar_asistente() se lanza a mano';
+end $$;
+
+-- ---------- 0026_asistente_huecos.sql ----------
+
+-- ============================================================
+-- JULEX · asistente del llavero (3/3): huecos en hora real
+--
+-- huecos_publicos() devuelve "10:00" (hora de reloj) y el navegador la
+-- convierte a la hora del local al reservar. Para que el asistente no
+-- dependa de esa conversión, aquí se entregan INSTANTES ya resueltos en
+-- la zona del local, y se vuelve a comprobar la ocupación contra las
+-- citas reales.
+--
+-- La zona es un parámetro: hoy todos los locales son de España. Si algún
+-- día hay uno fuera, se pasa la suya sin tocar el resto.
+-- ============================================================
+
+create or replace function public.huecos_asistente(
+  p_slug    text,
+  p_dia     date,
+  p_minutos int default 30,
+  p_paso    int default 30,
+  p_zona    text default 'Europe/Madrid'
+) returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_barberia uuid;
+  v_horas    json;
+  v_sillas   int;
+begin
+  select id into v_barberia from barberias where slug = p_slug and activo;
+  if v_barberia is null then
+    return '[]'::json;
+  end if;
+
+  v_sillas := public.sillas_activas(v_barberia);
+
+  -- Las reglas (horario, descanso, antelación, bloqueos) siguen siendo
+  -- las de huecos_publicos(): una sola definición de "se puede".
+  v_horas := public.huecos_publicos(p_slug, p_dia, p_minutos, p_paso);
+  if v_horas is null or json_array_length(v_horas) = 0 then
+    return '[]'::json;
+  end if;
+
+  -- Y aquí se pasan a instantes reales y se revisa la ocupación con la
+  -- comparación correcta (timestamptz contra timestamptz).
+  return coalesce((
+    select json_agg(to_jsonb(x.ini) order by x.ini)
+      from (
+        select ((p_dia + h.hora::time) at time zone p_zona) as ini
+          from json_array_elements_text(v_horas) as h(hora)
+      ) x
+     where x.ini > now() + interval '30 minutes'
+       and (
+         select count(*)
+           from citas ci
+           join servicios s on s.id = ci.servicio_id
+          where ci.barberia_id = v_barberia
+            and ci.estado in ('pendiente', 'confirmada')
+            and tstzrange(ci.inicio, ci.inicio + make_interval(mins => s.minutos), '[)')
+                && tstzrange(x.ini, x.ini + make_interval(mins => p_minutos), '[)')
+       ) < v_sillas
+       and not exists (
+         select 1 from bloqueos_agenda b
+          where b.barberia_id = v_barberia
+            and tstzrange(b.desde, b.hasta, '[)')
+                && tstzrange(x.ini, x.ini + make_interval(mins => p_minutos), '[)')
+       )
+  ), '[]'::json);
+end;
+$$;
+
+-- Las citas vivas del cliente, para que el asistente pueda cancelar o
+-- mover sin manejar identificadores que no ve.
+create or replace function public.mis_citas(p_token text, p_pin text default null)
+returns json language plpgsql volatile security definer set search_path = public, pg_temp as $$
+declare
+  v_cliente uuid;
+begin
+  select id into v_cliente from clientes where token_publico = p_token;
+  if v_cliente is null then
+    return null;
+  end if;
+  if public.pin_comprobar(v_cliente, p_pin) <> 'abierta' then
+    return json_build_object('estado', 'protegida');
+  end if;
+
+  return json_build_object('citas', coalesce((
+    select json_agg(json_build_object(
+             'id', ci.id, 'inicio', ci.inicio, 'estado', ci.estado,
+             'servicio_id', ci.servicio_id, 'servicio', s.nombre, 'minutos', s.minutos)
+             order by ci.inicio)
+      from citas ci
+      join servicios s on s.id = ci.servicio_id
+     where ci.cliente_id = v_cliente
+       and ci.estado in ('pendiente', 'confirmada')
+       and ci.inicio >= now()
+  ), '[]'::json));
+end;
+$$;
+
+revoke all on function public.huecos_asistente(text, date, int, int, text) from public;
+revoke all on function public.mis_citas(text, text) from public;
+
+grant execute on function public.huecos_asistente(text, date, int, int, text) to anon, authenticated;
+grant execute on function public.mis_citas(text, text) to anon, authenticated;

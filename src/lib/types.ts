@@ -107,7 +107,7 @@ export interface Llavero {
 }
 
 export type EstadoCita = 'pendiente' | 'confirmada' | 'atendida' | 'no_vino' | 'cancelada';
-export type OrigenCita = 'qr' | 'llavero' | 'manual' | 'web';
+export type OrigenCita = 'qr' | 'llavero' | 'manual' | 'web' | 'asistente';
 
 export interface Silla {
   id: ID;

@@ -152,6 +152,13 @@ try {
   ok(await visible(page.getByText('Hola, Pablo.')), 'La tarjeta saluda al cliente');
   ok(await visible(page.getByText('P-0004')), 'Enseña su código interno');
 
+  /* 5a. El asistente del llavero, simulado en la demo */
+  ok(await visible(page.getByText(/asistente virtual/i)), 'La tarjeta trae el asistente');
+  await page.getByRole('button', { name: 'Pedir cita', exact: true }).click();
+  ok(await visible(page.getByText(/En la demo/i)), 'El asistente responde al pedir cita');
+  await page.getByRole('button', { name: 'Cerrar el asistente' }).click();
+  ok(!(await visible(page.getByText(/asistente virtual/i), 1200)), 'El asistente se puede cerrar');
+
   /* 5b. El cliente edita sus datos desde la tarjeta */
   await page.getByRole('button', { name: /mis datos/i }).click();
   await page.locator('input[inputmode="tel"]').first().fill('699111222');
@@ -220,9 +227,9 @@ try {
   ok((await hueco.count()) > 0, 'Hay huecos disponibles');
   await hueco.click();
   const citasAntes = (await db()).citas.length;
-  await page.getByRole('button', { name: /solicitar cita/i }).click();
+  await page.getByRole('button', { name: /reservar cita/i }).click();
   const reservada = await esperarEstado((d) => (d.citas ?? []).length === citasAntes + 1);
-  ok(reservada && (await visible(page.getByText('Cita solicitada.'))), 'La reserva se confirma');
+  ok(reservada && (await visible(page.getByText('Cita confirmada.'))), 'La reserva se confirma');
   ok(await visible(page.getByText('DÓNDE')), 'El resumen enseña dónde es');
 
   /* 7b. Reserva de un cliente nuevo, por el enlace del local */
