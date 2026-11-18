@@ -56,12 +56,11 @@ export function Btn({
 
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn('inline-flex items-baseline gap-1.5', className)}>
-      <span className="text-[12.5px] font-extrabold uppercase leading-none tracking-[0.3em] text-ink">
-        Julex
-      </span>
-      <span className="mb-0.5 inline-block size-[5px] rounded-full bg-[var(--brand)]" />
-    </span>
+    <img
+      src="/julex-logo.svg"
+      alt="JULEX"
+      className={cn('h-[22px] w-auto', className)}
+    />
   );
 }
 
