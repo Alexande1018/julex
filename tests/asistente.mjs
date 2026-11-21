@@ -15,6 +15,7 @@ import {
   ErrorDeArgumentos,
 } from '../supabase/functions/asistente/engine.ts';
 import { construirSistema } from '../supabase/functions/asistente/prompt.ts';
+import { inicioDeMesMadrid, calcularCoste } from '../supabase/functions/asistente/engine.ts';
 import { ESQUEMAS } from '../supabase/functions/asistente/herramientas.ts';
 
 let fallos = 0;
@@ -329,4 +330,16 @@ const HERRAMIENTA = {
   ok(desconocido.startsWith('servicio_desconocido'), 'Un servicio que no existe se rechaza con la lista');
 }
 
+
+/* 12. Calendario y dinero */
+{
+  const noviembre = inicioDeMesMadrid(new Date('2026-11-15T12:00:00Z'));
+  ok(noviembre === '2026-10-31T23:00:00.000Z', 'El mes empieza en Madrid, no en UTC', noviembre);
+
+  const julio = inicioDeMesMadrid(new Date('2026-07-15T12:00:00Z'));
+  ok(julio === '2026-06-30T22:00:00.000Z', 'Y respeta el horario de verano', julio);
+
+  const coste = calcularCoste({ entrada: 1000, salida: 500 }, 0.3, 1.2);
+  ok(coste === 0.0009, 'El coste del turno sale de los tokens', String(coste));
+}
 console.log(`\n${total - fallos}/${total} comprobaciones correctas`);

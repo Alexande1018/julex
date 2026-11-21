@@ -4754,3 +4754,300 @@ revoke all on function public.mis_citas(text, text) from public;
 
 grant execute on function public.huecos_asistente(text, date, int, int, text) to anon, authenticated;
 grant execute on function public.mis_citas(text, text) to anon, authenticated;
+
+-- ---------- 0027_huecos_zona.sql ----------
+
+-- ============================================================
+-- JULEX · la reserva, en hora real
+--
+-- huecos_publicos() construía horas «de reloj» y las comparaba con
+-- citas.inicio, que es un instante. Con la base en UTC, una cita a las
+-- 10:00 de Madrid se guarda a las 09:00Z y el hueco de las 10:00 seguía
+-- apareciendo libre: dos clientes podían coger la misma hora.
+--
+-- Ahora el cálculo se hace con instantes (timestamptz) en la zona del
+-- local, y se sigue devolviendo "HH:MM" para que la interfaz no cambie.
+-- ============================================================
+
+-- Al añadir un parámetro nace una firma nueva: hay que tirar la vieja o
+-- quedarían las dos, y la de cuatro argumentos seguiría con el fallo.
+drop function if exists public.huecos_publicos(text, date, int, int);
+
+create or replace function public.huecos_publicos(
+  p_slug    text,
+  p_dia     date,
+  p_minutos int default 30,
+  p_paso    int default 30,
+  p_zona    text default 'Europe/Madrid'
+) returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_barberia uuid;
+  v_abre     time;
+  v_cierra   time;
+  v_desde_t  time;
+  v_hasta_t  time;
+  v_sillas   int;
+  v_huecos   json;
+begin
+  select id into v_barberia from barberias where slug = p_slug and activo;
+  if v_barberia is null then return '[]'::json; end if;
+
+  v_sillas := public.sillas_activas(v_barberia);
+
+  select abre, cierra, descanso_desde, descanso_hasta
+    into v_abre, v_cierra, v_desde_t, v_hasta_t
+    from horarios
+   where barberia_id = v_barberia
+     and dia_semana = extract(dow from p_dia)::int;
+
+  if v_abre is null then return '[]'::json; end if;
+
+  with candidatos as (
+    select (p_dia + make_interval(mins => m)) as reloj,
+           ((p_dia + make_interval(mins => m)) at time zone p_zona) as ini
+      from generate_series(
+             (extract(epoch from v_abre) / 60)::int,
+             (extract(epoch from v_cierra) / 60)::int - p_minutos,
+             p_paso
+           ) as m
+  ),
+  validos as (
+    select reloj, ini, ini + make_interval(mins => p_minutos) as fin
+      from candidatos
+     where ini > now() + interval '30 minutes'
+       and reloj::time >= v_abre
+       and (reloj + make_interval(mins => p_minutos))::time <= v_cierra
+       and (v_desde_t is null or not (
+              reloj::time < v_hasta_t
+              and (reloj + make_interval(mins => p_minutos))::time > v_desde_t))
+  )
+  select coalesce(json_agg(to_char(v.reloj, 'HH24:MI') order by v.ini), '[]'::json)
+    into v_huecos
+  from validos v
+  where (
+    select count(*)
+      from citas ci
+      join servicios s on s.id = ci.servicio_id
+     where ci.barberia_id = v_barberia
+       and ci.estado in ('pendiente', 'confirmada')
+       and tstzrange(ci.inicio, ci.inicio + make_interval(mins => s.minutos), '[)')
+           && tstzrange(v.ini, v.fin, '[)')
+  ) < v_sillas
+  and not exists (
+    select 1 from bloqueos_agenda b
+     where b.barberia_id = v_barberia
+       and tstzrange(b.desde, b.hasta, '[)')
+           && tstzrange(v.ini, v.fin, '[)')
+  );
+
+  return v_huecos;
+end;
+$$;
+
+revoke all on function public.huecos_publicos(text, date, int, int, text) from public;
+grant execute on function public.huecos_publicos(text, date, int, int, text) to anon, authenticated;
+
+-- El asistente reutiliza la misma definición de «se puede», con su zona.
+create or replace function public.huecos_asistente(
+  p_slug    text,
+  p_dia     date,
+  p_minutos int default 30,
+  p_paso    int default 30,
+  p_zona    text default 'Europe/Madrid'
+) returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_barberia uuid;
+  v_horas    json;
+  v_sillas   int;
+begin
+  select id into v_barberia from barberias where slug = p_slug and activo;
+  if v_barberia is null then
+    return '[]'::json;
+  end if;
+
+  v_sillas := public.sillas_activas(v_barberia);
+
+  v_horas := public.huecos_publicos(p_slug, p_dia, p_minutos, p_paso, p_zona);
+  if v_horas is null or json_array_length(v_horas) = 0 then
+    return '[]'::json;
+  end if;
+
+  return coalesce((
+    select json_agg(to_jsonb(x.ini) order by x.ini)
+      from (
+        select ((p_dia + h.hora::time) at time zone p_zona) as ini
+          from json_array_elements_text(v_horas) as h(hora)
+      ) x
+     where x.ini > now() + interval '30 minutes'
+       and (
+         select count(*)
+           from citas ci
+           join servicios s on s.id = ci.servicio_id
+          where ci.barberia_id = v_barberia
+            and ci.estado in ('pendiente', 'confirmada')
+            and tstzrange(ci.inicio, ci.inicio + make_interval(mins => s.minutos), '[)')
+                && tstzrange(x.ini, x.ini + make_interval(mins => p_minutos), '[)')
+       ) < v_sillas
+       and not exists (
+         select 1 from bloqueos_agenda b
+          where b.barberia_id = v_barberia
+            and tstzrange(b.desde, b.hasta, '[)')
+                && tstzrange(x.ini, x.ini + make_interval(mins => p_minutos), '[)')
+       )
+  ), '[]'::json);
+end;
+$$;
+
+revoke all on function public.huecos_asistente(text, date, int, int, text) from public;
+grant execute on function public.huecos_asistente(text, date, int, int, text) to anon, authenticated;
+
+-- ---------- 0028_asistente_topes.sql ----------
+
+-- ============================================================
+-- JULEX · topes del asistente, medidos donde toca
+--
+-- El tope de 300 contaba conversaciones nuevas: reutilizando un
+-- conversacion_id se podían enviar mensajes sin límite. Ahora se
+-- cuentan mensajes, por tarjeta y por día, y el mes se corta en
+-- hora de Madrid, no en UTC.
+--
+-- Estas funciones las usa la Edge Function con la clave de servicio.
+-- ============================================================
+
+create or replace function public.asistente_mensajes_24h(p_cliente uuid)
+returns int language sql stable security definer set search_path = public, pg_temp as $$
+  select count(*)::int
+    from asistente_mensaje m
+    join asistente_conversacion c on c.id = m.conversacion_id
+   where c.cliente_id = p_cliente
+     and m.creado_en >= now() - interval '24 hours';
+$$;
+
+create or replace function public.asistente_mensajes_mes(p_barberia uuid)
+returns int language sql stable security definer set search_path = public, pg_temp as $$
+  select count(*)::int
+    from asistente_mensaje m
+    join asistente_conversacion c on c.id = m.conversacion_id
+   where c.barberia_id = p_barberia
+     and m.creado_en >= (date_trunc('month', now() at time zone 'Europe/Madrid') at time zone 'Europe/Madrid');
+$$;
+
+create or replace function public.asistente_mensajes_hoy()
+returns int language sql stable security definer set search_path = public, pg_temp as $$
+  select count(*)::int
+    from asistente_mensaje m
+   where m.creado_en >= (date_trunc('day', now() at time zone 'Europe/Madrid') at time zone 'Europe/Madrid');
+$$;
+
+-- El panel del local también cuenta el mes en Madrid.
+create or replace function public.asistente_consumo(p_barberia uuid)
+returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_n int;
+begin
+  if p_barberia is null or p_barberia <> public.mi_barberia() then
+    return null;
+  end if;
+
+  select count(*)::int into v_n
+    from asistente_conversacion
+   where barberia_id = p_barberia
+     and abierta_en >= (date_trunc('month', now() at time zone 'Europe/Madrid') at time zone 'Europe/Madrid');
+
+  return json_build_object(
+    'conversaciones', v_n,
+    'limite', 300,
+    'porcentaje', round(coalesce(v_n, 0) * 100.0 / 300)
+  );
+end;
+$$;
+
+revoke all on function public.asistente_mensajes_24h(uuid) from public;
+revoke all on function public.asistente_mensajes_mes(uuid) from public;
+revoke all on function public.asistente_mensajes_hoy() from public;
+
+-- Solo la función con clave de servicio las llama.
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.asistente_mensajes_24h(uuid) to service_role;
+    grant execute on function public.asistente_mensajes_mes(uuid) to service_role;
+    grant execute on function public.asistente_mensajes_hoy() to service_role;
+  end if;
+end $$;
+
+-- El turno se apunta sumando, no sobrescribiendo: así el coste del mes
+-- es la suma real de lo consumido. `coste` va en dólares (precio del
+-- proveedor), y el panel puede convertirlo a euros con su cambio.
+create or replace function public.asistente_registrar_turno(
+  p_conversacion uuid,
+  p_entrada      int,
+  p_salida       int,
+  p_coste        numeric,
+  p_resultado    text,
+  p_derivada     boolean
+) returns void language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  update asistente_conversacion
+     set tokens_entrada = tokens_entrada + greatest(coalesce(p_entrada, 0), 0),
+         tokens_salida  = tokens_salida  + greatest(coalesce(p_salida, 0), 0),
+         coste          = coste          + greatest(coalesce(p_coste, 0), 0),
+         resultado      = coalesce(p_resultado, resultado),
+         estado         = case when p_derivada then 'derivada' else estado end
+   where id = p_conversacion;
+end;
+$$;
+
+revoke all on function public.asistente_registrar_turno(uuid, int, int, numeric, text, boolean) from public;
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.asistente_registrar_turno(uuid, int, int, numeric, text, boolean) to service_role;
+  end if;
+end $$;
+
+-- ---------- 0029_stripe_eventos.sql ----------
+
+-- ============================================================
+-- JULEX · idempotencia del webhook de Stripe
+--
+-- Stripe reintenta los avisos y puede entregar el mismo evento dos
+-- veces. Sin registro, dos entregas simultáneas del alta podían crear
+-- dos suscripciones. Cada evento se apunta una vez; si ya está
+-- procesado, se responde 200 y no se vuelve a tocar nada.
+-- ============================================================
+
+create table if not exists stripe_eventos (
+  id         text primary key,
+  tipo       text not null default '',
+  procesado  boolean not null default false,
+  creado_en  timestamptz not null default now()
+);
+
+create index if not exists stripe_eventos_fecha on stripe_eventos (creado_en desc);
+
+-- Sin políticas a propósito: solo lo toca la función con clave de servicio.
+alter table stripe_eventos enable row level security;
+
+create or replace function public.limpiar_stripe_eventos()
+returns int language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_n int;
+begin
+  delete from stripe_eventos where creado_en < now() - interval '30 days';
+  get diagnostics v_n = row_count;
+  return v_n;
+end;
+$$;
+
+revoke all on function public.limpiar_stripe_eventos() from public;
+
+do $$
+begin
+  create extension if not exists pg_cron;
+  perform cron.schedule('limpiar-stripe-eventos', '15 4 * * *', 'select public.limpiar_stripe_eventos()');
+exception
+  when others then
+    raise notice 'pg_cron no disponible: limpiar_stripe_eventos() se lanza a mano';
+end $$;

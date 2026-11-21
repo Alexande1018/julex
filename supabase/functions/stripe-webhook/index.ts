@@ -29,6 +29,7 @@ async function estadoLocal(barberiaId: string, estado: string) {
     active: 'al_dia',
     trialing: 'al_dia',
     past_due: 'pendiente',
+    paused: 'pendiente',
     unpaid: 'lectura',
     canceled: 'suspendido',
     incomplete_expired: 'suspendido',
@@ -103,7 +104,7 @@ async function crearSuscripcionDeAlta(sesion: any) {
     trial_period_days: 30,
     metadata: { barberia_id: barberiaId },
     default_tax_rates: [Deno.env.get('STRIPE_TAX_IVA')!],
-  });
+  }, { idempotencyKey: `alta_${sesion.id}` });
 
   await guardarSuscripcion(sus);
 }
@@ -121,6 +122,30 @@ Deno.serve(async (req) => {
     );
   } catch (e) {
     return new Response(`firma inválida: ${(e as Error).message}`, { status: 400 });
+  }
+
+  // Stripe reintenta: si este evento ya se procesó, se responde y se sale.
+  try {
+    const { data: previo } = await admin
+      .from('stripe_eventos')
+      .select('procesado')
+      .eq('id', evento.id)
+      .maybeSingle();
+
+    if (previo?.procesado) {
+      return new Response(JSON.stringify({ recibido: evento.type, duplicado: true }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!previo) {
+      const { error } = await admin
+        .from('stripe_eventos')
+        .insert({ id: evento.id, tipo: evento.type });
+      if (error && error.code !== '23505') console.error('stripe_eventos', error);
+    }
+  } catch (e) {
+    console.error('stripe_eventos', e);
   }
 
   try {
@@ -154,8 +179,11 @@ Deno.serve(async (req) => {
         break;
     }
   } catch (e) {
+    // No se marca: Stripe lo reintentará.
     return new Response(`error: ${(e as Error).message}`, { status: 500 });
   }
+
+  await admin.from('stripe_eventos').update({ procesado: true }).eq('id', evento.id);
 
   return new Response(JSON.stringify({ recibido: evento.type }), {
     headers: { 'Content-Type': 'application/json' },

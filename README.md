@@ -3,7 +3,9 @@
 Herramienta para negocios con llavero NFC: la cola o la agenda del día, la ficha de cada cliente y su
 tarjeta de socio. Sirve igual para una barbería, una peluquería, un salón de uñas o un estudio de
 tatuaje, y cambia su vocabulario según el tipo de local.
-**Estado: Fase 1 terminada y funcionando.** Datos de demostración, persistencia local y ninguna integración externa conectada.
+**Estado: en producción.** Supabase real en Frankfurt, cobro con Stripe, asistente conversacional y
+publicación en Cloudflare Pages. El proyecto de Cloudflare es de subida directa: se publica con
+`scripts/desplegar.sh`, no con un `git push` (la conexión con GitHub está pendiente).
 
 - Alta: **30 €** una vez, con 15 llaveros.
 - Cuota: **15 €/mes mínimo**; **1 € por llavero activo** a partir del decimoquinto, desde el segundo mes.
@@ -129,7 +131,7 @@ npm run test:e2e
 Si tienes `.env.local`, `npm run build` compila en **modo real** y la suite, que da por hechos los
 datos de demostración, no sirve: usa `build:demo`/`preview:demo` para probar.
 
-Treinta y siete comprobaciones sobre los flujos que importan: portada, ruta protegida, acceso, cierre de un
+Cincuenta y cuatro comprobaciones sobre los flujos que importan: portada, ruta protegida, acceso, cierre de un
 servicio (con el contador de visitas), alta de cliente, tarjeta por token, el código enumerable
 rechazado, reserva, el PIN de la tarjeta (ponerlo, cerrarla, negarlo, abrirla y quitarlo), salida con
 y sin sesión, service worker, manifest y consola limpia. Cada
@@ -146,10 +148,11 @@ npm run test:esquema
 
 Levanta un **PostgreSQL 18 real en WASM** (PGlite), crea los roles y los esquemas `auth`/`storage`
 que Supabase ya trae, aplica las migraciones tal cual y comprueba las reglas del negocio:
-69 comprobaciones sobre el alta del local, las sillas, la coherencia de los llaveros, `atender_cola()` en
+162 comprobaciones sobre el alta del local, las sillas, la coherencia de los llaveros, `atender_cola()` en
 transacción, la recompensa que salta exactamente en la meta, el canje que no borra historial, la
 ficha pública, la disponibilidad real (horario, descansos y bloqueos), la reserva sin dobles, la
-cancelación con sus reglas, la baja del cliente y el PIN de la tarjeta (hash, intentos y bloqueo).
+cancelación con sus reglas, la baja del cliente, el PIN de la tarjeta (hash, intentos y bloqueo), el
+asistente (propuestas, mover cita, topes y coste) y la idempotencia de los avisos de Stripe.
 
 Es la forma de saber que el SQL es válido **antes** de tocar el proyecto real. Única adaptación: el
 test quita la línea de `pgcrypto` porque en PG 18 `gen_random_uuid()` es nativo; en Supabase la
@@ -185,8 +188,17 @@ elige `Alexande1018/julex` y rellena:
 | Variable `NODE_VERSION` | `22` |
 
 Las variables van en **Build → Variables and secrets** y son de compilación: sin ellas el sitio se
-publica en modo local, con datos de ejemplo y sin Supabase. A partir de ahí, cada `git push` a `main`
-publica solo.
+publica en modo local, con datos de ejemplo y sin Supabase.
+
+**Hoy el proyecto no está conectado a Git** (nació como subida directa y Cloudflare no permite
+convertirlo). Se publica con:
+
+```bash
+./scripts/desplegar.sh          # construye origin/main en limpio y lo sube
+```
+
+Si algún día se recrea como proyecto Git, `cada git push` volverá a publicar solo: entonces este
+apartado se puede borrar.
 
 **Sin conectar nada**, la vía más rápida: `npm run build` en esta máquina (las variables ya están en
 `.env.local`, así que `dist/` sale en modo real) y en el panel, Workers & Pages → Upload assets,
@@ -278,6 +290,25 @@ Para probar desde el móvil en la misma wifi, `npm run dev` ya escucha en toda l
 Además: `/` (portada con el simulador de llavero) y `/legal` (textos de consentimiento).
 
 ---
+
+## El asistente del llavero
+
+Cuando el cliente toca su llavero, su tarjeta (y el panel de pedir cita) abre un chat que le saluda
+por su nombre y le deja reservar, cancelar o mover la cita, contar cómo quiere el corte —queda como
+propuesta que el barbero acepta— o pedir ayuda. El formulario sigue debajo, por si prefiere pulsar.
+
+- **Datos:** migraciones `0024` a `0029` (configuración, conversaciones, mensajes, propuestas,
+  topes, eventos de Stripe).
+- **Servidor:** Edge Function `asistente` con proveedor compatible con OpenAI. Nunca inventa precios
+  ni horas: usa `huecos_asistente`, `solicitar_cita`, `mover_cita` y `proponer_ficha`.
+- **Topes:** 300 conversaciones y 1.500 mensajes al mes por local, 60 mensajes por tarjeta y 24 h,
+  3.000 al día en total, 30 por conversación. Configurables por variables.
+- **Coste:** cada turno suma tokens y coste en `asistente_conversacion`; el mes se corta en hora de
+  Madrid.
+- **Secretos** en Supabase: `ASISTENTE_LLM_URL`, `ASISTENTE_LLM_KEY`, `ASISTENTE_LLM_MODEL`
+  (por defecto `deepseek-flash`). Sin ellos la función responde «modo prueba» y no gasta nada.
+
+Pruebas: `npm run test:asistente` (35 comprobaciones del motor, sin Deno ni clave).
 
 ## Tipo de negocio
 

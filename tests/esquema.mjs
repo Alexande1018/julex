@@ -372,7 +372,7 @@ async function main() {
   const [hh, mm] = primero.split(':').map(Number);
   const inicio = `${dia}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`;
   const tomado = await db.query(
-    `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), $2::timestamptz, 'Cliente Tres', '622222222') as id`,
+    `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), ($2::timestamp at time zone 'Europe/Madrid'), 'Cliente Tres', '622222222') as id`,
     [barberiaId, inicio],
   );
   ok(!!tomado.rows[0].id, 'Se puede reservar un hueco libre');
@@ -383,7 +383,7 @@ async function main() {
   let dobleReserva = false;
   try {
     await db.query(
-      `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), $2::timestamptz, 'Cliente Cuatro', '633333333')`,
+      `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), ($2::timestamp at time zone 'Europe/Madrid'), 'Cliente Cuatro', '633333333')`,
       [barberiaId, inicio],
     );
   } catch (e) {
@@ -400,7 +400,7 @@ async function main() {
   ok(libres2.rows[0].h.includes(lista[0]), 'La segunda silla vuelve a abrir el hueco ocupado', lista[0]);
 
   const c2 = await db.query(
-    `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), $2::timestamptz, 'Cliente Dos', '600111222') as id`,
+    `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), ($2::timestamp at time zone 'Europe/Madrid'), 'Cliente Dos', '600111222') as id`,
     [barberiaId, inicio],
   );
   const silla2 = await db.query(`select silla_id from citas where id = $1`, [c2.rows[0].id]);
@@ -409,7 +409,7 @@ async function main() {
   let tercera = false;
   try {
     await db.query(
-      `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), $2::timestamptz, 'Cliente Tres', '600333444')`,
+      `select solicitar_cita('barberia-paco', (select id from servicios where barberia_id = $1 limit 1), ($2::timestamp at time zone 'Europe/Madrid'), 'Cliente Tres', '600333444')`,
       [barberiaId, inicio],
     );
   } catch (e) {
@@ -423,7 +423,7 @@ async function main() {
   const inicio2 = `${dia}T${String(h2).padStart(2, '0')}:${String(m2).padStart(2, '0')}:00`;
   await db.query(
     `insert into bloqueos_agenda (barberia_id, desde, hasta, motivo)
-     values ($1, $2::timestamptz, $2::timestamptz + interval '1 hour', 'comida')`,
+     values ($1, ($2::timestamp at time zone 'Europe/Madrid'), (($2::timestamp at time zone 'Europe/Madrid') + interval '1 hour'), 'comida')`,
     [barberiaId, inicio2],
   );
   const conBloqueo = await db.query(`select huecos_publicos('barberia-paco', $1, 30, 30) as h`, [dia]);
@@ -1205,6 +1205,50 @@ async function main() {
   );
   const borradas = (await db.query(`select limpiar_asistente() as n`)).rows[0].n;
   ok(borradas >= 1, 'La limpieza borra las conversaciones de más de 90 días');
+
+  /* Topes del asistente y registro del coste */
+  const conv = await db.query(
+    `insert into asistente_conversacion (barberia_id, cliente_id) values ($1, $2) returning id`,
+    [barberiaId, aCli],
+  );
+  const convId = conv.rows[0].id;
+  await db.query(
+    `insert into asistente_mensaje (conversacion_id, papel, texto)
+     values ($1, 'cliente', 'hola'), ($1, 'asistente', 'buenas')`,
+    [convId],
+  );
+  const m24 = (await db.query(`select asistente_mensajes_24h($1) as n`, [aCli])).rows[0].n;
+  const mmes = (await db.query(`select asistente_mensajes_mes($1) as n`, [barberiaId])).rows[0].n;
+  const mhoy = (await db.query(`select asistente_mensajes_hoy() as n`)).rows[0].n;
+  ok(
+    m24 >= 2 && mmes >= 2 && mhoy >= 2,
+    'Los contadores de mensajes suman los turnos',
+    JSON.stringify({ m24, mmes, mhoy }),
+  );
+
+  await db.query(`select asistente_registrar_turno($1, 100, 50, 0.00012, 'consulta', false)`, [convId]);
+  await db.query(`select asistente_registrar_turno($1, 100, 50, 0.00012, 'consulta', false)`, [convId]);
+  const acc = (
+    await db.query(
+      `select tokens_entrada, tokens_salida, coste from asistente_conversacion where id = $1`,
+      [convId],
+    )
+  ).rows[0];
+  ok(
+    acc.tokens_entrada === 200 && acc.tokens_salida === 100 && Number(acc.coste) === 0.00024,
+    'El turno suma tokens y coste, no los sobrescribe',
+    JSON.stringify(acc),
+  );
+
+  /* Idempotencia de Stripe */
+  await db.query(`insert into stripe_eventos (id, tipo) values ('evt_prueba', 'invoice.paid')`);
+  let eventoRepetido = false;
+  try {
+    await db.query(`insert into stripe_eventos (id, tipo) values ('evt_prueba', 'invoice.paid')`);
+  } catch {
+    eventoRepetido = true;
+  }
+  ok(eventoRepetido, 'Un evento repetido de Stripe se rechaza');
 
   /* El PIN manda: sin él ni saluda */
   await db.query(`select pin_poner($1, '4821')`, [aTok]);

@@ -309,3 +309,48 @@ export function proveedorOpenAI(opciones: OpcionesOpenAI): Proveedor {
     },
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Dinero y calendario                                                */
+/* ------------------------------------------------------------------ */
+
+/** Inicio del mes en hora de Madrid, como instante ISO. */
+export function inicioDeMesMadrid(ahora: Date = new Date()): string {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(ahora);
+  const anio = Number(partes.find((p) => p.type === 'year')!.value);
+  const mes = Number(partes.find((p) => p.type === 'month')!.value);
+
+  // El desfase de Madrid cambia con el horario de verano: se mira el día 1.
+  const referencia = new Date(Date.UTC(anio, mes - 1, 1, 12));
+  const zona = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Madrid',
+    timeZoneName: 'longOffset',
+  })
+    .formatToParts(referencia)
+    .find((p) => p.type === 'timeZoneName')!.value; // "GMT+01:00"
+
+  const negativo = zona.includes('-');
+  const [horas, minutos] = zona
+    .replace('GMT', '')
+    .replace('+', '')
+    .replace('-', '')
+    .split(':')
+    .map(Number);
+  const desfase = (negativo ? -1 : 1) * (horas * 60 + minutos);
+
+  return new Date(Date.UTC(anio, mes - 1, 1) - desfase * 60_000).toISOString();
+}
+
+/** Coste en dólares de un turno, con precios por millón de tokens. */
+export function calcularCoste(
+  uso: Uso,
+  precioEntrada: number,
+  precioSalida: number,
+): number {
+  const coste = (uso.entrada / 1_000_000) * precioEntrada + (uso.salida / 1_000_000) * precioSalida;
+  return Math.round(coste * 1_000_000) / 1_000_000;
+}
