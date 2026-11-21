@@ -16,8 +16,8 @@ publicación en Cloudflare Pages. Cada `git push` a `main` construye y publica d
 ## Producción
 
 ```
-App        https://julex.pages.dev                (Cloudflare Pages)
-Panel      https://julex.pages.dev/admin
+App        https://julex.app                (Cloudflare Pages)
+Panel      https://julex.app/admin
 Supabase   proyecto lgcaqzraqhecyzxkgujh (Frankfurt)
 Netlify    https://julex-379.netlify.app          (versión anterior, sin créditos)
 ```
@@ -489,7 +489,7 @@ El chip **no conoce al cliente**. Se graba en blanco, en el taller, y nunca se v
 
 1. En `/admin`, pulsa **Generar lote de 15**. Cada llavero recibe un token aleatorio y un código legible (`PBL-7K4Q`).
 2. En la ficha del local, cada fila del inventario tiene un botón para **copiar la URL del chip**:
-   `https://julex.pages.dev/nfc/<token>`. Hazlo desde el móvil con el que vas a grabar.
+   `https://julex.app/nfc/<token>`. Hazlo desde el móvil con el que vas a grabar.
 3. Graba esa URL en un **NTAG213/215/216** con una app de escritura NDEF (por ejemplo NFC Tools):
    URL en texto plano, no un enlace de app ni un acortador. Copiar, pegar, acercar la etiqueta.
 4. Etiqueta cada llavero con **su** código corto, para poder encontrarlo en el inventario.

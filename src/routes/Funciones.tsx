@@ -32,7 +32,7 @@ function MarcoNavegador({ src, alt }: { src: string; alt: string }) {
         <span className="size-2 rounded-full bg-line" />
         <span className="size-2 rounded-full bg-line" />
         <span className="ml-2 truncate rounded-[3px] bg-ivory px-2 py-0.5 text-[9px] text-faint">
-          julex.pages.dev
+          julex.app
         </span>
       </div>
       <img src={src} alt={alt} className="block w-full" loading="lazy" />

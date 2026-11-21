@@ -26,7 +26,7 @@ export function AvisoLegal() {
           .
         </p>
         <p>
-          El sitio es <strong>julex.pages.dev</strong>. Esta identificación corresponde a una persona
+          El sitio es <strong>julex.app</strong>. Esta identificación corresponde a una persona
           física: no se declara una sociedad ni una inscripción registral que no exista.
         </p>
       </Seccion>
