@@ -4,8 +4,8 @@ Herramienta para negocios con llavero NFC: la cola o la agenda del día, la fich
 tarjeta de socio. Sirve igual para una barbería, una peluquería, un salón de uñas o un estudio de
 tatuaje, y cambia su vocabulario según el tipo de local.
 **Estado: en producción.** Supabase real en Frankfurt, cobro con Stripe, asistente conversacional y
-publicación en Cloudflare Pages. El proyecto de Cloudflare es de subida directa: se publica con
-`scripts/desplegar.sh`, no con un `git push` (la conexión con GitHub está pendiente).
+publicación en Cloudflare Pages. Cada `git push` a `main` construye y publica desde GitHub Actions;
+`scripts/desplegar.sh` queda como respaldo manual.
 
 - Alta: **30 €** una vez, con 15 llaveros.
 - Cuota: **15 €/mes mínimo**; **1 € por llavero activo** a partir del decimoquinto, desde el segundo mes.
@@ -190,15 +190,16 @@ elige `Alexande1018/julex` y rellena:
 Las variables van en **Build → Variables and secrets** y son de compilación: sin ellas el sitio se
 publica en modo local, con datos de ejemplo y sin Supabase.
 
-**Hoy el proyecto no está conectado a Git** (nació como subida directa y Cloudflare no permite
-convertirlo). Se publica con:
+**El despliegue lo hace GitHub Actions** (`.github/workflows/deploy.yml`): cada push a `main`
+instala, construye y sube `dist` a Cloudflare Pages con un token de API guardado como secreto. El
+proyecto de Cloudflare sigue siendo de subida directa —no se puede convertir—, pero ya no depende de
+ninguna máquina.
+
+Si hace falta publicar a mano:
 
 ```bash
 ./scripts/desplegar.sh          # construye origin/main en limpio y lo sube
 ```
-
-Si algún día se recrea como proyecto Git, `cada git push` volverá a publicar solo: entonces este
-apartado se puede borrar.
 
 **Sin conectar nada**, la vía más rápida: `npm run build` en esta máquina (las variables ya están en
 `.env.local`, así que `dist/` sale en modo real) y en el panel, Workers & Pages → Upload assets,
