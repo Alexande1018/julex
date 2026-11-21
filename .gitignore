@@ -10,3 +10,6 @@ shots/
 julex.zip
 .netlify/
 dist-demo/
+
+# Estado local del CLI de Supabase
+supabase/.temp/
