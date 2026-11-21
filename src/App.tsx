@@ -1,35 +1,71 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useDb } from './lib/store';
 import { Toaster, Wordmark } from './components/ui';
 import { arrancarSesion, haySupabase, vigilarSesion } from './lib/acceso';
+
+// Lo que se abre al tocar el llavero (y la portada) va en el paquete principal;
+// el resto se descarga solo cuando se visita.
 import Landing from './routes/Landing';
 import BarberoLogin from './routes/BarberoLogin';
-import Cola from './routes/Cola';
-import Ficha from './routes/Ficha';
-import Alta from './routes/Alta';
-import Clientes from './routes/Clientes';
-import Agenda from './routes/Agenda';
-import Panel from './routes/Panel';
-import Ajustes from './routes/Ajustes';
 import Tarjeta from './routes/Tarjeta';
 import Cita from './routes/Cita';
 import Nfc from './routes/Nfc';
-import Admin from './routes/Admin';
-import AdminLocal from './routes/AdminLocal';
-import Legal from './routes/Legal';
-import AltaNegocio from './routes/AltaNegocio';
-import Funciones from './routes/Funciones';
-import { AvisoLegal, Cookies, Privacidad } from './routes/legal/proveedor';
-import { Condiciones, Encargo } from './routes/legal/contratos';
-import { Accesibilidad, Creditos } from './routes/legal/varios';
-import {
-  LocalFidelizacion,
-  LocalLegal,
-  LocalPrivacidad,
-  LocalReservas,
-} from './routes/legal/local';
-import NoEncontrado from './routes/NoEncontrado';
+
+const Cola = lazy(() => import('./routes/Cola'));
+const Ficha = lazy(() => import('./routes/Ficha'));
+const Alta = lazy(() => import('./routes/Alta'));
+const Clientes = lazy(() => import('./routes/Clientes'));
+const Agenda = lazy(() => import('./routes/Agenda'));
+const Panel = lazy(() => import('./routes/Panel'));
+const Ajustes = lazy(() => import('./routes/Ajustes'));
+const Admin = lazy(() => import('./routes/Admin'));
+const AdminLocal = lazy(() => import('./routes/AdminLocal'));
+const Legal = lazy(() => import('./routes/Legal'));
+const AltaNegocio = lazy(() => import('./routes/AltaNegocio'));
+const Funciones = lazy(() => import('./routes/Funciones'));
+const NoEncontrado = lazy(() => import('./routes/NoEncontrado'));
+const AvisoLegal = lazy(() =>
+  import('./routes/legal/proveedor').then((m) => ({ default: m.AvisoLegal })),
+);
+const Cookies = lazy(() =>
+  import('./routes/legal/proveedor').then((m) => ({ default: m.Cookies })),
+);
+const Privacidad = lazy(() =>
+  import('./routes/legal/proveedor').then((m) => ({ default: m.Privacidad })),
+);
+const Condiciones = lazy(() =>
+  import('./routes/legal/contratos').then((m) => ({ default: m.Condiciones })),
+);
+const Encargo = lazy(() =>
+  import('./routes/legal/contratos').then((m) => ({ default: m.Encargo })),
+);
+const Accesibilidad = lazy(() =>
+  import('./routes/legal/varios').then((m) => ({ default: m.Accesibilidad })),
+);
+const Creditos = lazy(() =>
+  import('./routes/legal/varios').then((m) => ({ default: m.Creditos })),
+);
+const LocalLegal = lazy(() =>
+  import('./routes/legal/local').then((m) => ({ default: m.LocalLegal })),
+);
+const LocalPrivacidad = lazy(() =>
+  import('./routes/legal/local').then((m) => ({ default: m.LocalPrivacidad })),
+);
+const LocalReservas = lazy(() =>
+  import('./routes/legal/local').then((m) => ({ default: m.LocalReservas })),
+);
+const LocalFidelizacion = lazy(() =>
+  import('./routes/legal/local').then((m) => ({ default: m.LocalFidelizacion })),
+);
+
+function Cargando() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-ivory">
+      <span className="eyebrow">Cargando…</span>
+    </div>
+  );
+}
 
 function Requiere({ children }: { children: React.ReactNode }) {
   const db = useDb();
@@ -70,7 +106,8 @@ export default function App() {
 
   return (
     <>
-      <Routes>
+      <Suspense fallback={<Cargando />}>
+        <Routes>
         <Route path="/" element={<Landing />} />
 
         <Route path="/barbero/login" element={<BarberoLogin />} />
@@ -147,7 +184,8 @@ export default function App() {
         <Route path="/local/:slug/reservas" element={<LocalReservas />} />
         <Route path="/local/:slug/fidelizacion" element={<LocalFidelizacion />} />
         <Route path="*" element={<NoEncontrado />} />
-      </Routes>
+        </Routes>
+      </Suspense>
       <Toaster />
     </>
   );

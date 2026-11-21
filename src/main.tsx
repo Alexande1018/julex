@@ -2,8 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import '@fontsource-variable/manrope';
-import '@fontsource-variable/fraunces/full.css';
-import '@fontsource-variable/fraunces/full-italic.css';
+import '@fontsource-variable/fraunces/wght.css';
+import '@fontsource-variable/fraunces/wght-italic.css';
 import './index.css';
 import App from './App';
 
