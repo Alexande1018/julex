@@ -590,13 +590,13 @@ Pendiente de probar en hardware: lectura de un chip físico y enlaces universale
 
 ## Lo que falta (y en qué orden)
 
-1. **Supabase real**: auth, tablas, RLS y sustituir el store. La demo y los datos falsos se quedan como modo aparte.
-2. **PWA instalable**: manifest, iconos, service worker y estrategia offline.
-3. **Enlaces universales** y dominio.
-4. **Mensajería real**: WhatsApp Business o SMS con cola de envíos, cron y registro de bajas.
-5. **Caja**: cobros en efectivo, tarjeta y bonos, para separar ingresos reales de estimados.
-6. **Bonos, club y reseñas**, cuando haya barberías usándolo y digan cuál les falta.
-7. **Multi-barbero y permisos**.
+1. **Fotos reales** de locales y barberos: las de la web siguen siendo de archivo.
+2. **Dependencias de las funciones edge**: hoy se cargan desde `esm.sh`. Conviene copiarlas al repo para no depender de ese servicio en cada arranque en frío.
+3. **Mensajería real** (WhatsApp o SMS) si los locales la piden.
+4. **Caja**: cobros en efectivo, tarjeta y bonos, para separar ingresos reales de estimados.
+5. **Bonos, club y reseñas**, cuando haya locales usándolo.
+6. **Multi-barbero y permisos**.
+7. **Piloto con 3–5 locales** antes de abrir más oficios.
 
 ---
 
