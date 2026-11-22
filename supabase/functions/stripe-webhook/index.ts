@@ -7,8 +7,8 @@
 //   customer.subscription.*     → estado, cantidad y fin de periodo
 //   invoice.paid / failed       → al día o impagada (y la escalera del local)
 
-import Stripe from 'https://esm.sh/stripe@16.12.0?target=denonext';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import Stripe from 'npm:stripe@16.12.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
   apiVersion: '2024-11-20.acacia',

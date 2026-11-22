@@ -220,6 +220,28 @@ Lo que hace que funcione tal cual, sin tocar código:
 - `public/_headers` pone el manifest con su tipo MIME, deja `sw.js` sin caché (para que entre una
   versión nueva del service worker) y marca `assets/*` como inmutable.
 
+### Funciones de Supabase
+
+Las cinco funciones (`asistente` y las cuatro de cobro) **no** se publican con el `push`: se despliegan
+a mano. Necesitan un token personal (`sbp_…`, en `~/.dsh/supabase.token` en esta máquina):
+
+```bash
+export SUPABASE_ACCESS_TOKEN=$(cat ~/.dsh/supabase.token)
+npx supabase functions deploy asistente stripe-checkout stripe-portal stripe-pausa --yes
+```
+
+El webhook va **siempre** aparte y con `--no-verify-jwt`: Stripe no manda el token de Supabase y, sin
+esa bandera, el despliegue lo deja pidiendo sesión y los avisos de cobro empiezan a dar 401 sin que
+nadie lo note.
+
+```bash
+npx supabase functions deploy stripe-webhook --no-verify-jwt --yes
+```
+
+Las dependencias se piden con `npm:` (`npm:@supabase/supabase-js@2.45.4`, `npm:stripe@16.12.0`) y se
+resuelven al publicar. Antes venían de `esm.sh` en cada arranque en frío; ya no hay dependencia de ese
+servicio. Si alguna vez hay que cambiar una versión, se sube el número y se despliega esa función.
+
 ### Otros
 
 - **Netlify**: la configuración sigue en `public/_redirects` y `.netlify/`; el mismo `dist/` vale.
@@ -591,12 +613,11 @@ Pendiente de probar en hardware: lectura de un chip físico y enlaces universale
 ## Lo que falta (y en qué orden)
 
 1. **Fotos reales** de locales y barberos: las de la web siguen siendo de archivo.
-2. **Dependencias de las funciones edge**: hoy se cargan desde `esm.sh`. Conviene copiarlas al repo para no depender de ese servicio en cada arranque en frío.
-3. **Mensajería real** (WhatsApp o SMS) si los locales la piden.
-4. **Caja**: cobros en efectivo, tarjeta y bonos, para separar ingresos reales de estimados.
-5. **Bonos, club y reseñas**, cuando haya locales usándolo.
-6. **Multi-barbero y permisos**.
-7. **Piloto con 3–5 locales** antes de abrir más oficios.
+2. **Mensajería real** (WhatsApp o SMS) si los locales la piden.
+3. **Caja**: cobros en efectivo, tarjeta y bonos, para separar ingresos reales de estimados.
+4. **Bonos, club y reseñas**, cuando haya locales usándolo.
+5. **Multi-barbero y permisos**.
+6. **Piloto con 3–5 locales** antes de abrir más oficios.
 
 ---
 
