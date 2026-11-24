@@ -535,7 +535,8 @@ vinculación permanente y el panel de administrador con sus locales.
 | Cosa | Estado |
 |---|---|
 | Lectura NFC | La hace el móvil del cliente al acercar el chip: abre `/nfc/:token`. La app no lee chips. |
-| WhatsApp / SMS | **Próximamente.** Los avisos quedan registrados; el envío automático llega después. |
+| WhatsApp (recepción) | **Construido, sin desplegar.** Código y migraciones probados; faltan `supabase db push`, las funciones y la app de Meta. `npm run preflight` dice qué falta. |
+| WhatsApp / SMS (avisos de la app) | **Próximamente.** Los avisos quedan registrados; el envío desde el panel llega después. |
 | Cobro de la cuota | Se **calcula** (máximo entre 15 € y llaveros activos), no se factura. |
 | Reseñas, bonos, club, caja | No construidos. |
 
@@ -650,7 +651,8 @@ Pendiente de probar en hardware: lectura de un chip físico y enlaces universale
 ## Lo que falta (y en qué orden)
 
 1. **Fotos reales** de locales y barberos: las de la web siguen siendo de archivo.
-2. **Mensajería real** (WhatsApp o SMS) si los locales la piden.
+2. **Desplegar la recepción por WhatsApp**: aplicar `0031`–`0036`, desplegar `wa-*` y dar de
+   alta la app de Meta. Los pasos, en [`docs/whatsapp/meta-pasos.md`](docs/whatsapp/meta-pasos.md).
 3. **Caja**: cobros en efectivo, tarjeta y bonos, para separar ingresos reales de estimados.
 4. **Bonos, club y reseñas**, cuando haya locales usándolo.
 5. **Multi-barbero y permisos**.
