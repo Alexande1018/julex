@@ -25,6 +25,7 @@ import {
   cargarConfig,
   cargarPanel,
   cargarRequisitos,
+  cambiarComplemento,
   completarConexion,
   conectar,
   desconectar,
@@ -77,6 +78,7 @@ export default function Recepcion() {
   const [desconectando, setDesconectando] = useState(false);
   const [confirmarReal, setConfirmarReal] = useState(false);
   const [cambiandoModo, setCambiandoModo] = useState(false);
+  const [cobrandoComplemento, setCobrandoComplemento] = useState(false);
   const [numeroNuevo, setNumeroNuevo] = useState('');
   const [autorizando, setAutorizando] = useState(false);
 
@@ -227,6 +229,19 @@ export default function Recepcion() {
       }
     } finally {
       setConectando(false);
+    }
+  };
+
+  const pagarComplemento = async (accion: 'activar' | 'cancelar') => {
+    setCobrandoComplemento(true);
+    try {
+      const r = await cambiarComplemento(accion);
+      toast(r.mensaje, r.ok ? 'ok' : 'aviso');
+      if (r.ok) setRequisitos(await cargarRequisitos(barberia.id));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo cambiar el complemento.', 'aviso');
+    } finally {
+      setCobrandoComplemento(false);
     }
   };
 
@@ -566,10 +581,31 @@ export default function Recepcion() {
                     Da de alta los que faltan desde <span className="font-semibold text-ink">Llaveros</span> y
                     vuelve aquí.
                   </>
+                ) : !requisitos.pagada ? (
+                  <>
+                    La recepción se cobra aparte: <span className="font-semibold text-ink">10 €/mes</span> que
+                    se suman a tu cuota. Actívala y podrás conectar tu WhatsApp.
+                  </>
                 ) : (
                   'La cuenta tiene un pago pendiente. Cuando se regularice podrás conectar WhatsApp.'
                 )}
               </p>
+
+              {requisitos.faltan === 0 && (
+                <Btn
+                  t="sm"
+                  className="mt-2.5"
+                  onClick={() => void pagarComplemento(requisitos.pagada ? 'cancelar' : 'activar')}
+                  disabled={cobrandoComplemento}
+                >
+                  {cobrandoComplemento ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Check size={13} />
+                  )}
+                  {requisitos.pagada ? 'Quitar el complemento' : 'Activar por 10 €/mes'}
+                </Btn>
+              )}
             </div>
           )}
 

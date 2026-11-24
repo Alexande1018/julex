@@ -89,6 +89,7 @@ export interface RequisitosRecepcion {
   minimo: number;
   faltan: number;
   puede: boolean;
+  pagada: boolean;
   pausaPorCobro: boolean;
   cobro: string;
 }
@@ -428,7 +429,15 @@ export async function guardarConfig(
 
 export async function cargarRequisitos(barberiaId: string): Promise<RequisitosRecepcion> {
   if (!haySupabase || !supabase) {
-    return { llaverosActivos: 37, minimo: 40, faltan: 3, puede: false, pausaPorCobro: false, cobro: 'al_dia' };
+    return {
+      llaverosActivos: 37,
+      minimo: 40,
+      faltan: 3,
+      puede: false,
+      pagada: false,
+      pausaPorCobro: false,
+      cobro: 'al_dia',
+    };
   }
 
   const { data, error } = await supabase.rpc('recepcion_requisitos', { p_barberia: barberiaId });
@@ -440,9 +449,27 @@ export async function cargarRequisitos(barberiaId: string): Promise<RequisitosRe
     minimo: numero(r.minimo) || 40,
     faltan: numero(r.faltan),
     puede: r.puede === true,
+    pagada: r.pagada === true,
     pausaPorCobro: r.pausa_por_cobro === true,
     cobro: texto(r.cobro) || 'al_dia',
   };
+}
+
+/** Activa o retira el complemento de 10 €/mes en la suscripción del local. */
+export async function cambiarComplemento(
+  accion: 'activar' | 'cancelar',
+): Promise<{ ok: boolean; mensaje: string }> {
+  if (!haySupabase || !supabase) {
+    toast('Esto es una demostración: no se cobra nada.', 'info');
+    return { ok: true, mensaje: 'Demostración: el complemento no se cobra.' };
+  }
+
+  const { data, error } = await supabase.functions.invoke('stripe-recepcion', { body: { accion } });
+  if (error) return { ok: false, mensaje: error.message };
+
+  const r = objeto(data);
+  const ok = r.estado === 'ok';
+  return { ok, mensaje: texto(r.mensaje) || (ok ? 'Hecho.' : 'No se pudo completar.') };
 }
 
 export async function cargarPanel(barberiaId: string): Promise<PanelRecepcion> {
