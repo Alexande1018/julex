@@ -43,6 +43,18 @@ async function estadoLocal(barberiaId: string, estado: string) {
     .eq('id', barberiaId);
 }
 
+/** El precio del complemento: del entorno o de los ajustes guardados. */
+async function precioRecepcion(): Promise<string> {
+  const delEntorno = Deno.env.get('STRIPE_PRICE_RECEPCION');
+  if (delEntorno) return delEntorno;
+  const { data } = await admin
+    .from('config_secreta')
+    .select('valor')
+    .eq('clave', 'stripe_price_recepcion')
+    .maybeSingle();
+  return data?.valor ?? '';
+}
+
 async function guardarSuscripcion(sus: any) {
   const barberiaId = sus.metadata?.barberia_id ?? null;
   if (!barberiaId) return;
@@ -69,6 +81,16 @@ async function guardarSuscripcion(sus: any) {
     cantidad: cantidad ?? 0,
     periodo_fin: fecha(fin),
     actualizado_en: new Date().toISOString(),
+  });
+
+  // El complemento de recepción vive como un ítem de la misma suscripción.
+  // Si está, se paga; si lo quitan (aquí o desde el panel de Stripe), se apaga.
+  const precio = await precioRecepcion();
+  const tieneRecepcion =
+    Boolean(precio) && (sus.items?.data ?? []).some((i: any) => i.price?.id === precio);
+  await admin.rpc('wa_recepcion_pagada', {
+    p_barberia: barberiaId,
+    p_activa: tieneRecepcion,
   });
 
   await estadoLocal(barberiaId, sus.status);

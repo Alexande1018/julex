@@ -88,6 +88,22 @@ Deno.serve(async (req) => {
       .eq('barberia_id', barberiaId)
       .eq('estado', 'activo');
 
+    // Y el complemento tiene que estar pagado: se cobra en Stripe como
+    // un ítem de 10 €/mes en la misma suscripción.
+    const { data: pago } = await admin
+      .from('barberias')
+      .select('recepcion_activa')
+      .eq('id', barberiaId)
+      .maybeSingle();
+
+    if (!pago?.recepcion_activa) {
+      return json({
+        estado: 'error',
+        mensaje:
+          'El complemento de recepción todavía no está activo. Actívalo en el panel: 10 €/mes que se suman a tu cuota.',
+      }, 402);
+    }
+
     const activos = count ?? 0;
     if (activos < MINIMO_LLAVEROS) {
       const faltan = MINIMO_LLAVEROS - activos;

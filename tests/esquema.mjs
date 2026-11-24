@@ -1431,6 +1431,19 @@ async function main() {
 
   await db.query(`select set_config('test.uid', $1, false)`, [waDueno]);
 
+  /* El complemento se paga en Stripe: sin él, no hay recepción */
+  const reqSinPagar = (await db.query(
+    `select recepcion_requisitos($1) as r`, [wa])).rows[0].r;
+  ok(reqSinPagar.pagada === false && reqSinPagar.puede === false,
+     'Sin el complemento pagado, no se puede activar la recepción');
+
+  await db.query(`select wa_recepcion_pagada($1, true)`, [wa]);
+  const reqPagado = (await db.query(`select recepcion_requisitos($1) as r`, [wa])).rows[0].r;
+  ok(reqPagado.pagada === true, 'Al pagarlo, queda marcado');
+  ok(reqPagado.puede === false && reqPagado.faltan > 0,
+     'Pero sigue sin poder: le faltan llaveros', String(reqPagado.faltan));
+  await db.query(`select wa_recepcion_pagada($1, false)`, [wa]);
+
   /* El cobro manda: suspendido no hay WhatsApp */
   // La cita se crea antes de suspender: con el local suspendido la base
   // no deja escribir, que es justo lo que hay que comprobar.
