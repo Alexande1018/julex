@@ -63,6 +63,24 @@ Deno.serve(async (req) => {
   const { data: barberiaId } = await conSesion.rpc('mi_barberia');
   if (!barberiaId) return json({ estado: 'error', mensaje: 'sin_local' }, 403);
 
+  // Un local suspendido no puede conectar: se quedaría un WhatsApp mudo
+  // con su nombre, y el cliente escribiría al vacío.
+  {
+    const { data: local } = await admin
+      .from('barberias')
+      .select('estado_cobro, activo')
+      .eq('id', barberiaId)
+      .maybeSingle();
+
+    if (local?.estado_cobro === 'suspendido' || local?.activo === false) {
+      return json({
+        estado: 'error',
+        mensaje:
+          'Tu cuenta está suspendida por el pago pendiente. Cuando se regularice, podrás conectar WhatsApp.',
+      }, 409);
+    }
+  }
+
   let cuerpo: Cuerpo = {};
   try {
     cuerpo = await req.json();

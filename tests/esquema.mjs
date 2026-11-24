@@ -1431,6 +1431,39 @@ async function main() {
 
   await db.query(`select set_config('test.uid', $1, false)`, [waDueno]);
 
+  /* El cobro manda: suspendido no hay WhatsApp */
+  // La cita se crea antes de suspender: con el local suspendido la base
+  // no deja escribir, que es justo lo que hay que comprobar.
+  const citaSuspendida = (await db.query(
+    `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado)
+     select $1, $2, s.id, now() + interval '20 hours', 'confirmada'
+       from servicios s where s.barberia_id = $1 limit 1 returning id`,
+    [wa, otroCliente],
+  )).rows[0].id;
+
+  await db.query(`update barberias set estado_cobro = 'suspendido' where id = $1`, [wa]);
+  const lineaSuspendida = (await db.query(
+    `select estado, ultimo_error from wa_linea where barberia_id = $1`, [wa])).rows[0];
+  ok(lineaSuspendida.estado === 'pausa', 'Al suspenderse el local, la línea se pausa',
+     JSON.stringify(lineaSuspendida));
+
+  ok(
+    (await db.query(`select wa_publico($1, '34600112233') as r`, [wa])).rows[0].r.estado === 'suspendido',
+    'Y no contesta a los clientes',
+  );
+
+  // Un recordatorio de un local suspendido no sale: no se gasta mensajería.
+  const recSuspendido = (await db.query(`select wa_recordatorios_reclamar(50) as r`)).rows[0].r;
+  ok(Array.isArray(recSuspendido) && recSuspendido.length === 0,
+     'Un local suspendido no manda recordatorios', JSON.stringify(recSuspendido).slice(0, 60));
+
+  await db.query(`update barberias set estado_cobro = 'al_dia' where id = $1`, [wa]);
+  ok(
+    (await db.query(`select estado from wa_linea where barberia_id = $1`, [wa])).rows[0].estado === 'activa',
+    'Al pagar, la línea vuelve sola',
+  );
+  await db.query(`delete from citas where id = $1`, [citaSuspendida]);
+
   // Desconectar deja el canal apagado y borra el token.
   await db.query(`select wa_desconectar($1)`, [wa]);
   const tras = (await db.query(
