@@ -84,6 +84,15 @@ export interface TopesRecepcion {
   usados: number;
 }
 
+export interface RequisitosRecepcion {
+  llaverosActivos: number;
+  minimo: number;
+  faltan: number;
+  puede: boolean;
+  pausaPorCobro: boolean;
+  cobro: string;
+}
+
 export interface PanelRecepcion {
   linea: LineaRecepcion | null;
   metricas: MetricasRecepcion;
@@ -415,6 +424,25 @@ export async function guardarConfig(
 
   if (error) throw new Error(error.message);
   return true;
+}
+
+export async function cargarRequisitos(barberiaId: string): Promise<RequisitosRecepcion> {
+  if (!haySupabase || !supabase) {
+    return { llaverosActivos: 37, minimo: 40, faltan: 3, puede: false, pausaPorCobro: false, cobro: 'al_dia' };
+  }
+
+  const { data, error } = await supabase.rpc('recepcion_requisitos', { p_barberia: barberiaId });
+  if (error) throw new Error(error.message);
+
+  const r = objeto(data);
+  return {
+    llaverosActivos: numero(r.llaveros_activos),
+    minimo: numero(r.minimo) || 40,
+    faltan: numero(r.faltan),
+    puede: r.puede === true,
+    pausaPorCobro: r.pausa_por_cobro === true,
+    cobro: texto(r.cobro) || 'al_dia',
+  };
 }
 
 export async function cargarPanel(barberiaId: string): Promise<PanelRecepcion> {

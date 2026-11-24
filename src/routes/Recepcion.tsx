@@ -24,6 +24,7 @@ import {
   cambiarModo,
   cargarConfig,
   cargarPanel,
+  cargarRequisitos,
   completarConexion,
   conectar,
   desconectar,
@@ -32,6 +33,7 @@ import {
   simular,
   type ClaveFuncion,
   type ConfigRecepcion,
+  type RequisitosRecepcion,
   type PanelRecepcion,
   type PendienteRecepcion,
 } from '../lib/recepcion';
@@ -65,6 +67,7 @@ export default function Recepcion() {
 
   const [config, setConfig] = useState<ConfigRecepcion | null>(null);
   const [panel, setPanel] = useState<PanelRecepcion | null>(null);
+  const [requisitos, setRequisitos] = useState<RequisitosRecepcion | null>(null);
   const [cargando, setCargando] = useState(true);
   const [sucio, setSucio] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -88,7 +91,11 @@ export default function Recepcion() {
     let vivo = true;
     setCargando(true);
 
-    Promise.allSettled([cargarConfig(barberia.id), cargarPanel(barberia.id)]).then(([c, p]) => {
+    Promise.allSettled([
+      cargarConfig(barberia.id),
+      cargarPanel(barberia.id),
+      cargarRequisitos(barberia.id),
+    ]).then(([c, p, r]) => {
       if (!vivo) return;
 
       if (c.status === 'fulfilled') {
@@ -99,6 +106,7 @@ export default function Recepcion() {
       }
 
       setPanel(p.status === 'fulfilled' ? p.value : null);
+      setRequisitos(r.status === 'fulfilled' ? r.value : null);
       setSucio(false);
       setCargando(false);
     });
@@ -527,7 +535,7 @@ export default function Recepcion() {
                 t="lg"
                 className="w-full"
                 onClick={() => void conectarCanal()}
-                disabled={conectando}
+                disabled={conectando || (requisitos ? !requisitos.puede : false)}
               >
                 {conectando ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -540,6 +548,29 @@ export default function Recepcion() {
                 Mientras no lo conectes, la recepción sigue apagada. No se envía nada.
               </p>
             </>
+          )}
+
+          {requisitos && !requisitos.puede && (
+            <div className="rounded-[4px] border border-clay/30 bg-clay/10 px-4 py-3.5">
+              <p className="text-[12.5px] font-semibold text-ink">
+                {requisitos.faltan > 0
+                  ? `Te faltan ${requisitos.faltan} llavero${requisitos.faltan === 1 ? '' : 's'}`
+                  : 'Recepción no disponible'}
+              </p>
+              <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
+                {requisitos.faltan > 0 ? (
+                  <>
+                    La recepción por WhatsApp se activa con{' '}
+                    <span className="font-semibold text-ink">{requisitos.minimo} llaveros activos</span> y
+                    ahora tienes <span className="num font-semibold text-ink">{requisitos.llaverosActivos}</span>.
+                    Da de alta los que faltan desde <span className="font-semibold text-ink">Llaveros</span> y
+                    vuelve aquí.
+                  </>
+                ) : (
+                  'La cuenta tiene un pago pendiente. Cuando se regularice podrás conectar WhatsApp.'
+                )}
+              </p>
+            </div>
           )}
 
           {linea?.estado === 'pendiente' && (
