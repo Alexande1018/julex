@@ -46,6 +46,9 @@ paso "Proyecto $REF"
 # ---------------------------------------------------------------- sesión
 if [[ -n "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
   bien "sesión por SUPABASE_ACCESS_TOKEN"
+elif [[ -f "$HOME/.dsh/supabase.token" ]]; then
+  export SUPABASE_ACCESS_TOKEN=$(tr -d '\n' < "$HOME/.dsh/supabase.token")
+  bien "sesión desde ~/.dsh/supabase.token"
 elif [[ -f "$HOME/.supabase/access-token" ]]; then
   bien "sesión guardada por «supabase login»"
 else
@@ -100,7 +103,14 @@ $SUPA secrets set --env-file .env.whatsapp
 
 # ---------------------------------------------------------------- funciones
 paso "Desplegando funciones"
-$SUPA functions deploy asistente wa-webhook wa-cron wa-onboarding wa-simular
+# --yes: sin terminal no puede preguntar. Y las dos que no hablan con un
+# usuario de Supabase van sin JWT: Meta no manda uno, y el cron usa su
+# propio secreto.
+$SUPA functions deploy asistente --yes
+$SUPA functions deploy wa-simular --yes
+$SUPA functions deploy wa-onboarding --yes
+$SUPA functions deploy wa-webhook --no-verify-jwt --yes
+$SUPA functions deploy wa-cron --no-verify-jwt --yes
 
 # ---------------------------------------------------------------- cron
 paso "Cron y comprobación final"
