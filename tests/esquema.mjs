@@ -31,6 +31,7 @@ async function preparar() {
   await db.exec(`
     create role anon;
     create role authenticated;
+    create role service_role;
 
     create schema auth;
     create table auth.users (
@@ -1260,6 +1261,184 @@ async function main() {
 
   const conPin = (await db.query(`select asistente_publico($1, '4821') as r`, [aTok])).rows[0].r;
   ok(conPin.estado === 'abierta', 'Con el PIN correcto, sí');
+
+  /* ------------------------------------------------------------------ */
+  /* Recepción por WhatsApp                                             */
+  /* ------------------------------------------------------------------ */
+
+  {
+  const wa = (await db.query(
+    `insert into barberias (nombre, slug) values ('Barbería WhatsApp', 'barberia-wa') returning id`,
+  )).rows[0].id;
+
+  // Un dueño propio: un usuario no puede tener dos locales.
+  const waDueno = crypto.randomUUID();
+  await db.query(`insert into auth.users (id) values ($1)`, [waDueno]);
+  await db.query(
+    `insert into barberos (id, barberia_id, nombre) values ($1, $2, 'Dueño WA')`,
+    [waDueno, wa],
+  );
+  await db.query(`select set_config('test.uid', $1, false)`, [waDueno]);
+  await db.query(
+    `insert into horarios (barberia_id, dia_semana, abre, cierra)
+     select $1, g, '09:00', '20:00' from generate_series(0, 6) g`,
+    [wa],
+  );
+  await db.query(
+    `insert into servicios (barberia_id, nombre, precio, minutos, orden)
+     values ($1, 'Corte WA', 15, 30, 1)`,
+    [wa],
+  );
+  await db.query(
+    `insert into asistente_config (barberia_id, nombre, canal_whatsapp)
+     values ($1, 'Nico', true)`,
+    [wa],
+  );
+  await db.query(
+    `insert into wa_linea (barberia_id, telefono, telefono_visible, estado, modo, phone_number_id)
+     values ($1, '34600999888', '+34 600 99 98 88', 'activa', 'prueba', 'PN-WA')`,
+    [wa],
+  );
+
+  const clienteWa = (await db.query(
+    `insert into clientes (barberia_id, codigo, nombre, telefono, cons_avisos)
+     values ($1, 'W-0001', 'Carlos Ruiz', '+34 600 11 22 33', true) returning id`,
+    [wa],
+  )).rows[0].id;
+
+  ok(
+    (await db.query(`select normalizar_telefono('+34 600 11 22 33') as t`)).rows[0].t === '600112233',
+    'El teléfono se normaliza a nueve dígitos',
+  );
+
+  // Sin vínculo todavía: el número no está en ninguna ficha.
+  let fichaWa = (await db.query(`select wa_publico($1, '34600112233') as r`, [wa])).rows[0].r;
+  ok(fichaWa.estado === 'nuevo', 'Un número sin vínculo entra como cliente nuevo');
+
+  const vinc = (await db.query(`select wa_vincular_auto($1, '34600112233', '34600112233') as r`, [wa]))
+    .rows[0].r;
+  ok(vinc.vinculado === true, 'Si el número está en una ficha, se vincula solo');
+
+  fichaWa = (await db.query(`select wa_publico($1, '34600112233') as r`, [wa])).rows[0].r;
+  ok(
+    fichaWa.estado === 'abierta' && fichaWa.cliente.nombre === 'Carlos Ruiz',
+    'Y a partir de ahí el agente sabe quién es',
+  );
+
+  // El canal apagado no atiende.
+  await db.query(`update asistente_config set canal_whatsapp = false where barberia_id = $1`, [wa]);
+  ok(
+    (await db.query(`select wa_publico($1, '34600112233') as r`, [wa])).rows[0].r.estado === 'apagado',
+    'Con el canal apagado, no contesta',
+  );
+  await db.query(`update asistente_config set canal_whatsapp = true where barberia_id = $1`, [wa]);
+
+  // Un mensaje repetido de Meta no se atiende dos veces.
+  const primero = (await db.query(`select wa_mensaje_entrante($1, '34600112233', 'wamid.X', 'text', 'hola') as n`, [wa])).rows[0].n;
+  const segundo = (await db.query(`select wa_mensaje_entrante($1, '34600112233', 'wamid.X', 'text', 'hola') as n`, [wa])).rows[0].n;
+  ok(primero === true && segundo === false, 'El reintento del webhook no se procesa dos veces');
+
+  // Código: un número que no está en la ficha puede enlazarla.
+  const otroCliente = (await db.query(
+    `insert into clientes (barberia_id, codigo, nombre, telefono, cons_avisos)
+     values ($1, 'W-0002', 'Marta Gil', '965000000', true) returning id`,
+    [wa],
+  )).rows[0].id;
+
+  const pedido = (await db.query(`select wa_codigo_pedir($1, '34600777888') as r`, [wa])).rows[0].r;
+  ok(/^\d{6}$/.test(String(pedido.codigo)), 'El código que se manda tiene seis cifras');
+
+  const malo = (await db.query(`select wa_codigo_comprobar($1, '34600777888', '000000') as r`, [wa])).rows[0].r;
+  ok(malo.ok === false, 'Un código que no es, no vale');
+
+  const bueno = (await db.query(`select wa_codigo_comprobar($1, '34600777888', $2) as r`, [wa, pedido.codigo]))
+    .rows[0].r;
+  ok(bueno.ok === true && bueno.cliente_id === null, 'Un código válido se acepta');
+
+  // Lista de espera: se apunta y se le ofrece el hueco que se libera.
+  const espera = (await db.query(
+    `select wa_espera_apuntar($1, '34600112233', 'Carlos', (select id from servicios where barberia_id = $1 limit 1), current_date, null, 'cualquiera') as r`,
+    [wa],
+  )).rows[0].r;
+  ok(espera.apuntado === true && espera.puesto === 1, 'Se apunta en la lista de espera');
+
+  const citaFutura = (await db.query(
+    `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado)
+     select $1, $2, s.id, now() + interval '3 days', 'confirmada'
+       from servicios s where s.barberia_id = $1 limit 1 returning id`,
+    [wa, otroCliente],
+  )).rows[0].id;
+
+  await db.query(`update citas set estado = 'cancelada' where id = $1`, [citaFutura]);
+  const ofertaCreada = (await db.query(
+    `select count(*)::int n from lista_espera_oferta where barberia_id = $1`,
+    [wa],
+  )).rows[0].n;
+  ok(ofertaCreada === 1, 'Al cancelar, el hueco se ofrece a quien espera');
+
+  const mia = (await db.query(`select wa_espera_mia($1, '34600112233') as r`, [wa])).rows[0].r;
+  ok(mia.oferta && mia.oferta.inicio, 'El cliente ve el hueco que le han ofrecido');
+
+  const resuelta = (await db.query(`select wa_oferta_resolver($1, true) as r`, [mia.oferta.id])).rows[0].r;
+  ok(resuelta.ok === true, 'Y lo puede aceptar');
+
+  // Recordatorios: se reclaman una vez, no dos.
+  await db.query(
+    `update citas set inicio = now() + interval '20 hours' where id = $1`,
+    [citaFutura],
+  );
+  await db.query(`update citas set estado = 'confirmada' where id = $1`, [citaFutura]);
+  await db.query(`update wa_linea set modo = 'real' where barberia_id = $1`, [wa]);
+
+  const rec1 = (await db.query(`select wa_recordatorios_reclamar(50) as r`)).rows[0].r;
+  const rec2 = (await db.query(`select wa_recordatorios_reclamar(50) as r`)).rows[0].r;
+  ok(Array.isArray(rec1) && rec1.length >= 1, 'Se reclama el recordatorio de la cita de mañana');
+  ok(Array.isArray(rec2) && rec2.length === 0, 'Y no se reclama dos veces');
+
+  await db.query(`select wa_recordatorio_resultado($1, false, 'fallo de prueba')`, [citaFutura]);
+  const estadoRec = (await db.query(`select estado from recordatorio where cita_id = $1`, [citaFutura])).rows[0];
+  ok(estadoRec.estado === 'fallo', 'Un envío fallido queda registrado como fallo');
+
+  // Aprobaciones: el hueco queda bloqueado y el dueño decide.
+  const citaPend = (await db.query(
+    `insert into citas (barberia_id, cliente_id, servicio_id, inicio, estado)
+     select $1, $2, s.id, now() + interval '5 days', 'pendiente'
+       from servicios s where s.barberia_id = $1 limit 1 returning id`,
+    [wa, clienteWa],
+  )).rows[0].id;
+  const aprob = (await db.query(`select wa_aprobacion_crear($1, 'cita', $2, 'quiere cita') as id`, [wa, citaPend]))
+    .rows[0].id;
+  ok(
+    (await db.query(`select recepcion_aprobar($1, true) as ok`, [aprob])).rows[0].ok === true,
+    'El dueño aprueba su propia cita',
+  );
+  const trasAprobar = (await db.query(`select estado from citas where id = $1`, [citaPend])).rows[0].estado;
+  ok(trasAprobar === 'confirmada', 'Aprobar confirma la cita');
+
+  // El panel del dueño, con sus cifras.
+  const panel = (await db.query(`select recepcion_panel($1) as r`, [wa])).rows[0].r;
+  ok(panel.linea && panel.linea.estado === 'activa', 'El panel enseña la línea');
+  ok(typeof panel.metricas.conversaciones === 'number' && panel.topes.conversaciones === 300,
+     'Y sus métricas con los topes del mes');
+  ok(Array.isArray(panel.espera), 'Y la lista de espera');
+
+  // Otro local no puede mirar este panel.
+  const intruso = crypto.randomUUID();
+  await db.query(`insert into auth.users (id) values ($1)`, [intruso]);
+  await db.query(`select set_config('test.uid', $1, false)`, [intruso]);
+  const panelAjeno = (await db.query(`select recepcion_panel($1) as r`, [wa])).rows[0].r;
+  ok(panelAjeno.error === 'sin_permiso', 'Y nadie de fuera puede verlo');
+
+  await db.query(`select set_config('test.uid', $1, false)`, [waDueno]);
+
+  // Desconectar deja el canal apagado y borra el token.
+  await db.query(`select wa_desconectar($1)`, [wa]);
+  const tras = (await db.query(
+    `select w.estado, c.canal_whatsapp from wa_linea w join asistente_config c on c.barberia_id = w.barberia_id where w.barberia_id = $1`,
+    [wa],
+  )).rows[0];
+  ok(tras.estado === 'pausa' && tras.canal_whatsapp === false, 'Desconectar apaga el canal');
+  }
 
   await db.close();
 }

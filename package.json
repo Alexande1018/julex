@@ -15,7 +15,9 @@
     "build:demo": "VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= vite build --outDir dist-demo",
     "preview:demo": "vite preview --outDir dist-demo --port 4173 --strictPort",
     "deploy:cf": "npm run build && npx wrangler pages deploy dist --project-name julex",
-    "sql:generar": "node scripts/generar-sql.mjs"
+    "sql:generar": "node scripts/generar-sql.mjs",
+    "test:whatsapp": "node tests/whatsapp.mjs",
+    "test": "node tests/asistente.mjs && node tests/whatsapp.mjs && node tests/esquema.mjs"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "5.3.0",

@@ -178,6 +178,25 @@ export default function Panel() {
         </p>
       </div>
 
+      <Link
+        to="/panel/recepcion"
+        className="mt-5 flex items-center gap-3.5 rounded-[4px] border border-line bg-paper px-4 py-3.5 transition-colors hover:border-ink/25"
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-paper-2 text-[var(--brand)]">
+          <MessageCircle size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-[13px] font-semibold text-ink">Recepción por WhatsApp</span>
+            <Pill tono="brand">10 €/mes</Pill>
+          </span>
+          <span className="mt-0.5 block text-[11.5px] leading-relaxed text-muted">
+            Contesta, pide citas y toma recados mientras estás con un cliente.
+          </span>
+        </span>
+        <ArrowUpRight size={15} className="shrink-0 text-faint" />
+      </Link>
+
       <section className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4">
         <Stat valor={clientes.length} etiqueta="Clientes" nota={`${activos.length} activos en 30 días`} />
         <Stat

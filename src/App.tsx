@@ -18,6 +18,7 @@ const Alta = lazy(() => import('./routes/Alta'));
 const Clientes = lazy(() => import('./routes/Clientes'));
 const Agenda = lazy(() => import('./routes/Agenda'));
 const Panel = lazy(() => import('./routes/Panel'));
+const Recepcion = lazy(() => import('./routes/Recepcion'));
 const Ajustes = lazy(() => import('./routes/Ajustes'));
 const Admin = lazy(() => import('./routes/Admin'));
 const AdminLocal = lazy(() => import('./routes/AdminLocal'));
@@ -157,6 +158,14 @@ export default function App() {
           element={
             <Requiere>
               <Ajustes />
+            </Requiere>
+          }
+        />
+        <Route
+          path="/panel/recepcion"
+          element={
+            <Requiere>
+              <Recepcion />
             </Requiere>
           }
         />
