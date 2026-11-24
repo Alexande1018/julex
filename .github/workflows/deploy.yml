@@ -25,6 +25,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:esquema
       - run: npm run test:asistente
+      - run: npm run test:whatsapp
 
       - run: npm run sql:generar
       - run: git diff --exit-code -- supabase/aplicar_todo.sql
