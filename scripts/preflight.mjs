@@ -98,7 +98,51 @@ ok(
   fnCita.error?.message?.slice(0, 80) ?? 'sin error esperado',
 );
 
-/* 4. El bucket de logos */
+/* 4. Recepción por WhatsApp (migraciones 0031 a 0036) */
+const tablasWa = ['wa_linea', 'wa_vinculo', 'wa_codigo', 'wa_mensaje', 'lista_espera',
+  'lista_espera_oferta', 'recordatorio', 'wa_aprobacion'];
+// Ojo: con `head: true` supabase-js devuelve 204 y se traga el 404 de
+// «tabla que no existe». Hay que pedir una fila de verdad y mirar el código:
+// PGRST205 = no existe; 42501 = existe pero anon no entra (que es lo normal).
+for (const nombre of tablasWa) {
+  const t = await sb.from(nombre).select('*').limit(1);
+  const codigo = t.error?.code ?? '';
+  ok(
+    codigo !== 'PGRST205',
+    `Tabla ${nombre}`,
+    codigo === 'PGRST205' ? 'no existe: falta `supabase db push`' : codigo || 'ok',
+  );
+}
+
+const fnPublicoWa = await sb.rpc('wa_publico', {
+  p_barberia: '00000000-0000-0000-0000-000000000000',
+  p_telefono: '600000000',
+});
+ok(
+  !/Could not find the function/i.test(fnPublicoWa.error?.message ?? ''),
+  'Función wa_publico()',
+  fnPublicoWa.error?.message?.slice(0, 80) ?? 'ok',
+);
+
+const fnPanel = await sb.rpc('recepcion_panel', {
+  p_barberia: '00000000-0000-0000-0000-000000000000',
+});
+ok(
+  !/Could not find the function/i.test(fnPanel.error?.message ?? ''),
+  'Función recepcion_panel()',
+  fnPanel.error?.message?.slice(0, 80) ?? 'ok',
+);
+
+// Los secretos del canal no se pueden leer desde aquí (viven en Supabase),
+// pero sí se puede comprobar que la función está desplegada: si no lo está,
+// el proyecto devuelve 404 en lugar de un error de Supabase.
+const fnWa = await fetch(`${url}/functions/v1/wa-webhook`, { method: 'GET' }).then(
+  (r) => r.status,
+  () => 0,
+);
+ok(fnWa === 403 || fnWa === 200, 'Función wa-webhook desplegada', `HTTP ${fnWa}`);
+
+/* 5. El bucket de logos */
 const bucket = await sb.storage.from('logos').list('', { limit: 1 });
 ok(
   !bucket.error || !/not found/i.test(bucket.error.message),

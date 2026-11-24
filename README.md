@@ -333,6 +333,43 @@ propuesta que el barbero acepta— o pedir ayuda. El formulario sigue debajo, po
 
 Pruebas: `npm run test:asistente` (35 comprobaciones del motor, sin Deno ni clave).
 
+## Recepción por WhatsApp
+
+El mismo motor del llavero, atendiendo por WhatsApp. El local tiene su propio
+recepcionista con nombre, avatar y personalidad: reserva, mueve, cancela,
+apunta en la lista de espera, dice los sellos y sugiere. **Complemento de
+10 €/mes**, opcional, sobre la cuota de JULEX.
+
+- **Activación en tres pasos**: cara y nombre, conectar WhatsApp con Embedded
+  Signup y probar. La línea nace en **modo prueba** (solo contesta al dueño) y
+  no hay clientes reales hasta que el dueño la pasa a modo real.
+- **La ficha sigue mandando**: el número de WhatsApp se enlaza con la ficha
+  del cliente (automático si el número ya está, con código de 6 cifras si no).
+  Cada cita acaba en la misma agenda y en la misma ficha.
+- **Número propio de recepción**, no el personal del dueño: no hay que migrar
+  nada ni se pierde ningún historial.
+- **Interruptores por función** en `asistente_config.funciones`: si algo está
+  apagado, la herramienta no se le ofrece al modelo.
+- **Modo estreno**: la cita bloquea su hueco desde el primer momento y el dueño
+  confirma con un toque desde WhatsApp (dos botones). Aprobada, el cliente
+  recibe el aviso. Nunca hay dobles reservas.
+- **Lista de espera**: al cancelarse una cita, el hueco se ofrece solo a quien
+  espera ese servicio y en su ventana horaria. El cliente contesta en la misma
+  conversación.
+- **Recordatorios**: plantilla de utilidad 18–26 h antes, una sola vez por cita,
+  solo a quien tiene `cons_avisos`.
+- **Datos**: los mensajes se borran a los 90 días; los códigos, a la hora.
+
+Ficheros: `supabase/migrations/0031` a `0036`, `supabase/functions/wa-webhook`,
+`wa-cron`, `wa-onboarding`, `wa-simular`, `supabase/functions/_shared/wa.ts`,
+`src/routes/Recepcion.tsx`, `src/lib/recepcion.ts`, `src/lib/avatares.ts`.
+
+Manual de puesta en marcha: [`docs/whatsapp/activacion.md`](docs/whatsapp/activacion.md).
+Los pasos exactos en el panel de Meta: [`docs/whatsapp/meta-pasos.md`](docs/whatsapp/meta-pasos.md).
+
+Pruebas: `npm run test:whatsapp` (canal), `npm run test:esquema` (SQL real),
+`npm run test` (las tres).
+
 ## Tipo de negocio
 
 La entidad `barberias` es el **local**, sea del sector que sea. Cada local guarda su `tipo`, y la app
@@ -498,7 +535,8 @@ vinculación permanente y el panel de administrador con sus locales.
 | Cosa | Estado |
 |---|---|
 | Lectura NFC | La hace el móvil del cliente al acercar el chip: abre `/nfc/:token`. La app no lee chips. |
-| WhatsApp / SMS | **Próximamente.** Los avisos quedan registrados; el envío automático llega después. |
+| WhatsApp (recepción) | **Construido, sin desplegar.** Código y migraciones probados; faltan `supabase db push`, las funciones y la app de Meta. `npm run preflight` dice qué falta. |
+| WhatsApp / SMS (avisos de la app) | **Próximamente.** Los avisos quedan registrados; el envío desde el panel llega después. |
 | Cobro de la cuota | Se **calcula** (máximo entre 15 € y llaveros activos), no se factura. |
 | Reseñas, bonos, club, caja | No construidos. |
 
@@ -613,7 +651,8 @@ Pendiente de probar en hardware: lectura de un chip físico y enlaces universale
 ## Lo que falta (y en qué orden)
 
 1. **Fotos reales** de locales y barberos: las de la web siguen siendo de archivo.
-2. **Mensajería real** (WhatsApp o SMS) si los locales la piden.
+2. **Desplegar la recepción por WhatsApp**: aplicar `0031`–`0036`, desplegar `wa-*` y dar de
+   alta la app de Meta. Los pasos, en [`docs/whatsapp/meta-pasos.md`](docs/whatsapp/meta-pasos.md).
 3. **Caja**: cobros en efectivo, tarjeta y bonos, para separar ingresos reales de estimados.
 4. **Bonos, club y reseñas**, cuando haya locales usándolo.
 5. **Multi-barbero y permisos**.

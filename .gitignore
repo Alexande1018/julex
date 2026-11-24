@@ -13,3 +13,6 @@ dist-demo/
 
 # Estado local del CLI de Supabase
 supabase/.temp/
+
+# Secretos del canal de WhatsApp (no se suben nunca)
+.env.whatsapp

@@ -134,6 +134,56 @@ export function Check({
   );
 }
 
+/** Interruptor con nombre y una línea de explicación. */
+export function Switch({
+  checked,
+  onChange,
+  label,
+  description,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  description?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-start justify-between gap-4 py-2.5',
+        disabled && 'pointer-events-none opacity-50',
+      )}
+    >
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold leading-snug text-ink">{label}</p>
+        {description && (
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted">{description}</p>
+        )}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          'relative mt-0.5 h-[22px] w-[38px] shrink-0 rounded-full border transition-colors',
+          checked ? 'border-[var(--brand)] bg-[var(--brand)]' : 'border-line bg-paper-2',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-ivory shadow-[0_1px_2px_rgba(0,0,0,0.18)] transition-[left]',
+            checked ? 'left-[19px]' : 'left-[3px]',
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Piezas de lectura                                                   */
 /* ------------------------------------------------------------------ */

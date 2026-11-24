@@ -233,7 +233,7 @@ export function proveedorOpenAI(opciones: OpcionesOpenAI): Proveedor {
     clave,
     modelo,
     temperatura = 0.2,
-    maxTokens = 300,
+    maxTokens = 500,
     fetchImpl = fetch,
   } = opciones;
 

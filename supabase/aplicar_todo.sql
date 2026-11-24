@@ -5123,3 +5123,1399 @@ $$;
 
 revoke all on function public.pin_comprobar(uuid, text) from public;
 revoke all on function public.pin_comprobar(uuid, text) from anon, authenticated;
+
+-- ---------- 0031_whatsapp.sql ----------
+
+-- ============================================================
+-- JULEX · recepción por WhatsApp (1/3): datos
+--
+-- El recepcionista virtual de cada local: su línea de WhatsApp, el
+-- vínculo con la ficha del cliente, los mensajes, la lista de espera,
+-- los recordatorios y las aprobaciones del dueño.
+--
+-- Regla de la casa: el navegador no lee estas tablas salvo lo que el
+-- dueño tiene que ver (sus ajustes, su actividad, su lista de espera).
+-- Todo lo que decide se hace por funciones security definer.
+-- ============================================================
+
+-- ---------- 1. El asistente gana identidad y funciones ----------
+-- «tono» pasa a llamarse «personalidad» y admite un cuarto carácter:
+-- elegante y discreto, que es como hablan las peluquerías de señoras.
+alter table asistente_config rename column tono to personalidad;
+alter table asistente_config drop constraint if exists asistente_config_tono_check;
+alter table asistente_config
+  add constraint asistente_config_personalidad_check
+  check (personalidad in ('cercano', 'formal', 'divertido', 'elegante'));
+
+alter table asistente_config
+  -- Avatar generado: un identificador del catálogo, no una imagen subida.
+  -- Así el mismo local siempre tiene la misma cara y no hay ficheros que
+  -- limpiar ni imágenes de terceros que licenciar.
+  add column if not exists avatar_id text not null default ''
+    check (length(avatar_id) <= 40),
+  -- Lo primero que lee el cliente en WhatsApp. Vacío = saludo por defecto.
+  add column if not exists bienvenida text not null default ''
+    check (length(bienvenida) <= 300),
+  -- Qué puede hacer. Si una función está apagada, la herramienta ni
+  -- siquiera se le ofrece al modelo: no depende del prompt.
+  add column if not exists funciones jsonb not null default '{
+    "reservar": true, "mover": true, "cancelar": true, "precios": true,
+    "lista_espera": true, "recordatorios": true, "fidelidad": true,
+    "recomendaciones": true, "derivar": true, "aprobacion": false
+  }'::jsonb,
+  -- El canal de WhatsApp, aparte del asistente del llavero: se pueden
+  -- encender por separado y se cobran por separado.
+  add column if not exists canal_whatsapp boolean not null default false;
+
+-- ---------- 2. La línea de WhatsApp de cada local ----------
+-- Un local, un número. El número es de la recepción, no el personal del
+-- dueño: así no hay que migrar nada ni se pierde ningún historial.
+create table wa_linea (
+  barberia_id      uuid primary key references barberias (id) on delete cascade,
+  -- Como lo da Meta: solo dígitos, con prefijo y sin «+».
+  telefono         text not null default '' check (telefono ~ '^[0-9]{6,15}$' or telefono = ''),
+  -- Como se lo enseñamos al dueño: «+34 600 00 00 00».
+  telefono_visible text not null default '' check (length(telefono_visible) <= 30),
+  estado           text not null default 'pendiente'
+    check (estado in ('pendiente', 'activa', 'pausa')),
+  -- En prueba, el agente solo contesta a los teléfonos autorizados y no
+  -- manda nada a nadie más. Es el modo con el que se enseña sin riesgo.
+  modo             text not null default 'prueba' check (modo in ('prueba', 'real')),
+  waba_id          text not null default '',
+  phone_number_id  text not null default '',
+  -- Teléfonos que pueden hablar en modo prueba además del dueño.
+  autorizados      text[] not null default '{}',
+  conectada_en     timestamptz,
+  ultimo_error     text not null default '',
+  creado_en        timestamptz not null default now(),
+  actualizado_en   timestamptz not null default now()
+);
+
+-- Un número de WhatsApp no puede estar en dos locales a la vez.
+create unique index wa_linea_telefono on wa_linea (telefono) where telefono <> '';
+create index wa_linea_phone_id on wa_linea (phone_number_id) where phone_number_id <> '';
+
+-- El token de Meta no vive con los datos del local: va aparte, sin
+-- permisos para nadie, y solo lo lee el servicio (service_role).
+create table wa_secreto (
+  barberia_id uuid primary key references barberias (id) on delete cascade,
+  token       text not null default '',
+  actualizado_en timestamptz not null default now()
+);
+
+-- ---------- 3. Quién es quién por teléfono ----------
+-- El vínculo es la ficha vista desde WhatsApp. No sustituye a la ficha:
+-- apunta a ella. Si el cliente cambia de número, se revoca y se vuelve a
+-- vincular sin tocar su historial.
+create table wa_vinculo (
+  id            uuid primary key default gen_random_uuid(),
+  barberia_id   uuid not null references barberias (id) on delete cascade,
+  -- Últimos 9 dígitos. Es la llave de búsqueda, no el número que se enseña.
+  telefono      text not null check (telefono ~ '^[0-9]{9}$'),
+  -- El identificador que usa Meta (E.164 sin «+»).
+  wa_id         text not null default '',
+  cliente_id    uuid references clientes (id) on delete cascade,
+  -- Cómo se demostró que el teléfono es suyo:
+  --   telefono = el número ya estaba en su ficha (lo da WhatsApp, no el cliente)
+  --   codigo   = se comprobó con un código de 6 cifras
+  --   manual   = lo vinculó el dueño desde el panel
+  metodo        text not null default 'telefono'
+    check (metodo in ('telefono', 'codigo', 'manual')),
+  estado        text not null default 'pendiente'
+    check (estado in ('pendiente', 'confirmado', 'revocado')),
+  confirmado_en timestamptz,
+  ultimo_uso    timestamptz,
+  creado_en     timestamptz not null default now(),
+  unique (barberia_id, telefono)
+);
+create index wa_vinculo_cliente on wa_vinculo (cliente_id);
+
+-- ---------- 4. Códigos de comprobación ----------
+-- Se guarda el hash, nunca el código. Caduca en 10 minutos y admite
+-- cinco intentos: suficiente para una persona, inútil para una máquina.
+create table wa_codigo (
+  id          uuid primary key default gen_random_uuid(),
+  barberia_id uuid not null references barberias (id) on delete cascade,
+  telefono    text not null check (telefono ~ '^[0-9]{9}$'),
+  cliente_id  uuid references clientes (id) on delete cascade,
+  hash        text not null,
+  caduca      timestamptz not null,
+  intentos    int not null default 0 check (intentos >= 0),
+  usado_en    timestamptz,
+  creado_en   timestamptz not null default now()
+);
+create index wa_codigo_busca on wa_codigo (barberia_id, telefono, creado_en desc);
+
+-- ---------- 5. Todo lo que entra y sale ----------
+-- Doble uso: depurar y auditar. El identificador de Meta es único, así
+-- que un reintento de su webhook no se contesta dos veces.
+create table wa_mensaje (
+  id            uuid primary key default gen_random_uuid(),
+  barberia_id   uuid not null references barberias (id) on delete cascade,
+  direccion     text not null check (direccion in ('entrante', 'saliente')),
+  wa_id         text not null default '',
+  wa_message_id text unique,
+  tipo          text not null default 'text' check (length(tipo) <= 20),
+  texto         text not null default '' check (length(texto) <= 4000),
+  estado        text not null default 'recibido'
+    check (estado in ('recibido', 'enviado', 'entregado', 'leido', 'fallo', 'ignorado')),
+  error         text not null default '',
+  coste         numeric(10, 6) not null default 0 check (coste >= 0),
+  creado_en     timestamptz not null default now()
+);
+create index wa_mensaje_local on wa_mensaje (barberia_id, creado_en desc);
+create index wa_mensaje_wa_id on wa_mensaje (wa_id, creado_en desc);
+
+-- ---------- 6. Lista de espera ----------
+-- El cliente que no encuentra hueco no se va: se queda apuntado. Cuando
+-- alguien cancela, el agente le ofrece el hueco por WhatsApp.
+create table lista_espera (
+  id          uuid primary key default gen_random_uuid(),
+  barberia_id uuid not null references barberias (id) on delete cascade,
+  cliente_id  uuid references clientes (id) on delete set null,
+  telefono    text not null default '' check (telefono ~ '^[0-9]{9}$' or telefono = ''),
+  nombre      text not null default '' check (length(nombre) <= 80),
+  servicio_id uuid references servicios (id) on delete set null,
+  -- Ventana en la que le vale. Sin fechas, cualquier día a partir de hoy.
+  desde       date not null default current_date,
+  hasta       date,
+  preferencia text not null default 'cualquiera'
+    check (preferencia in ('manana', 'tarde', 'cualquiera')),
+  estado      text not null default 'esperando'
+    check (estado in ('esperando', 'ofrecido', 'resuelto', 'caducado')),
+  creado_en   timestamptz not null default now(),
+  resuelto_en timestamptz,
+  constraint espera_ventana check (hasta is null or hasta >= desde)
+);
+create index lista_espera_viva on lista_espera (barberia_id, estado, creado_en);
+
+-- Cada hueco liberado que se ofrece. Una oferta caduca: el hueco no
+-- puede quedarse colgado esperando a que alguien conteste.
+create table lista_espera_oferta (
+  id           uuid primary key default gen_random_uuid(),
+  barberia_id  uuid not null references barberias (id) on delete cascade,
+  espera_id    uuid not null references lista_espera (id) on delete cascade,
+  inicio       timestamptz not null,
+  servicio_id  uuid references servicios (id) on delete set null,
+  estado       text not null default 'pendiente'
+    check (estado in ('pendiente', 'enviada', 'aceptada', 'rechazada', 'caducada')),
+  caduca       timestamptz not null default now() + interval '45 minutes',
+  creada_en    timestamptz not null default now(),
+  resuelta_en  timestamptz
+);
+create index lista_espera_oferta_pendiente on lista_espera_oferta (estado, caduca);
+create index lista_espera_oferta_espera on lista_espera_oferta (espera_id, creada_en desc);
+
+-- ---------- 7. Recordatorios ----------
+-- Una fila por cita: si ya está, no se manda dos veces.
+create table recordatorio (
+  cita_id     uuid primary key references citas (id) on delete cascade,
+  barberia_id uuid not null references barberias (id) on delete cascade,
+  telefono    text not null default '',
+  estado      text not null default 'pendiente'
+    check (estado in ('pendiente', 'enviado', 'fallo', 'cancelado')),
+  plantilla   text not null default 'recordatorio_cita',
+  error       text not null default '',
+  enviado_en  timestamptz,
+  creado_en   timestamptz not null default now()
+);
+create index recordatorio_pendiente on recordatorio (estado, creado_en);
+
+-- ---------- 8. Aprobaciones del dueño ----------
+-- En modo estreno, la cita nace igual (el hueco queda bloqueado, no hay
+-- dobles reservas) pero el dueño decide si se confirma. Un toque desde
+-- el móvil o desde el panel.
+create table wa_aprobacion (
+  id          uuid primary key default gen_random_uuid(),
+  barberia_id uuid not null references barberias (id) on delete cascade,
+  tipo        text not null default 'cita' check (tipo in ('cita', 'ficha')),
+  -- La cita o la propuesta a la que se refiere.
+  referencia  uuid,
+  -- Lo que se le enseña al dueño, ya escrito.
+  texto       text not null default '' check (length(texto) <= 600),
+  estado      text not null default 'pendiente'
+    check (estado in ('pendiente', 'aprobada', 'descartada')),
+  creada_en   timestamptz not null default now(),
+  resuelta_en timestamptz,
+  constraint aprobacion_resuelta check (estado = 'pendiente' or resuelta_en is not null)
+);
+create index wa_aprobacion_pendiente on wa_aprobacion (barberia_id, estado, creada_en desc);
+
+-- ---------- 9. Vínculos con lo que ya existe ----------
+-- La conversación sabe si viene del llavero o de WhatsApp: sirve para
+-- medir cada canal por separado y para no mezclar el coste de la IA.
+alter table asistente_conversacion drop constraint if exists asistente_conversacion_canal_check;
+alter table asistente_conversacion
+  add constraint asistente_conversacion_canal_check
+  check (canal in ('llavero', 'enlace', 'whatsapp'));
+
+-- ---------- 10. Trigger: una cancelación ofrece el hueco ----------
+-- No se ofrece a todo el mundo: solo a quien espera ese servicio o
+-- cualquier servicio, dentro de su ventana y por preferencia horaria.
+create or replace function public.al_liberar_cita()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_espera lista_espera%rowtype;
+  v_hora   int;
+begin
+  if new.estado <> 'cancelada' or old.estado = 'cancelada' then
+    return new;
+  end if;
+  if new.inicio <= now() then
+    return new;
+  end if;
+
+  v_hora := extract(hour from new.inicio at time zone 'Europe/Madrid');
+
+  for v_espera in
+    select * from lista_espera e
+     where e.barberia_id = new.barberia_id
+       and e.estado = 'esperando'
+       and (e.servicio_id is null or e.servicio_id = new.servicio_id)
+       and new.inicio::date between e.desde and coalesce(e.hasta, new.inicio::date)
+       and (e.preferencia = 'cualquiera'
+            or (e.preferencia = 'manana' and v_hora < 15)
+            or (e.preferencia = 'tarde' and v_hora >= 15))
+     order by e.creado_en
+     limit 1
+  loop
+    insert into lista_espera_oferta (barberia_id, espera_id, inicio, servicio_id)
+    values (new.barberia_id, v_espera.id, new.inicio, new.servicio_id);
+
+    update lista_espera set estado = 'ofrecido' where id = v_espera.id;
+  end loop;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists citas_liberar on citas;
+create trigger citas_liberar
+  after update of estado on citas
+  for each row execute function public.al_liberar_cita();
+
+-- ---------- 11. RLS ----------
+alter table wa_linea          enable row level security;
+alter table wa_secreto        enable row level security;
+alter table wa_vinculo        enable row level security;
+alter table wa_codigo         enable row level security;
+alter table wa_mensaje        enable row level security;
+alter table lista_espera      enable row level security;
+alter table lista_espera_oferta enable row level security;
+alter table recordatorio      enable row level security;
+alter table wa_aprobacion     enable row level security;
+
+-- El dueño ve y pausa su línea, pero no la inventa.
+create policy "su linea" on wa_linea
+  for select to authenticated using (barberia_id = public.mi_barberia());
+create policy "pausar su linea" on wa_linea
+  for update to authenticated
+  using (barberia_id = public.mi_barberia())
+  with check (barberia_id = public.mi_barberia());
+
+-- Los clientes vinculados: el dueño los ve, no los escribe.
+create policy "sus vinculos" on wa_vinculo
+  for select to authenticated using (barberia_id = public.mi_barberia());
+
+create policy "su conversacion" on wa_mensaje
+  for select to authenticated using (barberia_id = public.mi_barberia());
+
+create policy "su lista de espera" on lista_espera
+  for all to authenticated
+  using (barberia_id = public.mi_barberia())
+  with check (barberia_id = public.mi_barberia());
+
+create policy "sus ofertas" on lista_espera_oferta
+  for select to authenticated using (barberia_id = public.mi_barberia());
+
+create policy "sus recordatorios" on recordatorio
+  for select to authenticated using (barberia_id = public.mi_barberia());
+
+create policy "sus aprobaciones" on wa_aprobacion
+  for select to authenticated using (barberia_id = public.mi_barberia());
+
+-- wa_secreto y wa_codigo se quedan sin políticas a propósito: RLS
+-- encendida y nadie pasa. Solo el servicio, que va con service_role.
+
+grant select, update on wa_linea to authenticated;
+grant select on wa_vinculo, wa_mensaje, lista_espera_oferta, recordatorio, wa_aprobacion
+  to authenticated;
+grant select, insert, update, delete on lista_espera to authenticated;
+
+create trigger wa_linea_actualizado before update on wa_linea
+  for each row execute function public.set_actualizado_en();
+
+-- ---------- 0032_whatsapp_funciones.sql ----------
+
+-- ============================================================
+-- JULEX · recepción por WhatsApp (2/3): funciones
+--
+-- Aquí se decide. El webhook de Meta solo transporta: quién es el
+-- cliente, qué puede hacer y qué se guarda se resuelve en estas
+-- funciones, con las mismas reglas que la tarjeta y la agenda.
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 0. Utilidades
+-- ------------------------------------------------------------
+
+-- El teléfono es la llave. Se comparan los últimos 9 dígitos: el
+-- cliente escribe «+34 600 11 22 33», la ficha guarda «600112233» y
+-- Meta manda «34600112233». Los tres son el mismo.
+create or replace function public.normalizar_telefono(p_telefono text)
+returns text language sql immutable as $$
+  select right(regexp_replace(coalesce(p_telefono, ''), '\D', '', 'g'), 9);
+$$;
+
+-- ¿Está el local abierto en ese instante? Se usa para saber si el
+-- agente trabajó fuera de horario (y poder enseñarlo).
+create or replace function public.local_abierto(p_barberia uuid, p_instante timestamptz)
+returns boolean language sql stable set search_path = public, pg_temp as $$
+  select coalesce((
+    select (p_instante at time zone 'Europe/Madrid')::time >= h.abre
+       and (p_instante at time zone 'Europe/Madrid')::time < h.cierra
+       and not (h.descanso_desde is not null and h.descanso_hasta is not null
+                and (p_instante at time zone 'Europe/Madrid')::time >= h.descanso_desde
+                and (p_instante at time zone 'Europe/Madrid')::time < h.descanso_hasta)
+      from horarios h
+     where h.barberia_id = p_barberia
+       and h.dia_semana = extract(dow from p_instante at time zone 'Europe/Madrid')::int
+  ), false);
+$$;
+
+-- La parte pública de la ficha: lo mismo que calcula asistente_publico
+-- para el llavero. Se repite aquí porque el llavero comprueba el PIN
+-- antes de llegar a este punto y WhatsApp no: el teléfono ya es la
+-- prueba. Si cambia la cuenta de sellos, hay que cambiar las dos.
+create or replace function public.cliente_publico_json(p_cliente uuid)
+returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_cliente     clientes%rowtype;
+  v_local       barberias%rowtype;
+  v_meta        int;
+  v_visitas     int;
+  v_disponibles int;
+  v_restante    int;
+  v_faltan      int;
+  v_proxima     json;
+  v_ultima      timestamptz;
+begin
+  select * into v_cliente from clientes where id = p_cliente;
+  if not found then return null; end if;
+  select * into v_local from barberias where id = v_cliente.barberia_id;
+
+  v_meta        := greatest(1, v_local.fidelidad_meta);
+  v_visitas     := (select count(*) from visitas v where v.cliente_id = v_cliente.id);
+  v_disponibles := (select count(*) from recompensas r
+                     where r.cliente_id = v_cliente.id and r.estado = 'disponible');
+  v_restante    := v_visitas % v_meta;
+  v_faltan      := case when v_disponibles > 0 then 0 else v_meta - v_restante end;
+  v_ultima      := (select max(v.fecha) from visitas v where v.cliente_id = v_cliente.id);
+
+  select json_build_object(
+           'id', ci.id, 'inicio', ci.inicio, 'estado', ci.estado,
+           'servicio', s.nombre, 'silla', si.nombre)
+    into v_proxima
+    from citas ci
+    join servicios s on s.id = ci.servicio_id
+    left join sillas si on si.id = ci.silla_id
+   where ci.cliente_id = v_cliente.id
+     and ci.estado in ('pendiente', 'confirmada')
+     and ci.inicio >= now()
+   order by ci.inicio limit 1;
+
+  return json_build_object(
+    'id', v_cliente.id,
+    'nombre', v_cliente.nombre,
+    'telefono', v_cliente.telefono,
+    'token', v_cliente.token_publico,
+    'avisos', v_cliente.cons_avisos,
+    'sellos', json_build_object(
+      'en_ciclo', case when v_disponibles > 0 then v_meta else v_restante end,
+      'meta', v_meta, 'faltan', v_faltan, 'disponibles', v_disponibles),
+    'proxima', v_proxima,
+    'ultima_visita', v_ultima
+  );
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 1. Quién habla: el teléfono manda
+-- ------------------------------------------------------------
+-- Devuelve la ficha del cliente que escribe, o null. No pide PIN: en
+-- WhatsApp la prueba es controlar el número, y a eso no se le puede
+-- mentir desde fuera. Quien quiera más detalle, tiene la tarjeta.
+create or replace function public.wa_publico(p_barberia uuid, p_telefono text)
+returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_local   barberias%rowtype;
+  v_config  asistente_config%rowtype;
+  v_linea   wa_linea%rowtype;
+  v_cliente uuid;
+  v_nueve   text := public.normalizar_telefono(p_telefono);
+begin
+  select * into v_local from barberias where id = p_barberia;
+  if not found or not v_local.activo then return json_build_object('estado', 'no_existe'); end if;
+  if v_local.estado_cobro = 'suspendido' then return json_build_object('estado', 'suspendido'); end if;
+
+  select * into v_config from asistente_config where barberia_id = p_barberia;
+  if v_config.barberia_id is null or not v_config.canal_whatsapp then
+    return json_build_object('estado', 'apagado');
+  end if;
+
+  select * into v_linea from wa_linea where barberia_id = p_barberia;
+  if v_linea.barberia_id is null or v_linea.estado <> 'activa' then
+    return json_build_object('estado', 'sin_linea');
+  end if;
+
+  select v.cliente_id into v_cliente
+    from wa_vinculo v
+   where v.barberia_id = p_barberia
+     and v.telefono = v_nueve
+     and v.estado = 'confirmado'
+     and v.cliente_id is not null;
+
+  -- Sin vínculo: es un cliente nuevo o alguien que escribe desde otro
+  -- número. Se atiende igual, pero sin historial.
+  if v_cliente is null then
+    return json_build_object(
+      'estado', 'nuevo',
+      'barberia_id', p_barberia,
+      'local', json_build_object(
+        'nombre', v_local.nombre, 'slug', v_local.slug,
+        'telefono', v_local.telefono, 'direccion', v_local.direccion),
+      'asistente', json_build_object(
+        'nombre', nullif(trim(coalesce(v_config.nombre, '')), ''),
+        'avatar_id', coalesce(v_config.avatar_id, ''),
+        'bienvenida', coalesce(v_config.bienvenida, '')),
+      'cliente', null,
+      'telefono', v_nueve
+    );
+  end if;
+
+  return json_build_object(
+    'estado', 'abierta',
+    'barberia_id', p_barberia,
+    'local', json_build_object(
+      'nombre', v_local.nombre, 'slug', v_local.slug,
+      'telefono', v_local.telefono, 'direccion', v_local.direccion),
+    'asistente', json_build_object(
+      'nombre', nullif(trim(coalesce(v_config.nombre, '')), ''),
+      'avatar_id', coalesce(v_config.avatar_id, ''),
+      'bienvenida', coalesce(v_config.bienvenida, '')),
+    'cliente', public.cliente_publico_json(v_cliente),
+    'telefono', v_nueve
+  );
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 2. Vínculo automático por número
+-- ------------------------------------------------------------
+-- Si el número que escribe ya está en una ficha del local, no hay nada
+-- que preguntar: se vincula. Si no, el cliente sigue sin ficha y el
+-- agente le pedirá el código cuando él quiera ver sus cosas.
+create or replace function public.wa_vincular_auto(
+  p_barberia uuid, p_telefono text, p_wa_id text default ''
+) returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_nueve   text := public.normalizar_telefono(p_telefono);
+  v_cliente uuid;
+begin
+  if length(coalesce(v_nueve, '')) <> 9 then
+    return json_build_object('vinculado', false, 'motivo', 'telefono');
+  end if;
+
+  select id into v_cliente
+    from clientes
+   where barberia_id = p_barberia
+     and public.normalizar_telefono(telefono) = v_nueve
+     and cons_datos
+   order by creado_en
+   limit 1;
+
+  if v_cliente is null then
+    return json_build_object('vinculado', false, 'motivo', 'sin_ficha');
+  end if;
+
+  insert into wa_vinculo (barberia_id, telefono, wa_id, cliente_id, metodo, estado,
+                          confirmado_en, ultimo_uso)
+  values (p_barberia, v_nueve, coalesce(p_wa_id, ''), v_cliente, 'telefono', 'confirmado',
+          now(), now())
+  on conflict (barberia_id, telefono) do update
+    set cliente_id    = excluded.cliente_id,
+        wa_id         = excluded.wa_id,
+        estado        = 'confirmado',
+        confirmado_en = coalesce(wa_vinculo.confirmado_en, now()),
+        ultimo_uso    = now();
+
+  return json_build_object('vinculado', true, 'cliente_id', v_cliente);
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 3. Código de comprobación
+-- ------------------------------------------------------------
+-- Para el cliente que no tiene ficha pero quiere que el agente le
+-- enseñe su historial: se le manda un código al WhatsApp y lo teclea.
+-- Se guarda el hash, no el código.
+create or replace function public.wa_codigo_pedir(p_barberia uuid, p_telefono text)
+returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_nueve   text := public.normalizar_telefono(p_telefono);
+  v_codigo  text;
+  v_cliente uuid;
+begin
+  if length(coalesce(v_nueve, '')) <> 9 then
+    return json_build_object('error', 'telefono');
+  end if;
+
+  -- Un código cada dos minutos y por teléfono: ni spam ni fuerza bruta.
+  if exists (select 1 from wa_codigo
+              where barberia_id = p_barberia and telefono = v_nueve
+                and creado_en > now() - interval '2 minutes') then
+    return json_build_object('error', 'demasiado_pronto');
+  end if;
+
+  select id into v_cliente from clientes
+   where barberia_id = p_barberia
+     and public.normalizar_telefono(telefono) = v_nueve
+   limit 1;
+
+  v_codigo := lpad((floor(random() * 900000) + 100000)::int::text, 6, '0');
+
+  insert into wa_codigo (barberia_id, telefono, cliente_id, hash, caduca)
+  values (p_barberia, v_nueve, v_cliente,
+          encode(extensions.digest(v_codigo || v_nueve || p_barberia::text, 'sha256'), 'hex'),
+          now() + interval '10 minutes');
+
+  return json_build_object('codigo', v_codigo, 'cliente_id', v_cliente);
+end;
+$$;
+
+create or replace function public.wa_codigo_comprobar(
+  p_barberia uuid, p_telefono text, p_codigo text
+) returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_nueve   text := public.normalizar_telefono(p_telefono);
+  v_fila    wa_codigo%rowtype;
+  v_hash    text;
+  v_cliente uuid;
+begin
+  select * into v_fila from wa_codigo
+   where barberia_id = p_barberia and telefono = v_nueve and usado_en is null
+   order by creado_en desc limit 1;
+
+  if not found then return json_build_object('ok', false, 'motivo', 'sin_codigo'); end if;
+  if v_fila.caduca < now() then return json_build_object('ok', false, 'motivo', 'caducado'); end if;
+  if v_fila.intentos >= 5 then return json_build_object('ok', false, 'motivo', 'bloqueado'); end if;
+
+  v_hash := encode(extensions.digest(coalesce(p_codigo, '') || v_nueve || p_barberia::text, 'sha256'), 'hex');
+
+  if v_hash <> v_fila.hash then
+    update wa_codigo set intentos = intentos + 1 where id = v_fila.id;
+    return json_build_object('ok', false, 'motivo', 'no_coincide');
+  end if;
+
+  update wa_codigo set usado_en = now() where id = v_fila.id;
+
+  -- El código demuestra que controla el número. Si había ficha con ese
+  -- teléfono, se usa; si no, la crea el alta normal cuando reserve.
+  select id into v_cliente from clientes
+   where barberia_id = p_barberia
+     and public.normalizar_telefono(telefono) = v_nueve
+   limit 1;
+
+  if v_cliente is not null then
+    insert into wa_vinculo (barberia_id, telefono, cliente_id, metodo, estado,
+                            confirmado_en, ultimo_uso)
+    values (p_barberia, v_nueve, v_cliente, 'codigo', 'confirmado', now(), now())
+    on conflict (barberia_id, telefono) do update
+      set cliente_id    = excluded.cliente_id,
+          estado        = 'confirmado',
+          metodo        = 'codigo',
+          confirmado_en = coalesce(wa_vinculo.confirmado_en, now()),
+          ultimo_uso    = now();
+  end if;
+
+  return json_build_object(
+    'ok', true,
+    'cliente_id', v_cliente,
+    'nombre', (select nombre from clientes where id = v_cliente)
+  );
+end;
+$$;
+
+create or replace function public.wa_token_de(p_barberia uuid, p_telefono text)
+returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_cliente uuid;
+begin
+  select id into v_cliente from clientes
+   where barberia_id = p_barberia
+     and public.normalizar_telefono(telefono) = public.normalizar_telefono(p_telefono)
+   limit 1;
+
+  return json_build_object(
+    'cliente_id', v_cliente,
+    'token', (select token_publico from clientes where id = v_cliente),
+    'nombre', (select nombre from clientes where id = v_cliente)
+  );
+end;
+$$;
+
+-- Un móvil cambia de dueño: el vínculo se revoca y la ficha deja de
+-- estar detrás de ese número.
+create or replace function public.wa_desvincular(p_barberia uuid, p_telefono text)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  update wa_vinculo
+     set estado = 'revocado', cliente_id = null
+   where barberia_id = p_barberia
+     and telefono = public.normalizar_telefono(p_telefono);
+  return found;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 4. Registro de mensajes
+-- ------------------------------------------------------------
+-- Devuelve true la primera vez que se ve ese mensaje. Meta reintenta
+-- sus webhooks: sin esto, un «sí» acabaría reservando dos veces.
+create or replace function public.wa_mensaje_entrante(
+  p_barberia uuid, p_wa_id text, p_message_id text, p_tipo text, p_texto text
+) returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_id uuid;
+begin
+  insert into wa_mensaje (barberia_id, direccion, wa_id, wa_message_id, tipo, texto, estado)
+  values (p_barberia, 'entrante', coalesce(p_wa_id, ''), p_message_id,
+          left(coalesce(p_tipo, 'text'), 20), left(coalesce(p_texto, ''), 4000), 'recibido')
+  on conflict (wa_message_id) do nothing
+  returning id into v_id;
+
+  return v_id is not null;
+end;
+$$;
+
+-- Se llama al terminar de contestar: el mensaje saliente queda atado al
+-- turno y con su coste. Si falla, no se pierde la respuesta.
+create or replace function public.wa_mensaje_saliente(
+  p_barberia uuid, p_wa_id text, p_message_id text, p_tipo text, p_texto text,
+  p_estado text default 'enviado', p_error text default '', p_coste numeric default 0
+) returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_id uuid;
+begin
+  insert into wa_mensaje (barberia_id, direccion, wa_id, wa_message_id, tipo, texto,
+                          estado, error, coste)
+  values (p_barberia, 'saliente', coalesce(p_wa_id, ''), p_message_id,
+          left(coalesce(p_tipo, 'text'), 20), left(coalesce(p_texto, ''), 4000),
+          case when p_estado in ('enviado','entregado','leido','fallo','ignorado')
+               then p_estado else 'enviado' end,
+          left(coalesce(p_error, ''), 500), greatest(coalesce(p_coste, 0), 0))
+  on conflict (wa_message_id) do nothing
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 5. Lista de espera
+-- ------------------------------------------------------------
+create or replace function public.wa_espera_apuntar(
+  p_barberia uuid, p_telefono text, p_nombre text default '',
+  p_servicio uuid default null, p_desde date default current_date,
+  p_hasta date default null, p_preferencia text default 'cualquiera'
+) returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_nueve   text := public.normalizar_telefono(p_telefono);
+  v_cliente uuid;
+  v_id      uuid;
+  v_puesto  int;
+begin
+  select id into v_cliente from clientes
+   where barberia_id = p_barberia
+     and public.normalizar_telefono(telefono) = v_nueve limit 1;
+
+  -- Si ya estaba esperando, no se duplica: se actualiza su ventana.
+  select id into v_id from lista_espera
+   where barberia_id = p_barberia and telefono = v_nueve
+     and estado in ('esperando', 'ofrecido')
+   limit 1;
+
+  if v_id is not null then
+    update lista_espera
+       set servicio_id = coalesce(p_servicio, servicio_id),
+           desde = p_desde, hasta = p_hasta,
+           preferencia = coalesce(nullif(p_preferencia, ''), preferencia),
+           nombre = coalesce(nullif(trim(p_nombre), ''), nombre)
+     where id = v_id;
+  else
+    insert into lista_espera (barberia_id, cliente_id, telefono, nombre, servicio_id,
+                              desde, hasta, preferencia)
+    values (p_barberia, v_cliente, v_nueve, left(coalesce(trim(p_nombre), ''), 80),
+            p_servicio, p_desde, p_hasta,
+            case when p_preferencia in ('manana','tarde','cualquiera')
+                 then p_preferencia else 'cualquiera' end)
+    returning id into v_id;
+  end if;
+
+  select count(*) + 1 into v_puesto
+    from lista_espera
+   where barberia_id = p_barberia and estado = 'esperando'
+     and creado_en < (select creado_en from lista_espera where id = v_id);
+
+  return json_build_object('apuntado', true, 'espera_id', v_id, 'puesto', v_puesto);
+end;
+$$;
+
+create or replace function public.wa_espera_mia(p_barberia uuid, p_telefono text)
+returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_nueve  text := public.normalizar_telefono(p_telefono);
+  v_espera lista_espera%rowtype;
+  v_oferta json;
+begin
+  select * into v_espera from lista_espera
+   where barberia_id = p_barberia and telefono = v_nueve
+     and estado in ('esperando', 'ofrecido')
+   order by creado_en desc limit 1;
+
+  if not found then return null; end if;
+
+  select json_build_object(
+           'id', o.id, 'inicio', o.inicio,
+           'servicio', (select nombre from servicios where id = o.servicio_id),
+           'caduca', o.caduca)
+    into v_oferta
+    from lista_espera_oferta o
+   where o.espera_id = v_espera.id
+     and o.estado in ('pendiente', 'enviada')
+     and o.caduca > now()
+   order by o.creada_en desc limit 1;
+
+  return json_build_object(
+    'espera_id', v_espera.id,
+    'estado', v_espera.estado,
+    'desde', v_espera.desde,
+    'hasta', v_espera.hasta,
+    'preferencia', v_espera.preferencia,
+    'puesto', (select count(*) + 1 from lista_espera e2
+                where e2.barberia_id = p_barberia and e2.estado = 'esperando'
+                  and e2.creado_en < v_espera.creado_en),
+    'oferta', v_oferta
+  );
+end;
+$$;
+
+create or replace function public.wa_espera_soltar(p_barberia uuid, p_telefono text)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  update lista_espera
+     set estado = 'caducado', resuelto_en = now()
+   where barberia_id = p_barberia
+     and telefono = public.normalizar_telefono(p_telefono)
+     and estado in ('esperando', 'ofrecido');
+  return found;
+end;
+$$;
+
+-- El agente acepta o rechaza la oferta dentro de la conversación. Se
+-- vuelve a comprobar el hueco: entre el aviso y el «sí» puede haber
+-- pasado cualquier cosa.
+create or replace function public.wa_oferta_resolver(
+  p_oferta uuid, p_aceptada boolean
+) returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_oferta lista_espera_oferta%rowtype;
+begin
+  select * into v_oferta from lista_espera_oferta where id = p_oferta;
+  if not found then return json_build_object('ok', false, 'motivo', 'no_existe'); end if;
+  if v_oferta.estado in ('aceptada', 'rechazada', 'caducada') then
+    return json_build_object('ok', false, 'motivo', 'ya_resuelta');
+  end if;
+  if v_oferta.caduca < now() then
+    update lista_espera_oferta set estado = 'caducada', resuelta_en = now()
+     where id = p_oferta;
+    return json_build_object('ok', false, 'motivo', 'caducada');
+  end if;
+
+  update lista_espera_oferta
+     set estado = case when p_aceptada then 'aceptada' else 'rechazada' end,
+         resuelta_en = now()
+   where id = p_oferta;
+
+  update lista_espera
+     set estado = case when p_aceptada then 'resuelto' else 'esperando' end,
+         resuelto_en = case when p_aceptada then now() else null end
+   where id = v_oferta.espera_id;
+
+  return json_build_object('ok', true, 'inicio', v_oferta.inicio);
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 6. Recordatorios
+-- ------------------------------------------------------------
+-- Reclama las citas de las próximas 18–26 horas que aún no tienen
+-- recordatorio. Deja la fila creada en el mismo paso: si el envío
+-- falla, no se reintenta en bucle, queda en 'fallo' y se ve.
+create or replace function public.wa_recordatorios_reclamar(p_limite int default 50)
+returns json language sql security definer set search_path = public, pg_temp as $$
+  with candidatas as (
+    select ci.id, ci.barberia_id, public.normalizar_telefono(cl.telefono) as tel
+      from citas ci
+      join clientes cl on cl.id = ci.cliente_id
+      join barberias b on b.id = ci.barberia_id
+      join wa_linea w on w.barberia_id = ci.barberia_id
+     where ci.estado in ('pendiente', 'confirmada')
+       and ci.inicio between now() + interval '18 hours' and now() + interval '26 hours'
+       and cl.cons_avisos
+       and length(public.normalizar_telefono(cl.telefono)) = 9
+       and w.estado = 'activa'
+       and w.modo = 'real'
+       and not exists (select 1 from recordatorio r where r.cita_id = ci.id)
+     order by ci.inicio
+     limit greatest(1, least(coalesce(p_limite, 50), 200))
+  ), creadas as (
+    insert into recordatorio (cita_id, barberia_id, telefono, estado)
+    select id, barberia_id, tel, 'pendiente' from candidatas
+    on conflict (cita_id) do nothing
+    returning cita_id, barberia_id, telefono
+  )
+  select coalesce(json_agg(json_build_object(
+           'cita_id', cr.cita_id, 'barberia_id', cr.barberia_id,
+           'telefono', cr.telefono, 'nombre', cl.nombre,
+           'inicio', ci.inicio, 'servicio', s.nombre,
+           'local', b.nombre)), '[]'::json)
+    from creadas cr
+    join citas ci on ci.id = cr.cita_id
+    join clientes cl on cl.id = ci.cliente_id
+    join servicios s on s.id = ci.servicio_id
+    join barberias b on b.id = cr.barberia_id;
+$$;
+
+create or replace function public.wa_recordatorio_resultado(
+  p_cita uuid, p_ok boolean, p_error text default ''
+) returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  update recordatorio
+     set estado = case when p_ok then 'enviado' else 'fallo' end,
+         enviado_en = now(),
+         error = left(coalesce(p_error, ''), 500)
+   where cita_id = p_cita;
+  return found;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 7. Ofertas de hueco a la lista de espera
+-- ------------------------------------------------------------
+-- Marca como enviadas las que toca mandar y devuelve lo necesario para
+-- escribir el mensaje. Caducar primero evita ofrecer huecos muertos.
+create or replace function public.wa_ofertas_reclamar(p_limite int default 20)
+returns json language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_json json;
+begin
+  update lista_espera_oferta
+     set estado = 'caducada', resuelta_en = now()
+   where estado in ('pendiente', 'enviada') and caduca < now();
+
+  update lista_espera e
+     set estado = 'esperando'
+   where e.estado = 'ofrecido'
+     and not exists (select 1 from lista_espera_oferta o
+                      where o.espera_id = e.id
+                        and o.estado in ('pendiente', 'enviada'));
+
+  with candidatas as (
+    select o.id
+      from lista_espera_oferta o
+      join lista_espera e on e.id = o.espera_id
+      join barberias b on b.id = o.barberia_id
+      join wa_linea w on w.barberia_id = o.barberia_id
+     where o.estado = 'pendiente'
+       and o.caduca > now()
+       and w.estado = 'activa'
+       and w.modo = 'real'
+     order by o.inicio
+     limit greatest(1, least(coalesce(p_limite, 20), 100))
+     for update of o skip locked
+  ), marcadas as (
+    update lista_espera_oferta o
+       set estado = 'enviada'
+      from candidatas c
+     where o.id = c.id
+     returning o.*
+  )
+  select coalesce(json_agg(json_build_object(
+           'oferta_id', m.id, 'espera_id', m.espera_id, 'barberia_id', m.barberia_id,
+           'telefono', e.telefono, 'nombre', e.nombre,
+           'inicio', m.inicio,
+           'servicio', (select nombre from servicios where id = m.servicio_id),
+           'local', (select nombre from barberias where id = m.barberia_id))), '[]'::json)
+    into v_json
+    from marcadas m join lista_espera e on e.id = m.espera_id;
+
+  return v_json;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 8. Aprobaciones del dueño
+-- ------------------------------------------------------------
+create or replace function public.wa_aprobacion_crear(
+  p_barberia uuid, p_tipo text, p_referencia uuid, p_texto text
+) returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_id uuid;
+begin
+  insert into wa_aprobacion (barberia_id, tipo, referencia, texto)
+  values (p_barberia,
+          case when p_tipo in ('cita','ficha') then p_tipo else 'cita' end,
+          p_referencia, left(coalesce(p_texto, ''), 600))
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+-- Aprobar confirma la cita; descartar la cancela y deja el hueco libre.
+-- El hueco estaba bloqueado desde el primer momento: no hay dobles.
+create or replace function public.recepcion_aprobar(p_id uuid, p_aprobar boolean)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_ap wa_aprobacion%rowtype;
+begin
+  select * into v_ap from wa_aprobacion
+   where id = p_id and barberia_id = public.mi_barberia() and estado = 'pendiente';
+  if not found then return false; end if;
+
+  update wa_aprobacion
+     set estado = case when p_aprobar then 'aprobada' else 'descartada' end,
+         resuelta_en = now()
+   where id = p_id;
+
+  if v_ap.tipo = 'cita' and v_ap.referencia is not null then
+    update citas
+       set estado = case when p_aprobar then 'confirmada'::estado_cita
+                         else 'cancelada'::estado_cita end
+     where id = v_ap.referencia
+       and estado = 'pendiente';
+  end if;
+
+  return true;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 9. El panel del dueño
+-- ------------------------------------------------------------
+create or replace function public.recepcion_panel(p_barberia uuid)
+returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_inicio_mes timestamptz := date_trunc('month', now() at time zone 'Europe/Madrid')
+                              at time zone 'Europe/Madrid';
+  v_json json;
+begin
+  -- `is distinct from` y no `<>`: sin sesión mi_barberia() es null, y
+  -- null <> uuid no es verdadero, así que el `if` no cortaría nada.
+  if p_barberia is distinct from public.mi_barberia() then
+    return json_build_object('error', 'sin_permiso');
+  end if;
+
+  select json_build_object(
+    'linea', (select json_build_object(
+                'telefono', w.telefono_visible, 'estado', w.estado, 'modo', w.modo,
+                'autorizados', coalesce(to_jsonb(w.autorizados), '[]'::jsonb))
+                from wa_linea w where w.barberia_id = p_barberia),
+    'metricas', json_build_object(
+      'conversaciones', (select count(*) from asistente_conversacion c
+                          where c.barberia_id = p_barberia and c.canal = 'whatsapp'
+                            and c.abierta_en > now() - interval '30 days'),
+      'citas',          (select count(*) from asistente_conversacion c
+                          where c.barberia_id = p_barberia and c.canal = 'whatsapp'
+                            and c.resultado = 'cita'
+                            and c.abierta_en > now() - interval '30 days'),
+      'fuera_horario',  (select count(*) from asistente_conversacion c
+                          where c.barberia_id = p_barberia and c.canal = 'whatsapp'
+                            and c.abierta_en > now() - interval '30 days'
+                            and not public.local_abierto(p_barberia, c.abierta_en)),
+      'derivadas',      (select count(*) from asistente_conversacion c
+                          where c.barberia_id = p_barberia and c.canal = 'whatsapp'
+                            and c.estado = 'derivada'
+                            and c.abierta_en > now() - interval '30 days'),
+      'recordatorios',  (select count(*) from recordatorio r
+                          where r.barberia_id = p_barberia and r.estado = 'enviado'
+                            and r.enviado_en > now() - interval '30 days'),
+      'espera',         (select count(*) from lista_espera e
+                          where e.barberia_id = p_barberia and e.estado in ('esperando','ofrecido')),
+      'premios',        (select count(*) from recompensas r
+                           join clientes cl on cl.id = r.cliente_id
+                          where cl.barberia_id = p_barberia and r.estado = 'disponible')),
+    'pendientes', coalesce((select json_agg(json_build_object(
+             'id', a.id, 'tipo', a.tipo, 'texto', a.texto, 'creado_en', a.creada_en)
+             order by a.creada_en desc)
+           from wa_aprobacion a
+          where a.barberia_id = p_barberia and a.estado = 'pendiente'), '[]'::json),
+    'espera', coalesce((select json_agg(json_build_object(
+             'id', e.id, 'nombre', coalesce(nullif(e.nombre, ''), 'Sin nombre'),
+             'servicio', (select nombre from servicios where id = e.servicio_id),
+             'desde', e.creado_en)
+             order by e.creado_en)
+           from lista_espera e
+          where e.barberia_id = p_barberia and e.estado in ('esperando','ofrecido')), '[]'::json),
+    'topes', json_build_object(
+      'conversaciones', 300,
+      'usadas', (select count(*) from asistente_conversacion c
+                  where c.barberia_id = p_barberia and c.abierta_en >= v_inicio_mes),
+      'mensajes', 1500,
+      'usados', (select count(*) from asistente_mensaje m
+                   join asistente_conversacion c on c.id = m.conversacion_id
+                  where c.barberia_id = p_barberia and m.creado_en >= v_inicio_mes))
+  ) into v_json;
+
+  return v_json;
+end;
+$$;
+
+-- Desconectar es una acción del dueño, no del servicio: apaga el canal
+-- y deja la fila para volver a conectar sin perder el número.
+create or replace function public.wa_desconectar(p_barberia uuid)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if p_barberia is distinct from public.mi_barberia() then return false; end if;
+
+  update wa_linea set estado = 'pausa', modo = 'prueba' where barberia_id = p_barberia;
+  update asistente_config set canal_whatsapp = false where barberia_id = p_barberia;
+  delete from wa_secreto where barberia_id = p_barberia;
+  return true;
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 10. Permisos
+-- ------------------------------------------------------------
+do $$
+declare r text;
+begin
+  foreach r in array array[
+    'normalizar_telefono(text)', 'local_abierto(uuid, timestamptz)',
+    'cliente_publico_json(uuid)', 'wa_publico(uuid, text)',
+    'wa_vincular_auto(uuid, text, text)', 'wa_codigo_pedir(uuid, text)',
+    'wa_codigo_comprobar(uuid, text, text)', 'wa_token_de(uuid, text)',
+    'wa_desvincular(uuid, text)', 'wa_mensaje_entrante(uuid, text, text, text, text)',
+    'wa_mensaje_saliente(uuid, text, text, text, text, text, text, numeric)',
+    'wa_espera_apuntar(uuid, text, text, uuid, date, date, text)',
+    'wa_espera_mia(uuid, text)', 'wa_espera_soltar(uuid, text)',
+    'wa_oferta_resolver(uuid, boolean)',
+    'wa_recordatorios_reclamar(int)', 'wa_recordatorio_resultado(uuid, boolean, text)',
+    'wa_ofertas_reclamar(int)', 'wa_aprobacion_crear(uuid, text, uuid, text)',
+    'recepcion_aprobar(uuid, boolean)', 'recepcion_panel(uuid)',
+    'wa_desconectar(uuid)'
+  ]
+  loop
+    execute format('revoke all on function public.%s from public, anon, authenticated', r);
+    execute format('grant execute on function public.%s to service_role', r);
+  end loop;
+end;
+$$;
+
+-- El dueño necesita estas tres desde el navegador con su sesión.
+grant execute on function public.recepcion_panel(uuid)      to authenticated;
+grant execute on function public.recepcion_aprobar(uuid, boolean) to authenticated;
+grant execute on function public.wa_desconectar(uuid)       to authenticated;
+
+-- ---------- 0033_whatsapp_conversacion.sql ----------
+
+-- ============================================================
+-- JULEX · recepción por WhatsApp (3/3): la conversación sin ficha
+--
+-- Hasta ahora toda conversación colgaba de un cliente con ficha: la
+-- abría un llavero. En WhatsApp escribe cualquiera, también quien no
+-- tiene ficha todavía. La conversación tiene que existir igual, porque
+-- es donde se mide el gasto de la IA y donde se corta el mes.
+-- ============================================================
+
+alter table asistente_conversacion alter column cliente_id drop not null;
+
+-- Por qué número vino, aunque no haya ficha. Es lo que permite contar
+-- «cuánta gente nueva me ha escrito» sin crear fichas de prueba.
+alter table asistente_conversacion
+  add column if not exists telefono text not null default ''
+    check (telefono = '' or telefono ~ '^[0-9]{9}$');
+
+create index if not exists asistente_conversacion_telefono
+  on asistente_conversacion (barberia_id, telefono, abierta_en desc);
+
+-- El saludo del canal: JULEX manda un primer mensaje cuando alguien
+-- escribe por primera vez, para que el cliente sepa con quién habla.
+-- Queda registrado como un mensaje más, no como un turno de IA.
+comment on column asistente_config.bienvenida is
+  'Primer mensaje del recepcionista en WhatsApp. Vacío = saludo por defecto.';
+
+-- ---------- 0034_recomendaciones.sql ----------
+
+-- ============================================================
+-- JULEX · fidelización y recomendaciones para el recepcionista
+--
+-- Dos lecturas del mismo historial: los sellos que lleva el cliente y
+-- qué le puede venir bien la próxima vez. Las dos van por token, igual
+-- que la tarjeta: el agente no maneja identificadores que no ve.
+-- ============================================================
+
+create or replace function public.mis_sellos(p_token text, p_pin text default null)
+returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_cliente     uuid;
+  v_meta        int;
+  v_visitas     int;
+  v_disponibles int;
+  v_restante    int;
+begin
+  select id into v_cliente from clientes where token_publico = p_token;
+  if v_cliente is null then return null; end if;
+  if public.pin_comprobar(v_cliente, p_pin) <> 'abierta' then
+    return json_build_object('estado', 'protegida');
+  end if;
+
+  select greatest(1, b.fidelidad_meta) into v_meta
+    from clientes c join barberias b on b.id = c.barberia_id
+   where c.id = v_cliente;
+
+  v_visitas     := (select count(*) from visitas where cliente_id = v_cliente);
+  v_disponibles := (select count(*) from recompensas
+                     where cliente_id = v_cliente and estado = 'disponible');
+  v_restante    := v_visitas % v_meta;
+
+  return json_build_object(
+    'en_ciclo', case when v_disponibles > 0 then v_meta else v_restante end,
+    'meta', v_meta,
+    'faltan', case when v_disponibles > 0 then 0 else v_meta - v_restante end,
+    'disponibles', v_disponibles,
+    'premio', case when v_disponibles > 0 then 'uno gratis' else null end
+  );
+end;
+$$;
+
+-- Qué le viene bien: lo que más repite, lo que no ha probado nunca y
+-- cuánto tiempo lleva sin venir. Todo con datos del local, nada inventado.
+create or replace function public.recomendar_cliente(p_token text, p_pin text default null)
+returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_cliente   uuid;
+  v_barberia  uuid;
+  v_habitual  json;
+  v_nuevos    json;
+  v_dias      int;
+  v_visitas   int;
+begin
+  select id, barberia_id into v_cliente, v_barberia
+    from clientes where token_publico = p_token;
+  if v_cliente is null then return null; end if;
+  if public.pin_comprobar(v_cliente, p_pin) <> 'abierta' then
+    return json_build_object('estado', 'protegida');
+  end if;
+
+  v_visitas := (select count(*) from visitas where cliente_id = v_cliente);
+  if v_visitas = 0 then
+    return json_build_object('sin_historial', true);
+  end if;
+
+  v_dias := (select extract(day from now() - max(fecha))::int
+               from visitas where cliente_id = v_cliente);
+
+  -- El servicio que más ha repetido. Si nunca se apuntó el servicio en
+  -- la visita, no se inventa: se queda vacío.
+  select json_build_object('nombre', s.nombre, 'veces', count(*))
+    into v_habitual
+    from visitas v join servicios s on s.id = v.servicio_id
+   where v.cliente_id = v_cliente
+   group by s.nombre
+   order by count(*) desc, s.nombre
+   limit 1;
+
+  -- Servicios activos que nunca ha tenido. Como mucho tres: es una
+  -- sugerencia, no un catálogo.
+  select coalesce(json_agg(t.nombre order by t.orden), '[]'::json) into v_nuevos
+    from (
+      select s.nombre, s.orden
+        from servicios s
+       where s.barberia_id = v_barberia
+         and s.activo
+         and not exists (
+           select 1 from visitas v
+            where v.cliente_id = v_cliente and v.servicio_id = s.id)
+       order by s.orden
+       limit 3
+    ) t;
+
+  return json_build_object(
+    'habitual', v_habitual,
+    'no_probados', v_nuevos,
+    'dias_sin_venir', v_dias,
+    'visitas', v_visitas
+  );
+end;
+$$;
+
+revoke all on function public.mis_sellos(text, text) from public;
+revoke all on function public.recomendar_cliente(text, text) from public;
+
+grant execute on function public.mis_sellos(text, text) to anon, authenticated;
+grant execute on function public.recomendar_cliente(text, text) to anon, authenticated;
+
+-- ---------- 0035_aprobaciones.sql ----------
+
+-- ============================================================
+-- JULEX · aprobar desde el móvil del dueño
+--
+-- El dueño pulsa un botón en WhatsApp. El webhook llega con la clave
+-- del servicio, que no tiene sesión: `mi_barberia()` no vale ahí. Se
+-- separa la comprobación (dueño con sesión) de la ejecución (servicio,
+-- que ya sabe de qué local es la línea).
+-- ============================================================
+
+create or replace function public.aprobar_interno(
+  p_aprobacion uuid, p_aprobar boolean, p_barberia uuid
+) returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_ap wa_aprobacion%rowtype;
+begin
+  select * into v_ap from wa_aprobacion
+   where id = p_aprobacion and barberia_id = p_barberia and estado = 'pendiente';
+  if not found then return false; end if;
+
+  update wa_aprobacion
+     set estado = case when p_aprobar then 'aprobada' else 'descartada' end,
+         resuelta_en = now()
+   where id = p_aprobacion;
+
+  if v_ap.tipo = 'cita' and v_ap.referencia is not null then
+    update citas
+       set estado = case when p_aprobar then 'confirmada'::estado_cita
+                         else 'cancelada'::estado_cita end
+     where id = v_ap.referencia
+       and estado = 'pendiente';
+  end if;
+
+  return true;
+end;
+$$;
+
+-- El panel del dueño: exige sesión y que sea su local.
+create or replace function public.recepcion_aprobar(p_id uuid, p_aprobar boolean)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  return public.aprobar_interno(p_id, p_aprobar, public.mi_barberia());
+end;
+$$;
+
+-- El webhook: ya viene autenticado por la firma de Meta y la línea.
+create or replace function public.wa_aprobar(
+  p_aprobacion uuid, p_aprobar boolean, p_barberia uuid
+) returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  return public.aprobar_interno(p_aprobacion, p_aprobar, p_barberia);
+end;
+$$;
+
+revoke all on function public.aprobar_interno(uuid, boolean, uuid) from public, anon, authenticated;
+revoke all on function public.wa_aprobar(uuid, boolean, uuid) from public, anon, authenticated;
+grant execute on function public.wa_aprobar(uuid, boolean, uuid) to service_role;
+
+-- recepcion_aprobar ya estaba concedida a authenticated en 0032: se
+-- vuelve a conceder porque `create or replace` no cambia los permisos.
+grant execute on function public.recepcion_aprobar(uuid, boolean) to authenticated;
+
+-- ---------- 0036_cron_whatsapp.sql ----------
+
+-- ============================================================
+-- JULEX · recordatorios y lista de espera, cada cinco minutos
+--
+-- pg_cron despierta a la función `wa-cron`, que es la que habla con
+-- Meta. La dirección y el secreto viven en una tabla aparte, sin
+-- permisos para nadie, para no dejarlos escritos en el SQL.
+-- ============================================================
+
+create table if not exists config_secreta (
+  clave  text primary key,
+  valor  text not null default '',
+  nota   text not null default ''
+);
+
+alter table config_secreta enable row level security;
+-- Sin políticas: RLS encendida y nadie pasa. Solo el servicio y el
+-- propio pg_cron, que corre como superusuario.
+
+comment on table config_secreta is
+  'Ajustes de infraestructura que no pinta nada en el navegador: URL y secreto del cron de WhatsApp.';
+
+do $$
+begin
+  create extension if not exists pg_cron;
+  create extension if not exists pg_net;
+exception when others then
+  raise notice 'pg_cron o pg_net no disponibles: el cron de WhatsApp se lanza a mano';
+end $$;
+
+/**
+ * Lo que tiene que decir el dueño una sola vez, en el editor SQL:
+ *
+ *   insert into config_secreta (clave, valor) values
+ *     ('wa_cron_url', 'https://<proyecto>.supabase.co/functions/v1/wa-cron'),
+ *     ('wa_cron_secreto', '<el mismo CRON_SECRET de la función>')
+ *   on conflict (clave) do update set valor = excluded.valor;
+ */
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron')
+     and exists (select 1 from pg_extension where extname = 'pg_net')
+     and exists (select 1 from config_secreta where clave = 'wa_cron_url' and valor <> '')
+  then
+    perform cron.schedule(
+      'julex-whatsapp',
+      '*/5 * * * *',
+      $cron$
+        select net.http_post(
+          url     := (select valor from public.config_secreta where clave = 'wa_cron_url'),
+          headers := jsonb_build_object(
+                       'Content-Type', 'application/json',
+                       'x-julex-cron', (select valor from public.config_secreta where clave = 'wa_cron_secreto')),
+          body    := '{}'::jsonb,
+          timeout_milliseconds := 20000
+        );
+      $cron$
+    );
+    raise notice 'Cron de WhatsApp programado cada cinco minutos';
+  else
+    raise notice 'Cron de WhatsApp sin programar: faltan la URL, el secreto o las extensiones';
+  end if;
+exception when others then
+  raise notice 'Cron de WhatsApp sin programar: %', sqlerrm;
+end $$;
+
+-- Los códigos caducados y los mensajes viejos tampoco se guardan para
+-- siempre: la conversación se borra a los 90 días, y el código a la hora.
+create or replace function public.limpiar_whatsapp()
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  delete from wa_codigo   where caduca < now() - interval '1 day';
+  delete from wa_mensaje  where creado_en < now() - interval '90 days';
+  delete from lista_espera
+   where estado in ('resuelto', 'caducado') and creado_en < now() - interval '60 days';
+  delete from wa_aprobacion
+   where estado <> 'pendiente' and resuelta_en < now() - interval '60 days';
+end;
+$$;
+
+revoke all on function public.limpiar_whatsapp() from public, anon, authenticated;
+
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.schedule('limpiar-whatsapp', '45 3 * * *', 'select public.limpiar_whatsapp()');
+  end if;
+exception when others then
+  raise notice 'limpiar_whatsapp() se lanza a mano: %', sqlerrm;
+end $$;
