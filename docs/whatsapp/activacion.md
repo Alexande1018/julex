@@ -60,7 +60,7 @@ WA_VERIFY_TOKEN=...      # una frase larga y aleatoria, la que se pega en Meta
 META_APP_ID=...
 META_APP_SECRET=...
 META_CONFIG_ID=...       # la configuración de Embedded Signup
-WA_REDIRECT_URI=https://panel.julex.es/panel/recepcion
+WA_REDIRECT_URI=https://julex.pages.dev/panel/recepcion
 
 # Cron
 CRON_SECRET=...          # el mismo que se guarda en config_secreta

@@ -82,7 +82,7 @@ Sin esto, cada barbería tendría que configurar la app entera ella misma.
    crea una **configuración**.
 2. Anota su identificador → será `META_CONFIG_ID`.
 3. Dominio de vuelta: el del panel, por ejemplo
-   `https://panel.julex.es/panel/recepcion` → será `WA_REDIRECT_URI`.
+   `https://julex.pages.dev/panel/recepcion` → será `WA_REDIRECT_URI`.
 4. Comprobación: con todo cargado, el botón «Conectar WhatsApp» del panel debe
    abrir una ventana de Meta donde el dueño entra con **su** cuenta, elige su
    número y vuelve solo.
