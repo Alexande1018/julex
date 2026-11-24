@@ -241,9 +241,8 @@ El resto de límites, hoy:
   contemplado.
 - **Facturación del complemento.** El precio está en el panel; el cobro de los
   10 € va por la suscripción, no hay línea separada en Stripe todavía.
-- **Autorizar números en modo prueba.** El dueño y el teléfono del local pueden
-  hablar con la línea en prueba; para añadir otro número hay que tocar
-  `wa_linea.autorizados` a mano.
+- **Autorizar números en modo prueba**: se hace desde el panel, en el mismo
+  bloque del número, con un botón por número.
 
 ## 8. Cómo se enciende y se apaga
 

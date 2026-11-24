@@ -8,6 +8,7 @@ import {
   Loader2,
   MessageCircle,
   Phone,
+  X,
   RotateCcw,
 } from 'lucide-react';
 import { useDb } from '../lib/store';
@@ -19,6 +20,7 @@ import {
   CONFIG_POR_DEFECTO,
   FUNCIONES_RECEPCION,
   PERSONALIDADES,
+  autorizarNumero,
   cambiarModo,
   cargarConfig,
   cargarPanel,
@@ -72,6 +74,8 @@ export default function Recepcion() {
   const [desconectando, setDesconectando] = useState(false);
   const [confirmarReal, setConfirmarReal] = useState(false);
   const [cambiandoModo, setCambiandoModo] = useState(false);
+  const [numeroNuevo, setNumeroNuevo] = useState('');
+  const [autorizando, setAutorizando] = useState(false);
 
   const [burbujas, setBurbujas] = useState<Burbuja[]>([]);
   const [textoPrueba, setTextoPrueba] = useState('');
@@ -215,6 +219,34 @@ export default function Recepcion() {
       }
     } finally {
       setConectando(false);
+    }
+  };
+
+  const anadirNumero = async () => {
+    const limpio = numeroNuevo.replace(/\D/g, '');
+    if (limpio.length !== 9) {
+      toast('Un número de 9 cifras, sin prefijo.', 'aviso');
+      return;
+    }
+    setAutorizando(true);
+    try {
+      await autorizarNumero(barberia.id, limpio, true);
+      setNumeroNuevo('');
+      await recargarPanel();
+      toast('Número autorizado para la prueba.', 'ok');
+    } catch {
+      toast('No se pudo autorizar ese número.', 'aviso');
+    } finally {
+      setAutorizando(false);
+    }
+  };
+
+  const quitarNumero = async (numero: string) => {
+    try {
+      await autorizarNumero(barberia.id, numero, false);
+      await recargarPanel();
+    } catch {
+      toast('No se pudo quitar el número.', 'aviso');
     }
   };
 
@@ -560,6 +592,50 @@ export default function Recepcion() {
                   description="Mientras esté apagado, solo te contesta a ti y a los números que autorices."
                 />
               </div>
+
+              {linea?.modo === 'prueba' && (
+                <div className="mt-3 border-t border-sage/30 pt-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-faint">
+                    Quién puede escribir en prueba
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                    Tú y el teléfono del local. Añade otro número si quieres enseñárselo a
+                    alguien de confianza sin abrirlo a todo el mundo.
+                  </p>
+
+                  {(linea?.autorizados ?? []).length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {(linea?.autorizados ?? []).map((numero) => (
+                        <button
+                          key={numero}
+                          type="button"
+                          onClick={() => void quitarNumero(numero)}
+                          className="num inline-flex items-center gap-1 rounded-[3px] border border-line bg-paper px-2 py-1 text-[11px] text-ink-soft transition hover:border-clay hover:text-clay"
+                          title="Dejar de autorizar"
+                        >
+                          {telefonoVisible(numero)}
+                          <X size={11} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      value={numeroNuevo}
+                      onChange={(e) => setNumeroNuevo(e.target.value)}
+                      placeholder="600 11 22 33"
+                      inputMode="numeric"
+                      maxLength={16}
+                      className={`${inputClases} max-w-[190px]`}
+                    />
+                    <Btn t="sm" onClick={() => void anadirNumero()} disabled={autorizando}>
+                      {autorizando ? <Loader2 size={12} className="animate-spin" /> : null}
+                      Autorizar
+                    </Btn>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

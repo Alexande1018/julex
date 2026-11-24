@@ -677,7 +677,8 @@ begin
 
   select json_build_object(
     'linea', (select json_build_object(
-                'telefono', w.telefono_visible, 'estado', w.estado, 'modo', w.modo)
+                'telefono', w.telefono_visible, 'estado', w.estado, 'modo', w.modo,
+                'autorizados', coalesce(to_jsonb(w.autorizados), '[]'::jsonb))
                 from wa_linea w where w.barberia_id = p_barberia),
     'metricas', json_build_object(
       'conversaciones', (select count(*) from asistente_conversacion c

@@ -49,6 +49,8 @@ export interface LineaRecepcion {
   telefono: string;
   estado: EstadoLineaRecepcion;
   modo: ModoLineaRecepcion;
+  /** Números que pueden hablar en modo prueba, además del dueño. */
+  autorizados?: string[];
 }
 
 export interface MetricasRecepcion {
@@ -293,6 +295,9 @@ function normalizarLinea(v: unknown): LineaRecepcion | null {
     telefono: texto(o.telefono),
     estado,
     modo: o.modo === 'real' ? 'real' : 'prueba',
+    autorizados: Array.isArray(o.autorizados)
+      ? (o.autorizados as unknown[]).map((x) => texto(x)).filter(Boolean)
+      : [],
   };
 }
 
@@ -356,6 +361,10 @@ function normalizarPanel(v: unknown): PanelRecepcion {
       usados: numero(t.usados),
     },
   };
+}
+
+function soloDigitos(valor: string): string {
+  return String(valor ?? '').replace(/\D/g, '').slice(-9);
 }
 
 /* ------------------------------------------------------------------ */
@@ -591,6 +600,48 @@ export async function completarConexion(datos: DatosAltaWhatsApp): Promise<Resul
   }
 }
 
+/**
+ * Los números que pueden hablar con la línea en modo prueba, además del
+ * dueño. Sin esto, enseñar el invento obliga a tocar SQL.
+ */
+export async function autorizarNumero(
+  barberiaId: string,
+  telefono: string,
+  autorizar: boolean,
+): Promise<boolean> {
+  const limpio = soloDigitos(telefono);
+  if (limpio.length !== 9) throw new Error('El número tiene que tener 9 cifras.');
+
+  if (!haySupabase || !supabase) {
+    if (lineaDemo) {
+      const actuales = new Set(lineaDemo.autorizados ?? []);
+      if (autorizar) actuales.add(limpio);
+      else actuales.delete(limpio);
+      lineaDemo = { ...lineaDemo, autorizados: [...actuales] };
+    }
+    toast('Esto es una demostración: el cambio se ve solo en pantalla.', 'info');
+    return true;
+  }
+
+  const { data, error } = await supabase
+    .from('wa_linea')
+    .select('autorizados')
+    .eq('barberia_id', barberiaId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  const actuales = new Set<string>((data?.autorizados ?? []) as string[]);
+  if (autorizar) actuales.add(limpio);
+  else actuales.delete(limpio);
+
+  const { error: errorGuardar } = await supabase
+    .from('wa_linea')
+    .update({ autorizados: [...actuales] })
+    .eq('barberia_id', barberiaId);
+  if (errorGuardar) throw new Error(errorGuardar.message);
+  return true;
+}
+
 export async function desconectar(barberiaId: string): Promise<boolean> {
   if (!haySupabase || !supabase) {
     lineaDemo = null;
@@ -705,6 +756,7 @@ let lineaDemo: LineaRecepcion | null = {
   telefono: '600 123 456',
   estado: 'activa',
   modo: 'prueba',
+  autorizados: [],
 };
 
 const resueltosDemo = new Set<string>();
