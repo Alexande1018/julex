@@ -98,6 +98,15 @@ ok(
   fnCita.error?.message?.slice(0, 80) ?? 'sin error esperado',
 );
 
+// Se manda un objeto, no una semana: la función lo rechaza antes de borrar nada.
+// Con la clave anón no hay local (`mi_barberia()` es null), así que responde `sin_local`.
+const fnHorario = await sb.rpc('guardar_horario', { p_dias: {} });
+ok(
+  !fnHorario.error || !/Could not find the function/i.test(fnHorario.error.message),
+  'Función guardar_horario() (migración 0040)',
+  fnHorario.error?.message?.slice(0, 80) ?? 'ok',
+);
+
 /* 4. Recepción por WhatsApp (migraciones 0031 a 0036) */
 const tablasWa = ['wa_linea', 'wa_vinculo', 'wa_codigo', 'wa_mensaje', 'lista_espera',
   'lista_espera_oferta', 'recordatorio', 'wa_aprobacion'];

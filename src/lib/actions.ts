@@ -16,6 +16,7 @@ import { sillaLibre, sillasDe } from './derive';
 import { haySupabase, supabase } from './supabase';
 import * as repo from './repo';
 import { salirRemoto } from './acceso';
+import { validarHorario, type DiaHorario } from './horario';
 import { toast } from '../components/ui';
 
 /* ------------------------------------------------------------------ */
@@ -753,6 +754,50 @@ export async function actualizarServicio(
     if (!s) return;
     Object.assign(s, patch);
   });
+}
+
+/**
+ * Guarda la semana entera del local. Un día cerrado es un día sin fila: no
+ * ofrece huecos en la reserva, aunque las citas ya cogidas se quedan.
+ */
+export async function guardarHorario(dias: DiaHorario[]): Promise<boolean> {
+  const error = validarHorario(dias);
+  if (error) {
+    toast(error, 'aviso');
+    return false;
+  }
+
+  const db = store.read();
+  const barberiaId = db.sesion?.barberiaId ?? db.barberias[0]?.id;
+  if (!barberiaId) return false;
+
+  if (haySupabase) {
+    if ((await intentar(() => repo.guardarHorario(dias), 'guardar el horario')) === null) {
+      return false;
+    }
+    await refrescar();
+    toast('Horario guardado', 'ok');
+    return true;
+  }
+
+  store.mutate((d) => {
+    d.horarios = [
+      ...(d.horarios ?? []).filter((h) => h.barberiaId !== barberiaId),
+      ...dias
+        .filter((dia) => dia.abierto)
+        .map((dia) => ({
+          id: uid('hr'),
+          barberiaId,
+          dia: dia.dia,
+          abre: dia.abre,
+          cierra: dia.cierra,
+          descansoDesde: dia.descanso ? dia.descansoDesde : null,
+          descansoHasta: dia.descanso ? dia.descansoHasta : null,
+        })),
+    ];
+  });
+  toast('Horario guardado', 'ok');
+  return true;
 }
 
 export function reiniciarDemo(): void {

@@ -7,6 +7,7 @@ import {
   aCliente,
   aCola,
   aEvento,
+  aHorario,
   aLlavero,
   aMensaje,
   aMovimiento,
@@ -15,6 +16,7 @@ import {
   aVisita,
 } from './mapa';
 import type { Cita, Db, EstadoCita, ID, OrigenCita, TipoMensaje } from './types';
+import { mensajeErrorHorario, type DiaHorario } from './horario';
 
 /* ------------------------------------------------------------------ */
 /* Lectura                                                             */
@@ -50,10 +52,11 @@ export async function cargarTodo(): Promise<Db | null> {
   const barberiaId = barberia.id as string;
   const porLocal = (tabla: string) => sb.from(tabla).select('*').eq('barberia_id', barberiaId);
 
-  const [barberos, sillas, servicios, clientes, llaveros, citas, cola, visitas, movimientos, recompensas, mensajes, eventos] =
+  const [barberos, sillas, horarios, servicios, clientes, llaveros, citas, cola, visitas, movimientos, recompensas, mensajes, eventos] =
     await Promise.all([
       porLocal('barberos').order('creado_en'),
       porLocal('sillas').order('orden'),
+      porLocal('horarios').order('dia_semana'),
       porLocal('servicios').order('orden'),
       porLocal('clientes').order('creado_en'),
       porLocal('llaveros').order('creado_en'),
@@ -66,7 +69,7 @@ export async function cargarTodo(): Promise<Db | null> {
       porLocal('eventos').order('fecha', { ascending: false }).limit(300),
     ]);
 
-  const fallo = [barberos, sillas, servicios, clientes, llaveros, citas, cola, visitas, movimientos, recompensas, mensajes, eventos].find(
+  const fallo = [barberos, sillas, horarios, servicios, clientes, llaveros, citas, cola, visitas, movimientos, recompensas, mensajes, eventos].find(
     (r) => r.error,
   );
   if (fallo?.error) throw new Error(`cargando el local: ${fallo.error.message}`);
@@ -76,6 +79,7 @@ export async function cargarTodo(): Promise<Db | null> {
     barberias: [aBarberia(barberia)],
     barberos: (barberos.data ?? []).map(aBarbero),
     sillas: (sillas.data ?? []).map(aSilla),
+    horarios: (horarios.data ?? []).map(aHorario),
     servicios: (servicios.data ?? []).map(aServicio),
     clientes: (clientes.data ?? []).map(aCliente),
     llaveros: (llaveros.data ?? []).map(aLlavero),
@@ -102,6 +106,26 @@ export async function actualizarLocal(patch: Partial<Record<string, unknown>>): 
   const sb = exigirCliente();
   const { error } = await sb.from('barberias').update(patch).eq('id', patch.id as string);
   if (error) fallo('actualizando el local', error);
+}
+
+/**
+ * Guarda la semana entera de una vez. La función de Postgres valida las horas,
+ * borra los días que dejan de estar abiertos e inserta los demás: o entra todo
+ * o no entra nada. RLS impide tocar el horario de otro local.
+ */
+export async function guardarHorario(dias: DiaHorario[]): Promise<void> {
+  const sb = exigirCliente();
+  const { error } = await sb.rpc('guardar_horario', {
+    p_dias: dias.map((d) => ({
+      dia: d.dia,
+      abierto: d.abierto,
+      abre: d.abierto ? d.abre : null,
+      cierra: d.abierto ? d.cierra : null,
+      descanso_desde: d.abierto && d.descanso ? d.descansoDesde : null,
+      descanso_hasta: d.abierto && d.descanso ? d.descansoHasta : null,
+    })),
+  });
+  if (error) throw new Error(mensajeErrorHorario(error.message));
 }
 
 export async function insertarSilla(input: {

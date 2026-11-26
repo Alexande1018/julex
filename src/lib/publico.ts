@@ -9,6 +9,7 @@ import { supabase, haySupabase } from './supabase';
 import { store } from './store';
 import { actualizarCliente, cambiarEstadoCita } from './actions';
 import { servicioDe } from './derive';
+import { horarioDelDia, minutosDe, pisaDescanso } from './horario';
 import type { Consentimientos, EstadoCita, TipoNegocio } from './types';
 
 export interface FichaPublica {
@@ -535,19 +536,28 @@ export async function cargarDestinoReserva(
   return { tipo: 'ok', local, cliente: null, token: null };
 }
 
-const APERTURA = 10 * 60;
-const CIERRE = 20 * 60;
-
-function huecosLocales(dia: Date, minutos: number): string[] {
+function huecosLocales(slug: string, dia: Date, minutos: number): string[] {
   const db = store.read();
+  const barberia = db.barberias.find((b) => b.slug === slug);
+  if (!barberia) return [];
+
+  // Sin fila para ese día, el local está cerrado: ni un hueco.
+  const h = horarioDelDia(db, barberia.id, dia.getDay());
+  if (!h) return [];
+
+  const abre = minutosDe(h.abre);
+  const cierra = minutosDe(h.cierra);
   const salida: string[] = [];
 
-  for (let m = APERTURA; m + minutos <= CIERRE; m += 30) {
+  for (let m = abre; m + minutos <= cierra; m += 30) {
+    const etiqueta = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
     const ini = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), 0, m, 0, 0);
     const fin = new Date(ini.getTime() + minutos * 60_000);
     if (ini.getTime() < Date.now() + 30 * 60_000) continue;
+    if (pisaDescanso(h, etiqueta, minutos)) continue;
 
     const ocupado = db.citas
+      .filter((c) => c.barberiaId === barberia.id)
       .filter((c) => c.estado !== 'cancelada' && c.estado !== 'no_vino')
       .some((c) => {
         const cIni = new Date(c.inicio).getTime();
@@ -556,11 +566,7 @@ function huecosLocales(dia: Date, minutos: number): string[] {
         return cIni < fin.getTime() && cFin > ini.getTime();
       });
 
-    if (!ocupado) {
-      salida.push(
-        `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`,
-      );
-    }
+    if (!ocupado) salida.push(etiqueta);
   }
   return salida;
 }
@@ -570,7 +576,7 @@ export async function huecosPublicos(
   dia: Date,
   minutos: number,
 ): Promise<string[]> {
-  if (!haySupabase) return huecosLocales(dia, minutos);
+  if (!haySupabase) return huecosLocales(slug, dia, minutos);
 
   const fecha = `${dia.getFullYear()}-${String(dia.getMonth() + 1).padStart(2, '0')}-${String(
     dia.getDate(),
@@ -619,12 +625,27 @@ export async function pedirCita(input: {
     return String(data);
   }
 
-  // Modo local: misma comprobación de solape antes de crear nada.
+  // Modo local: misma comprobación de horario y de solape antes de crear nada.
   const db = store.read();
   const barberia = db.barberias.find((b) => b.slug === input.slug);
   if (!barberia) throw new Error('Ese local no existe.');
   const servicio = db.servicios.find((s) => s.id === input.servicioId);
   if (!servicio) throw new Error('Ese servicio no existe.');
+
+  const h = horarioDelDia(db, barberia.id, input.inicio.getDay());
+  if (!h) throw new Error('Ese día el local está cerrado.');
+  const hora = `${String(input.inicio.getHours()).padStart(2, '0')}:${String(
+    input.inicio.getMinutes(),
+  ).padStart(2, '0')}`;
+  if (
+    minutosDe(hora) < minutosDe(h.abre) ||
+    minutosDe(hora) + servicio.minutos > minutosDe(h.cierra)
+  ) {
+    throw new Error('Esa hora queda fuera del horario del local.');
+  }
+  if (pisaDescanso(h, hora, servicio.minutos)) {
+    throw new Error('Esa hora cae en el descanso del local.');
+  }
 
   const fin = input.inicio.getTime() + servicio.minutos * 60_000;
   const ocupado = db.citas

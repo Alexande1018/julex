@@ -122,6 +122,7 @@ async function main() {
     'local_publico',
     'ficha_publica',
     'solicitar_cita',
+    'guardar_horario',
   ]) {
     ok(nombres.has(f), `Existe la función ${f}()`);
   }
@@ -1485,6 +1486,67 @@ async function main() {
   )).rows[0];
   ok(tras.estado === 'pausa' && tras.canal_whatsapp === false, 'Desconectar apaga el canal');
   }
+
+  /* El horario se edita desde Ajustes: una semana entera, validada antes de escribir */
+  await db.query(`select set_config('test.uid', $1, false)`, [dueno]);
+
+  const semana = [
+    { dia: 0, abierto: false },
+    { dia: 1, abierto: true, abre: '09:00', cierra: '18:00', descanso_desde: '14:00', descanso_hasta: '15:00' },
+    { dia: 2, abierto: true, abre: '09:00', cierra: '18:00', descanso_desde: '14:00', descanso_hasta: '15:00' },
+    { dia: 3, abierto: true, abre: '09:00', cierra: '18:00' },
+    { dia: 4, abierto: true, abre: '09:00', cierra: '18:00' },
+    { dia: 5, abierto: true, abre: '09:00', cierra: '18:00' },
+    { dia: 6, abierto: true, abre: '10:00', cierra: '14:00' },
+  ];
+  await db.query(`select guardar_horario($1::jsonb)`, [JSON.stringify(semana)]);
+
+  const semanaGuardada = (await db.query(
+    `select dia_semana, abre, cierra, descanso_desde, descanso_hasta
+       from horarios where barberia_id = $1 order by dia_semana`,
+    [barberiaId],
+  )).rows;
+  ok(
+    semanaGuardada.length === 6 && !semanaGuardada.some((r) => r.dia_semana === 0),
+    'guardar_horario() deja solo los días abiertos',
+    `${semanaGuardada.length} días`,
+  );
+  const lunes = semanaGuardada.find((r) => r.dia_semana === 1);
+  ok(
+    Boolean(lunes) && String(lunes.descanso_desde) === '14:00:00',
+    'Y guarda el descanso de cada día',
+  );
+
+  let invertido = false;
+  try {
+    await db.query(
+      `select guardar_horario('[{"dia":1,"abierto":true,"abre":"19:00","cierra":"10:00"}]'::jsonb)`,
+    );
+  } catch {
+    invertido = true;
+  }
+  const trasFallo = (await db.query(
+    `select count(*)::int as n from horarios where barberia_id = $1`,
+    [barberiaId],
+  )).rows[0].n;
+  ok(invertido && trasFallo === 6, 'Un horario inválido se rechaza y no borra el bueno');
+
+  let descansoFuera = false;
+  try {
+    await db.query(
+      `select guardar_horario('[{"dia":2,"abierto":true,"abre":"09:00","cierra":"18:00","descanso_desde":"17:00","descanso_hasta":"19:00"}]'::jsonb)`,
+    );
+  } catch {
+    descansoFuera = true;
+  }
+  ok(descansoFuera, 'El descanso tiene que caber dentro del horario');
+
+  // El domingo cerrado no ofrece ni un hueco, aunque la fecha exista.
+  const domingo = new Date();
+  domingo.setDate(domingo.getDate() + ((7 - domingo.getDay()) % 7 || 7));
+  const fechaDomingo = `${domingo.getFullYear()}-${String(domingo.getMonth() + 1).padStart(2, '0')}-${String(domingo.getDate()).padStart(2, '0')}`;
+  const sinDomingo = (await db.query(`select huecos_publicos('barberia-paco', $1, 30, 30) as h`, [fechaDomingo])).rows[0].h;
+  ok(Array.isArray(sinDomingo) && sinDomingo.length === 0, 'Un día cerrado no ofrece huecos');
 
   await db.close();
 }

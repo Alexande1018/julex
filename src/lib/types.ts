@@ -117,6 +117,23 @@ export interface Silla {
   activa: boolean;
 }
 
+/**
+ * Un día de apertura del local. Solo existen filas de los días abiertos:
+ * si un día no está, el local está cerrado y no ofrece huecos.
+ */
+export interface Horario {
+  id: ID;
+  barberiaId: ID;
+  /** 0 = domingo … 6 = sábado, como lo cuenta Postgres. */
+  dia: number;
+  /** Hora de apertura en formato HH:MM. */
+  abre: string;
+  /** Hora de cierre en formato HH:MM. */
+  cierra: string;
+  descansoDesde: string | null;
+  descansoHasta: string | null;
+}
+
 export interface Cita {
   id: ID;
   barberiaId: ID;
@@ -219,6 +236,7 @@ export interface Db {
   barberias: Barberia[];
   barberos: Barbero[];
   sillas: Silla[];
+  horarios: Horario[];
   servicios: Servicio[];
   clientes: Cliente[];
   llaveros: Llavero[];

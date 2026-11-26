@@ -11,6 +11,7 @@ import type {
   ColaItem,
   Db,
   Evento,
+  Horario,
   Llavero,
   Mensaje,
   Movimiento,
@@ -23,6 +24,9 @@ type Fila = Record<string, any>;
 
 const n = (v: unknown, def = 0): number => (v === null || v === undefined ? def : Number(v));
 const s = (v: unknown, def = ''): string => (v === null || v === undefined ? def : String(v));
+
+/** `time` de Postgres llega como 09:30:00; aquí se queda en 09:30. */
+const hora = (v: unknown): string => (v ? s(v).slice(0, 5).padStart(5, '0') : '');
 
 export function aBarberia(r: Fila): Barberia {
   return {
@@ -61,6 +65,18 @@ export function aSilla(r: Fila): Silla {
     nombre: s(r.nombre),
     orden: Number(r.orden ?? 1),
     activa: r.activa !== false,
+  };
+}
+
+export function aHorario(r: Fila): Horario {
+  return {
+    id: s(r.id),
+    barberiaId: s(r.barberia_id),
+    dia: n(r.dia_semana),
+    abre: hora(r.abre),
+    cierra: hora(r.cierra),
+    descansoDesde: r.descanso_desde ? hora(r.descanso_desde) : null,
+    descansoHasta: r.descanso_hasta ? hora(r.descanso_hasta) : null,
   };
 }
 
@@ -210,6 +226,7 @@ export function dbVacio(barberia: Barberia): Db {
     barberias: [barberia],
     barberos: [],
     sillas: [],
+    horarios: [],
     servicios: [],
     clientes: [],
     llaveros: [],

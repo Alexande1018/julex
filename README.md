@@ -131,7 +131,7 @@ npm run test:e2e
 Si tienes `.env.local`, `npm run build` compila en **modo real** y la suite, que da por hechos los
 datos de demostración, no sirve: usa `build:demo`/`preview:demo` para probar.
 
-Cincuenta y cuatro comprobaciones sobre los flujos que importan: portada, ruta protegida, acceso, cierre de un
+Cincuenta y nueve comprobaciones sobre los flujos que importan: portada, ruta protegida, acceso, cierre de un
 servicio (con el contador de visitas), alta de cliente, tarjeta por token, el código enumerable
 rechazado, reserva, el PIN de la tarjeta (ponerlo, cerrarla, negarlo, abrirla y quitarlo), salida con
 y sin sesión, service worker, manifest y consola limpia. Cada
@@ -148,7 +148,7 @@ npm run test:esquema
 
 Levanta un **PostgreSQL 18 real en WASM** (PGlite), crea los roles y los esquemas `auth`/`storage`
 que Supabase ya trae, aplica las migraciones tal cual y comprueba las reglas del negocio:
-162 comprobaciones sobre el alta del local, las sillas, la coherencia de los llaveros, `atender_cola()` en
+209 comprobaciones sobre el alta del local, las sillas, la coherencia de los llaveros, `atender_cola()` en
 transacción, la recompensa que salta exactamente en la meta, el canje que no borra historial, la
 ficha pública, la disponibilidad real (horario, descansos y bloqueos), la reserva sin dobles, la
 cancelación con sus reglas, la baja del cliente, el PIN de la tarjeta (hash, intentos y bloqueo), el
@@ -438,13 +438,24 @@ Todo esto se ejecuta, muta datos y **sobrevive a recargar** (localStorage `julex
 
 **Reservas**
 - Servicio → día → hora → confirmación, en una sola pantalla.
-- Huecos reales: 10:00–20:00 cada 30 min, sin solapar con citas existentes, respetando la duración del servicio y sin horas pasadas.
+- Huecos reales según el horario del local (por defecto 10:00–20:00 cada 30 min), sin solapar con citas existentes, respetando la duración del servicio y sin horas pasadas.
 - Elige por defecto el primer día con hueco. La cita nace **pendiente** y con su origen (`qr`, `web`, `llavero`, `manual`).
 
 **Agenda, panel y ajustes**
 - Agenda por día con estados y acciones (confirmar, no vino, cancelar, nueva cita manual).
 - Panel: clientes, llaveros activos, citas del mes, ingresos, gráfico de 8 semanas, origen de citas e inactivos +30 días con recordatorio.
-- Ajustes: **logo del local** (subida, recorte automático a 512 px y borrado), nombre, teléfono, dirección, color de marca, meta de fidelización, precios y duraciones, cuota calculada, exportación, reinicio de demo y cierre de sesión.
+- Ajustes: **logo del local** (subida, recorte automático a 512 px y borrado), nombre, teléfono, dirección, color de marca, **horario** (días abiertos, hora de apertura y cierre y descanso, guardado de la semana entera), meta de fidelización, precios y duraciones, cuota calculada, exportación, reinicio de demo y cierre de sesión.
+
+**Horario del local**
+- Es del local, no de cada profesional: una fila de `horarios` por día abierto, con apertura, cierre
+  y un descanso opcional. Un día cerrado es **un día sin fila**, que es como ya lo leían la reserva,
+  la agenda y el asistente.
+- Se edita en Ajustes y se guarda entera de una vez. La validación (cierre después de apertura,
+  descanso dentro del horario) se hace en el cliente y otra vez en `guardar_horario()`.
+- Cambiar el horario no cancela citas: solo cambia lo que se ofrece a partir de ahora.
+- Necesita `supabase/migrations/0040_horario_editable.sql` aplicada **antes** de desplegar la app.
+  Es aditiva (la tabla y sus políticas ya existían), así que la versión anterior sigue funcionando
+  mientras se aplica.
 
 **Consola del creador**
 - Barberías con su cuota, inventario de llaveros (copiar URL del chip, probar), generación de lotes y registro de mensajes.

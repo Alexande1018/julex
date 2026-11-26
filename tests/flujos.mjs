@@ -117,6 +117,27 @@ try {
     (await page.getByText('Administración').count()) === 0,
     'Ni la sección de administración',
   );
+
+  /* 2d. El horario se edita desde Ajustes y se queda guardado */
+  await page.goto(`${BASE}/barbero/ajustes`, { waitUntil: 'networkidle' });
+  ok(
+    await visible(page.getByRole('button', { name: 'Guardar horario' })),
+    'Ajustes ofrece el horario del local',
+  );
+  const cerrarDomingo = page.getByRole('button', { name: 'Cerrar domingo' });
+  ok((await cerrarDomingo.count()) === 1, 'El domingo empieza abierto');
+  await cerrarDomingo.click();
+  ok(await visible(page.getByText('sin guardar')), 'Al tocarlo avisa de que no está guardado');
+  await page.getByRole('button', { name: 'Guardar horario' }).click();
+  const cerrado = await esperarEstado(
+    (d) => Array.isArray(d.horarios) && d.horarios.length === 6 && d.horarios.every((h) => h.dia !== 0),
+  );
+  ok(cerrado, 'Guardar horario cierra el domingo en el almacén');
+  await page.reload({ waitUntil: 'networkidle' });
+  ok(
+    await visible(page.getByRole('button', { name: 'Abrir domingo' })),
+    'El horario sigue cerrado al recargar',
+  );
   await page.goto(`${BASE}/barbero/cola`, { waitUntil: 'networkidle' });
 
   /* 3. Cerrar un servicio */

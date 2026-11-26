@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Circle, Download, LogOut, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useDb } from '../lib/store';
@@ -8,6 +8,7 @@ import {
   actualizarSilla,
   crearServicio,
   crearSilla,
+  guardarHorario,
   quitarSilla,
   reiniciarDemo,
   salir,
@@ -15,6 +16,7 @@ import {
 import { barberiaActiva, cuotaMensual, resumenLlaveros, sillasDe } from '../lib/derive';
 import { TIPOS, vocabulario } from '../lib/vocabulario';
 import type { Barberia } from '../lib/types';
+import { NOMBRE_DIA, horarioSemanal, validarHorario, type DiaHorario } from '../lib/horario';
 import { fmtEuros } from '../lib/format';
 import { Shell } from '../components/Shell';
 import { haySupabase, supabase } from '../lib/supabase';
@@ -43,6 +45,10 @@ const COLORES = [
   { hex: '#20211F', nombre: 'Carbón' },
   { hex: '#6E7B5F', nombre: 'Salvia' },
 ];
+
+/** Los campos de hora del horario, pequeños para que la fila quepa en el móvil. */
+const horaClases =
+  'num w-[74px] shrink-0 rounded-[2px] border border-line bg-paper px-1 py-1 text-center text-[12.5px] text-ink focus:border-ink/40 focus:outline-none';
 
 export default function Ajustes() {
   const db = useDb();
@@ -164,6 +170,36 @@ export default function Ajustes() {
 
   const servicios = db.servicios.filter((s) => s.barberiaId === barberia.id);
   const sillas = sillasDe(db, barberia.id);
+
+  /* El horario se edita en local y se guarda entero: así una semana a medias
+     no llega a la base, y el aviso de «sin guardar» no miente. */
+  const guardado = useMemo(() => horarioSemanal(db, barberia.id), [db.horarios, barberia.id]);
+  const [dias, setDias] = useState<DiaHorario[]>(guardado);
+  const [sucio, setSucio] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    if (!sucio) setDias(guardado);
+  }, [guardado, sucio]);
+
+  const cambiarDia = (dia: number, patch: Partial<DiaHorario>) => {
+    setSucio(true);
+    setDias((prev) => prev.map((d) => (d.dia === dia ? { ...d, ...patch } : d)));
+  };
+
+  const guardarSemana = async () => {
+    const error = validarHorario(dias);
+    if (error) {
+      toast(error, 'aviso');
+      return;
+    }
+    setGuardando(true);
+    try {
+      if (await guardarHorario(dias)) setSucio(false);
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const guardarDatos = () => {
     const m = Math.max(2, Math.min(30, Number(meta) || 10));
@@ -364,6 +400,123 @@ export default function Ajustes() {
           </Btn>
         </div>
       </section>
+
+      <Rule className="my-6" />
+
+      {/* HORARIO */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3">
+          <Eyebrow>Horario</Eyebrow>
+          {sucio && <span className="text-[10.5px] font-semibold text-bronze">sin guardar</span>}
+        </div>
+        <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+          Es lo que se ofrece al reservar. Un día cerrado no da citas y el descanso no se puede
+          coger. Lo que ya esté reservado se queda: se mueve desde la agenda.
+        </p>
+
+        <div className="mt-2">
+          {dias.map((d) => (
+            <div key={d.dia} className="border-b border-line-soft py-2.5">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => cambiarDia(d.dia, { abierto: !d.abierto })}
+                  aria-label={`${d.abierto ? 'Cerrar' : 'Abrir'} ${NOMBRE_DIA[d.dia].toLowerCase()}`}
+                  className={cn(
+                    'shrink-0 rounded-full border p-1 transition-colors',
+                    d.abierto
+                      ? 'border-[var(--brand)] text-[var(--brand)]'
+                      : 'border-line text-faint hover:text-muted',
+                  )}
+                >
+                  {d.abierto ? <Check size={11} /> : <Circle size={11} />}
+                </button>
+
+                <span
+                  className={cn(
+                    'w-[66px] shrink-0 text-[13px]',
+                    d.abierto ? 'text-ink' : 'text-faint',
+                  )}
+                >
+                  {NOMBRE_DIA[d.dia]}
+                </span>
+
+                {d.abierto ? (
+                  <>
+                    <input
+                      type="time"
+                      value={d.abre}
+                      aria-label={`Apertura del ${NOMBRE_DIA[d.dia].toLowerCase()}`}
+                      onChange={(e) => cambiarDia(d.dia, { abre: e.target.value })}
+                      className={horaClases}
+                    />
+                    <span className="text-[11px] text-faint">–</span>
+                    <input
+                      type="time"
+                      value={d.cierra}
+                      aria-label={`Cierre del ${NOMBRE_DIA[d.dia].toLowerCase()}`}
+                      onChange={(e) => cambiarDia(d.dia, { cierra: e.target.value })}
+                      className={horaClases}
+                    />
+                    {!d.descanso && (
+                      <button
+                        onClick={() => cambiarDia(d.dia, { descanso: true })}
+                        aria-label={`Añadir descanso al ${NOMBRE_DIA[d.dia].toLowerCase()}`}
+                        className="ml-auto text-[10.5px] font-semibold text-faint underline decoration-line underline-offset-2 hover:text-ink"
+                      >
+                        Descanso
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-[11.5px] text-faint">Cerrado</span>
+                )}
+              </div>
+
+              {d.abierto && d.descanso && (
+                <div className="mt-1.5 flex items-center gap-2 pl-[30px]">
+                  <span className="w-[66px] shrink-0 text-[11px] text-muted">Descanso</span>
+                  <input
+                    type="time"
+                    value={d.descansoDesde}
+                    aria-label={`Inicio del descanso del ${NOMBRE_DIA[d.dia].toLowerCase()}`}
+                    onChange={(e) => cambiarDia(d.dia, { descansoDesde: e.target.value })}
+                    className={horaClases}
+                  />
+                  <span className="text-[11px] text-faint">–</span>
+                  <input
+                    type="time"
+                    value={d.descansoHasta}
+                    aria-label={`Fin del descanso del ${NOMBRE_DIA[d.dia].toLowerCase()}`}
+                    onChange={(e) => cambiarDia(d.dia, { descansoHasta: e.target.value })}
+                    className={horaClases}
+                  />
+                  <button
+                    onClick={() => cambiarDia(d.dia, { descanso: false })}
+                    aria-label={`Quitar el descanso del ${NOMBRE_DIA[d.dia].toLowerCase()}`}
+                    className="ml-auto text-[10.5px] font-semibold text-faint underline decoration-line underline-offset-2 hover:text-ink"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <Btn
+          t="md"
+          className="mt-3 w-full"
+          disabled={!sucio || guardando}
+          onClick={() => void guardarSemana()}
+        >
+          {guardando ? 'Guardando…' : 'Guardar horario'}
+        </Btn>
+        <p className="mt-2 text-[10.5px] text-faint">
+          Cambiar el horario no cancela citas: solo cambia lo que se ofrece a partir de ahora.
+        </p>
+      </section>
+
+      <Rule className="my-6" />
 
       {/* SERVICIOS */}
       <section>

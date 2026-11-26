@@ -13,9 +13,10 @@ import type {
   Visita,
 } from './types';
 import { addDays, addMinutes, startOfDay } from './format';
+import { ORDEN_SEMANA } from './horario';
 
 /** Súbelo cuando cambie la forma del seed: invalida el almacenamiento viejo. */
-export const SEED_VERSION = 8;
+export const SEED_VERSION = 9;
 
 const BARBERIA = 'b_pablo';
 const BARBERO = 'u_pablo';
@@ -460,6 +461,15 @@ export function buildSeed(): Db {
       { id: 'silla-1', barberiaId: barberia.id, nombre: 'Silla 1', orden: 1, activa: true },
       { id: 'silla-2', barberiaId: barberia.id, nombre: 'Silla 2', orden: 2, activa: true },
     ],
+    horarios: ORDEN_SEMANA.map((dia) => ({
+      id: `hr_${dia}`,
+      barberiaId: barberia.id,
+      dia,
+      abre: '10:00',
+      cierra: '20:00',
+      descansoDesde: null,
+      descansoHasta: null,
+    })),
     servicios,
     clientes,
     llaveros,
