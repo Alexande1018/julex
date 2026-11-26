@@ -606,6 +606,54 @@ async function main() {
   const publico = await db.query(`select local_publico('salon-luna') as l`);
   ok(publico.rows[0].l?.tipo === 'tatuaje', 'El tipo sale en el local público');
 
+  /* Los diez oficios: cada uno nace con su puesto y sus tres servicios  */
+  const oficios = [
+    ['barberia',   'Silla 1',    'Corte + barba'],
+    ['peluqueria', 'Puesto 1',   'Color'],
+    ['unas',       'Mesa 1',     'Manicura'],
+    ['tatuaje',    'Estación 1', 'Sesión media'],
+    ['estetica',   'Cabina 1',   'Limpieza facial'],
+    ['depilacion', 'Cabina 1',   'Zona completa'],
+    ['canina',     'Mesa 1',     'Baño y corte'],
+    ['masaje',     'Camilla 1',  'Descontracturante'],
+    ['auto',       'Bahía 1',    'Detailing'],
+    ['otro',       'Puesto 1',   'Servicio completo'],
+  ];
+
+  const cuantos = await db.query(
+    `select count(*)::int as n from unnest(enum_range(null::tipo_negocio))`,
+  );
+  ok(cuantos.rows[0].n === 10, 'El enum tiene los diez oficios', `${cuantos.rows[0].n}`);
+
+  const prueba = await db.query(
+    `insert into barberias (nombre, slug) values ('Prueba oficios', 'prueba-oficios') returning id`,
+  );
+  const pruebaId = prueba.rows[0].id;
+
+  for (const [tipo, puesto, servicio] of oficios) {
+    await db.query(`delete from servicios where barberia_id = $1`, [pruebaId]);
+    await db.query(`delete from sillas where barberia_id = $1`, [pruebaId]);
+    await db.query(`select sembrar_local($1, $2::tipo_negocio)`, [pruebaId, tipo]);
+    const siembra = await db.query(
+      `select
+         (select nombre from sillas where barberia_id = $1 order by orden limit 1) as puesto,
+         (select count(*)::int from servicios where barberia_id = $1) as cuantos,
+         (select string_agg(nombre, ' · ' order by orden) from servicios where barberia_id = $1) as lista`,
+      [pruebaId],
+    );
+    const s = siembra.rows[0];
+    ok(
+      s.puesto === puesto && s.cuantos === 3 && s.lista.includes(servicio),
+      `El oficio ${tipo} nace con su puesto y sus tres servicios`,
+      `${s.puesto} · ${s.lista}`,
+    );
+  }
+
+  // La barbería de prueba no se queda en la base.
+  await db.query(`delete from servicios where barberia_id = $1`, [pruebaId]);
+  await db.query(`delete from sillas where barberia_id = $1`, [pruebaId]);
+  await db.query(`delete from barberias where id = $1`, [pruebaId]);
+
   /* ------------------------------------------------------------------ */
   /* Baja: solicitud, bandeja y resolución                              */
   /* ------------------------------------------------------------------ */

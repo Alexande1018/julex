@@ -85,7 +85,12 @@ export default function AltaNegocio() {
           password_corta: 'La contraseña necesita 8 caracteres.',
           direccion_incompleta: 'Faltan la dirección o la ciudad de envío.',
         };
-        toast(mapa[error.message] ?? error.message, 'aviso');
+        // Si la base todavía no conoce el oficio, se dice claro en vez de
+        // enseñar el error de Postgres: pasa hasta que se aplica la migración.
+        const aviso = error.message.startsWith('invalid input value for enum')
+          ? 'Ese oficio todavía no está activo. Elige otro y cámbialo después en Ajustes.'
+          : mapa[error.message] ?? error.message;
+        toast(aviso, 'aviso');
         return;
       }
 

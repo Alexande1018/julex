@@ -13,7 +13,17 @@ export interface Servicio {
 }
 
 /** Sector del local. Cambia el vocabulario de la app, no el modelo. */
-export type TipoNegocio = 'barberia' | 'peluqueria' | 'unas' | 'tatuaje';
+export type TipoNegocio =
+  | 'barberia'
+  | 'peluqueria'
+  | 'unas'
+  | 'tatuaje'
+  | 'estetica'
+  | 'depilacion'
+  | 'canina'
+  | 'masaje'
+  | 'auto'
+  | 'otro';
 
 export interface Barberia {
   id: ID;
@@ -25,7 +35,7 @@ export interface Barberia {
   /** Data URL del logo (se guarda en el navegador, ya reducido). */
   logo: string | null;
   fidelidadMeta: number;
-  /** Barbería, peluquería, salón de uñas o estudio de tatuaje. */
+  /** Barbería, peluquería, salón de uñas, centro de estética… */
   tipo: TipoNegocio;
   /** Domicilio que se publica en su página legal. Puede ser solo la ciudad. */
   domicilioLegal: string;

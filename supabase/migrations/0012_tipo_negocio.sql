@@ -8,12 +8,21 @@
 --
 -- Lo elige el administrador al crear el local y el propio local
 -- puede cambiarlo después en Ajustes.
+--
+-- El enum nace con los diez oficios para que `aplicar_todo.sql` se
+-- pueda pegar de una vez en un proyecto nuevo. Los valores que se
+-- añadieron después de la primera puesta en marcha llevan además su
+-- `alter type` en `0041_tipos_negocio.sql`, que es lo que se aplica
+-- sobre una base que ya existe.
 -- ============================================================
 
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'tipo_negocio') then
-    create type tipo_negocio as enum ('barberia', 'peluqueria', 'unas', 'tatuaje');
+    create type tipo_negocio as enum (
+      'barberia', 'peluqueria', 'unas', 'tatuaje',
+      'estetica', 'depilacion', 'canina', 'masaje', 'auto', 'otro'
+    );
   end if;
 end $$;
 

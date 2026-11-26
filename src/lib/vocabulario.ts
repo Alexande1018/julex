@@ -2,12 +2,17 @@
  * El vocabulario de cada tipo de negocio.
  *
  * La entidad `barberias` sirve igual para una barbería, una peluquería, un
- * salón de uñas o un estudio de tatuaje. Lo que cambia no es el modelo, es
+ * salón de uñas o un centro de estética. Lo que cambia no es el modelo, es
  * cómo se llama cada cosa en pantalla. Este módulo es el único sitio donde
  * viven esos nombres: ninguna pantalla debería escribir «sillón» a mano.
  *
  * Los servicios, precios, duraciones y puestos siguen siendo datos de cada
  * local: esto solo cambia las etiquetas y los valores con los que nace.
+ *
+ * Un oficio entra aquí solo si cambia al menos dos de estas cuatro cosas:
+ * cómo se llama el puesto, cómo se llama el servicio, qué se apunta en la
+ * ficha del cliente y con qué servicios nace. Si no cambia nada de eso, es
+ * una etiqueta comercial, no un oficio.
  */
 
 import type { TipoNegocio } from './types';
@@ -115,6 +120,114 @@ export const VOCABULARIO: Record<TipoNegocio, Vocabulario> = {
     servicios: 'Sesiones',
     serviciosMin: 'sesiones',
   },
+  estetica: {
+    tipo: 'estetica',
+    etiqueta: 'Centro de estética',
+    cola: 'Citas',
+    navCola: 'Citas',
+    colaMin: 'citas',
+    puesto: 'Cabina',
+    puestoMin: 'cabina',
+    puestos: 'Cabinas',
+    enPuesto: 'En cabina',
+    puestoOcupado: 'Cabina ocupada',
+    pasarAPuesto: 'Pasar a la cabina',
+    comoAtiende: 'Tipo de piel y preferencias',
+    servicio: 'Tratamiento',
+    servicioMin: 'tratamiento',
+    servicios: 'Tratamientos',
+    serviciosMin: 'tratamientos',
+  },
+  depilacion: {
+    tipo: 'depilacion',
+    etiqueta: 'Centro de depilación',
+    cola: 'Citas',
+    navCola: 'Citas',
+    colaMin: 'citas',
+    puesto: 'Cabina',
+    puestoMin: 'cabina',
+    puestos: 'Cabinas',
+    enPuesto: 'En cabina',
+    puestoOcupado: 'Cabina ocupada',
+    pasarAPuesto: 'Pasar a la cabina',
+    comoAtiende: 'Zonas y tolerancia',
+    servicio: 'Sesión',
+    servicioMin: 'sesión',
+    servicios: 'Sesiones',
+    serviciosMin: 'sesiones',
+  },
+  canina: {
+    tipo: 'canina',
+    etiqueta: 'Peluquería canina',
+    cola: 'Citas',
+    navCola: 'Citas',
+    colaMin: 'citas',
+    puesto: 'Mesa',
+    puestoMin: 'mesa',
+    puestos: 'Mesas',
+    enPuesto: 'En mesa',
+    puestoOcupado: 'Mesa ocupada',
+    pasarAPuesto: 'Pasar a la mesa',
+    comoAtiende: 'Ficha del perro',
+    servicio: 'Servicio',
+    servicioMin: 'servicio',
+    servicios: 'Servicios',
+    serviciosMin: 'servicios',
+  },
+  masaje: {
+    tipo: 'masaje',
+    etiqueta: 'Centro de bienestar',
+    cola: 'Citas',
+    navCola: 'Citas',
+    colaMin: 'citas',
+    puesto: 'Camilla',
+    puestoMin: 'camilla',
+    puestos: 'Camillas',
+    enPuesto: 'En camilla',
+    puestoOcupado: 'Camilla ocupada',
+    pasarAPuesto: 'Pasar a la camilla',
+    comoAtiende: 'Zonas y presión',
+    servicio: 'Sesión',
+    servicioMin: 'sesión',
+    servicios: 'Sesiones',
+    serviciosMin: 'sesiones',
+  },
+  auto: {
+    tipo: 'auto',
+    etiqueta: 'Lavado y estética del auto',
+    cola: 'La cola',
+    navCola: 'Cola',
+    colaMin: 'cola',
+    puesto: 'Bahía',
+    puestoMin: 'bahía',
+    puestos: 'Bahías',
+    enPuesto: 'En bahía',
+    puestoOcupado: 'Bahía ocupada',
+    pasarAPuesto: 'Pasar a la bahía',
+    comoAtiende: 'Ficha del vehículo',
+    servicio: 'Lavado',
+    servicioMin: 'lavado',
+    servicios: 'Lavados',
+    serviciosMin: 'lavados',
+  },
+  otro: {
+    tipo: 'otro',
+    etiqueta: 'Otros servicios',
+    cola: 'Citas',
+    navCola: 'Citas',
+    colaMin: 'citas',
+    puesto: 'Puesto',
+    puestoMin: 'puesto',
+    puestos: 'Puestos',
+    enPuesto: 'En puesto',
+    puestoOcupado: 'Puesto ocupado',
+    pasarAPuesto: 'Pasar al puesto',
+    comoAtiende: 'Notas del cliente',
+    servicio: 'Servicio',
+    servicioMin: 'servicio',
+    servicios: 'Servicios',
+    serviciosMin: 'servicios',
+  },
 };
 
 /** Nunca falla: sin tipo, se comporta como una barbería (el caso de siempre). */
@@ -122,9 +235,19 @@ export function vocabulario(tipo: TipoNegocio | undefined | null): Vocabulario {
   return VOCABULARIO[tipo ?? 'barberia'] ?? VOCABULARIO.barberia;
 }
 
+/**
+ * Los oficios en el orden en que se ofrecen. Los cuatro primeros son los de
+ * siempre, para que el selector no cambie de sitio a quien ya lo conocía.
+ */
 export const TIPOS: { tipo: TipoNegocio; etiqueta: string }[] = [
   { tipo: 'barberia', etiqueta: 'Barbería' },
   { tipo: 'peluqueria', etiqueta: 'Peluquería' },
   { tipo: 'unas', etiqueta: 'Salón de uñas' },
   { tipo: 'tatuaje', etiqueta: 'Estudio de tatuaje' },
+  { tipo: 'estetica', etiqueta: 'Centro de estética' },
+  { tipo: 'depilacion', etiqueta: 'Centro de depilación' },
+  { tipo: 'canina', etiqueta: 'Peluquería canina' },
+  { tipo: 'masaje', etiqueta: 'Centro de bienestar' },
+  { tipo: 'auto', etiqueta: 'Lavado y estética del auto' },
+  { tipo: 'otro', etiqueta: 'Otros servicios' },
 ];

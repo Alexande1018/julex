@@ -1,8 +1,8 @@
 # JULEX
 
 Herramienta para negocios con llavero NFC: la cola o la agenda del día, la ficha de cada cliente y su
-tarjeta de socio. Sirve igual para una barbería, una peluquería, un salón de uñas o un estudio de
-tatuaje, y cambia su vocabulario según el tipo de local.
+tarjeta de socio. Sirve igual para una barbería, un salón de uñas, un centro de estética o un lavadero
+de coches, y cambia su vocabulario según el oficio del local.
 **Estado: en producción.** Supabase real en Frankfurt, cobro con Stripe, asistente conversacional y
 publicación en Cloudflare Pages. Cada `git push` a `main` construye y publica desde GitHub Actions;
 `scripts/desplegar.sh` queda como respaldo manual.
@@ -382,17 +382,29 @@ después puede cambiarlo él desde la ficha del local, o el propio local desde A
 | `peluqueria` | La agenda | Puesto | Preferencias de estilo |
 | `unas` | Citas | Mesa | Diseño y preferencias |
 | `tatuaje` | Citas | Estación | Diseño y notas del proyecto |
+| `estetica` | Citas | Cabina | Tipo de piel y preferencias |
+| `depilacion` | Citas | Cabina | Zonas y tolerancia |
+| `canina` | Citas | Mesa | Ficha del perro |
+| `masaje` | Citas | Camilla | Zonas y presión |
+| `auto` | La cola | Bahía | Ficha del vehículo |
+| `otro` | Citas | Puesto | Notas del cliente |
 
 El tipo también decide **con qué nace el local**: el nombre de su primer puesto y sus tres servicios
 de partida. Una barbería arranca con Corte, Corte + barba y Niño; un salón de uñas, con Manicura,
-Pedicura y Semipermanente; un estudio de tatuaje, con tres tamaños de sesión.
+Pedicura y Semipermanente; un lavadero, con Lavado, Lavado + aspirado y Detailing.
 
 Lo que **no** cambia: los servicios, precios, duraciones y puestos son datos de cada local y se
 editan en Ajustes. Una peluquería puede trabajar con cola y un estudio puede renombrar sus mesas.
 El tipo solo cambia el vocabulario y los valores iniciales.
 
+Un oficio entra en la lista solo si cambia al menos dos de estas cuatro cosas: cómo se llama el
+puesto, cómo se llama el servicio, qué se apunta en la ficha del cliente y con qué servicios nace.
+Si no cambia nada de eso, es una etiqueta comercial, no un oficio.
+
 Está en `barberias.tipo` (enumerado `tipo_negocio`), en `src/lib/vocabulario.ts` —el único sitio con
-las etiquetas— y en `sembrar_local()`, que siembra el puesto y los servicios de partida.
+las etiquetas— y en `sembrar_local()`, que siembra el puesto y los servicios de partida. Los oficios
+que se añadieron después de la primera puesta en marcha llevan su `alter type` en
+`supabase/migrations/0041_tipos_negocio.sql`.
 
 ---
 

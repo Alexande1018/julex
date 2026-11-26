@@ -173,9 +173,9 @@ const GRUPOS = [
       },
       {
         Icon: Users,
-        titulo: 'Cuatro oficios',
+        titulo: 'Diez oficios',
         texto:
-          'Barbería, peluquería, salón de uñas o estudio de tatuaje: cambia el vocabulario y los servicios de partida.',
+          'De la barbería al lavadero de coches: el oficio cambia el vocabulario y los servicios de partida.',
       },
       {
         Icon: CreditCard,
@@ -241,7 +241,7 @@ const PREGUNTAS = [
   },
   {
     q: '¿Sirve para mi oficio?',
-    a: 'Está pensado para barbería, peluquería, salón de uñas y estudio de tatuaje. Al crear el local eliges el oficio y cambian las palabras y los servicios de partida.',
+    a: 'Está pensado para diez oficios: barbería, peluquería, salón de uñas, estudio de tatuaje, centro de estética, centro de depilación, peluquería canina, centro de bienestar, lavado y estética del automóvil, y otros servicios. Al crear el local eliges el oficio y cambian las palabras y los servicios de partida.',
   },
   {
     q: '¿Qué cuesta?',
@@ -385,28 +385,33 @@ export default function Funciones() {
 
         {/* Oficios */}
         <section className="mt-14 rounded-[4px] border border-line bg-paper px-6 py-7">
-          <Eyebrow>Un mismo JULEX, cuatro oficios</Eyebrow>
+          <Eyebrow>Un mismo JULEX, diez oficios</Eyebrow>
           <p className="mt-2 max-w-[58ch] text-[13px] leading-relaxed text-muted">
             Eliges el oficio al crear el local y cambian las palabras y los servicios de partida. Lo demás
             —fichas, llaveros, citas— es lo mismo.
           </p>
-          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <ul className="mt-5 grid gap-x-8 sm:grid-cols-2">
             {[
-              { nombre: 'Barbería', img: '/img/oficios/barberia.webp' },
-              { nombre: 'Peluquería', img: '/img/oficios/peluqueria.webp' },
-              { nombre: 'Salón de uñas', img: '/img/oficios/unas.webp' },
-              { nombre: 'Estudio de tatuaje', img: '/img/oficios/tatuaje.webp' },
+              { n: '01', nombre: 'Barbería', puesto: 'Sillón' },
+              { n: '02', nombre: 'Peluquería', puesto: 'Puesto' },
+              { n: '03', nombre: 'Salón de uñas', puesto: 'Mesa' },
+              { n: '04', nombre: 'Estudio de tatuaje', puesto: 'Estación' },
+              { n: '05', nombre: 'Centro de estética', puesto: 'Cabina' },
+              { n: '06', nombre: 'Centro de depilación', puesto: 'Cabina' },
+              { n: '07', nombre: 'Peluquería canina', puesto: 'Mesa' },
+              { n: '08', nombre: 'Centro de bienestar', puesto: 'Camilla' },
+              { n: '09', nombre: 'Lavado y estética del auto', puesto: 'Bahía' },
+              { n: '10', nombre: 'Otros servicios', puesto: 'Puesto' },
             ].map((o) => (
-              <figure key={o.nombre}>
-                <div className="aspect-[4/5] overflow-hidden rounded-[2px] bg-paper-2">
-                  <img src={o.img} alt={o.nombre} className="h-full w-full object-cover" loading="lazy" />
-                </div>
-                <figcaption className="mt-2.5 font-serif text-[17px] leading-tight text-ink">
-                  {o.nombre}
-                </figcaption>
-              </figure>
+              <li key={o.nombre} className="flex items-baseline gap-3 border-t border-line py-2.5">
+                <span className="num text-[10px] tracking-[0.14em] text-faint">{o.n}</span>
+                <span className="font-serif text-[16px] leading-tight text-ink">{o.nombre}</span>
+                <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+                  {o.puesto}
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
 
         {/* Pasos */}

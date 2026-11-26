@@ -11,26 +11,16 @@ const ENTRADAS = [
 ];
 
 const OFICIOS = [
-  {
-    nombre: 'Barbería',
-    imagen: '/img/oficios/barberia.webp',
-    alt: 'Barbero afeitando a un cliente en un sillón clásico',
-  },
-  {
-    nombre: 'Peluquería',
-    imagen: '/img/oficios/peluqueria.webp',
-    alt: 'Peluquera secando el pelo a una clienta con secador y cepillo',
-  },
-  {
-    nombre: 'Salón de uñas',
-    imagen: '/img/oficios/unas.webp',
-    alt: 'Manicura pintando las uñas de una clienta con un pincel',
-  },
-  {
-    nombre: 'Estudio de tatuaje',
-    imagen: '/img/oficios/tatuaje.webp',
-    alt: 'Tatuadora trabajando en el brazo de un cliente',
-  },
+  { n: '01', nombre: 'Barbería', puesto: 'Sillón' },
+  { n: '02', nombre: 'Peluquería', puesto: 'Puesto' },
+  { n: '03', nombre: 'Salón de uñas', puesto: 'Mesa' },
+  { n: '04', nombre: 'Estudio de tatuaje', puesto: 'Estación' },
+  { n: '05', nombre: 'Centro de estética', puesto: 'Cabina' },
+  { n: '06', nombre: 'Centro de depilación', puesto: 'Cabina' },
+  { n: '07', nombre: 'Peluquería canina', puesto: 'Mesa' },
+  { n: '08', nombre: 'Centro de bienestar', puesto: 'Camilla' },
+  { n: '09', nombre: 'Lavado y estética del auto', puesto: 'Bahía' },
+  { n: '10', nombre: 'Otros servicios', puesto: 'Puesto' },
 ];
 
 const PASOS = [
@@ -75,7 +65,7 @@ export default function Landing() {
               Funciones
             </Link>
             <span className="hidden text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:inline">
-              Barbería · peluquería · uñas · tatuaje
+              Diez oficios · una herramienta
             </span>
             {!haySupabase && <Pill tono="warn">Demo</Pill>}
           </div>
@@ -89,9 +79,10 @@ export default function Landing() {
               <span className="display-i text-[var(--brand)]"> con citas.</span>
             </h1>
             <p className="mt-6 max-w-[52ch] text-[14.5px] leading-relaxed text-ink-soft">
-              Julex ayuda a barberías, peluquerías, salones de uñas y estudios de tatuaje a llevar su
-              negocio y a ofrecer una experiencia que invita a volver. Una nueva forma de organizar el
-              día, conocer a tus clientes y hacer crecer la relación con cada visita.
+              Julex ayuda a los negocios que atienden con cita o con cola —de la barbería al lavadero
+              de coches— a llevar su negocio y a ofrecer una experiencia que invita a volver. Una nueva
+              forma de organizar el día, conocer a tus clientes y hacer crecer la relación con cada
+              visita.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-2">
@@ -168,28 +159,26 @@ export default function Landing() {
         {/* OFICIOS */}
         <section className="mt-12 lg:mt-16">
           <div className="flex items-baseline justify-between gap-4">
-            <Eyebrow>Un mismo JULEX, cuatro oficios</Eyebrow>
-            <span className="num text-[10.5px] tracking-[0.14em] text-faint">01 — 04</span>
+            <Eyebrow>Un mismo JULEX, diez oficios</Eyebrow>
+            <span className="num text-[10.5px] tracking-[0.14em] text-faint">01 — 10</span>
           </div>
           <p className="mt-3 max-w-[58ch] text-[12.5px] leading-relaxed text-muted">
-            Eliges el tipo al crear el local y JULEX cambia sus palabras y su manera de trabajar: la
-            cola o la agenda, el sillón o la mesa, cómo corta o el diseño del proyecto. Los servicios,
-            los precios y los puestos los pones tú; el oficio decide el vocabulario, no lo que puedes
-            hacer.
+            Eliges el oficio al crear el local y JULEX cambia sus palabras: la cola o la agenda, el
+            sillón, la cabina o la bahía, cómo corta o la ficha del perro. Los servicios, los precios y
+            los puestos los pones tú; el oficio decide el vocabulario, no lo que puedes hacer.
           </p>
 
-          <div className="mt-6 grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-6 grid gap-x-8 sm:grid-cols-2">
             {OFICIOS.map((o) => (
-              <figure key={o.nombre}>
-                <div className="aspect-[4/5] overflow-hidden rounded-[2px] bg-paper-2">
-                  <Foto src={o.imagen} alt={o.alt} />
-                </div>
-                <figcaption className="mt-2.5">
-                  <p className="font-serif text-[18px] leading-tight text-ink">{o.nombre}</p>
-                </figcaption>
-              </figure>
+              <li key={o.nombre} className="flex items-baseline gap-3 border-t border-line py-3">
+                <span className="num text-[10px] tracking-[0.14em] text-faint">{o.n}</span>
+                <span className="font-serif text-[17px] leading-tight text-ink">{o.nombre}</span>
+                <span className="ml-auto text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted">
+                  {o.puesto}
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
 
         {/* MANIFIESTO */}

@@ -96,16 +96,12 @@ export function Creditos() {
 
       <Seccion titulo="Ilustraciones generadas con IA">
         <p>
-          La imagen de portada y las cuatro de los oficios se generaron con inteligencia artificial
-          para JULEX, se recortaron y se revelaron en el mismo duotono. No se les atribuye una
-          exclusividad jurídica que no esté verificada.
+          La imagen de portada se generó con inteligencia artificial para JULEX, se recortó y se
+          reveló en duotono. Las cuatro ilustraciones de oficios de las primeras versiones
+          —barbería, peluquería, salón de uñas y estudio de tatuaje— se generaron igual y siguen en el
+          archivo de marca. No se les atribuye una exclusividad jurídica que no esté verificada.
         </p>
-        <Lista
-          items={[
-            'Portada: cuaderno de citas y llavero JULEX.',
-            'Oficios: barbería, peluquería, salón de uñas y estudio de tatuaje.',
-          ]}
-        />
+        <Lista items={['Portada: cuaderno de citas y llavero JULEX.']} />
       </Seccion>
 
       <Seccion titulo="Tipografía y software">
