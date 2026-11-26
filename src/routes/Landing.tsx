@@ -162,11 +162,6 @@ export default function Landing() {
             <Eyebrow>Un mismo JULEX, diez oficios</Eyebrow>
             <span className="num text-[10.5px] tracking-[0.14em] text-faint">01 — 10</span>
           </div>
-          <p className="mt-3 max-w-[58ch] text-[12.5px] leading-relaxed text-muted">
-            Eliges el oficio al crear el local y JULEX cambia sus palabras: la cola o la agenda, el
-            sillón, la cabina o la bahía, cómo corta o la ficha del perro. Los servicios, los precios y
-            los puestos los pones tú; el oficio decide el vocabulario, no lo que puedes hacer.
-          </p>
 
           <ul className="mt-6 grid gap-x-8 sm:grid-cols-2">
             {OFICIOS.map((o) => (
