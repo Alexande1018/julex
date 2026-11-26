@@ -606,7 +606,7 @@ async function main() {
   const publico = await db.query(`select local_publico('salon-luna') as l`);
   ok(publico.rows[0].l?.tipo === 'tatuaje', 'El tipo sale en el local público');
 
-  /* Los diez oficios: cada uno nace con su puesto y sus tres servicios  */
+  /* Los once oficios: cada uno nace con su puesto y sus tres servicios */
   const oficios = [
     ['barberia',   'Silla 1',    'Corte + barba'],
     ['peluqueria', 'Puesto 1',   'Color'],
@@ -615,15 +615,16 @@ async function main() {
     ['estetica',   'Cabina 1',   'Limpieza facial'],
     ['depilacion', 'Cabina 1',   'Zona completa'],
     ['canina',     'Mesa 1',     'Baño y corte'],
-    ['masaje',     'Camilla 1',  'Descontracturante'],
+    ['spa',        'Camilla 1',  'Descontracturante'],
     ['auto',       'Bahía 1',    'Detailing'],
+    ['taller',     'Box 1',      'Cambio de aceite'],
     ['otro',       'Puesto 1',   'Servicio completo'],
   ];
 
   const cuantos = await db.query(
     `select count(*)::int as n from unnest(enum_range(null::tipo_negocio))`,
   );
-  ok(cuantos.rows[0].n === 10, 'El enum tiene los diez oficios', `${cuantos.rows[0].n}`);
+  ok(cuantos.rows[0].n === 11, 'El enum tiene los once oficios', `${cuantos.rows[0].n}`);
 
   const prueba = await db.query(
     `insert into barberias (nombre, slug) values ('Prueba oficios', 'prueba-oficios') returning id`,

@@ -385,8 +385,9 @@ después puede cambiarlo él desde la ficha del local, o el propio local desde A
 | `estetica` | Citas | Cabina | Tipo de piel y preferencias |
 | `depilacion` | Citas | Cabina | Zonas y tolerancia |
 | `canina` | Citas | Mesa | Ficha del perro |
-| `masaje` | Citas | Camilla | Zonas y presión |
+| `spa` | Citas | Camilla | Preferencias y alergias |
 | `auto` | La cola | Bahía | Ficha del vehículo |
+| `taller` | Citas | Box | Ficha del vehículo |
 | `otro` | Citas | Puesto | Notas del cliente |
 
 El tipo también decide **con qué nace el local**: el nombre de su primer puesto y sus tres servicios

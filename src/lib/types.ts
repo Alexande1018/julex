@@ -21,8 +21,9 @@ export type TipoNegocio =
   | 'estetica'
   | 'depilacion'
   | 'canina'
-  | 'masaje'
+  | 'spa'
   | 'auto'
+  | 'taller'
   | 'otro';
 
 export interface Barberia {

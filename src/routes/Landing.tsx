@@ -18,9 +18,10 @@ const OFICIOS = [
   { n: '05', nombre: 'Centro de estética' },
   { n: '06', nombre: 'Centro de depilación' },
   { n: '07', nombre: 'Peluquería canina' },
-  { n: '08', nombre: 'Centro de bienestar' },
+  { n: '08', nombre: 'Spa' },
   { n: '09', nombre: 'Lavado y estética del auto' },
-  { n: '10', nombre: 'Otros servicios' },
+  { n: '10', nombre: 'Taller mecánico' },
+  { n: '11', nombre: 'Otros servicios' },
 ];
 
 const PASOS = [
@@ -64,9 +65,6 @@ export default function Landing() {
             >
               Funciones
             </Link>
-            <span className="hidden text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:inline">
-              Diez oficios · una herramienta
-            </span>
             {!haySupabase && <Pill tono="warn">Demo</Pill>}
           </div>
         </header>
@@ -159,8 +157,8 @@ export default function Landing() {
         {/* OFICIOS */}
         <section className="mt-12 lg:mt-16">
           <div className="flex items-baseline justify-between gap-4">
-            <Eyebrow>Un mismo JULEX, diez oficios</Eyebrow>
-            <span className="num text-[10.5px] tracking-[0.14em] text-faint">01 — 10</span>
+            <Eyebrow>Un mismo JULEX, once oficios</Eyebrow>
+            <span className="num text-[10.5px] tracking-[0.14em] text-faint">01 — 11</span>
           </div>
 
           <ul className="mt-6 grid gap-x-8 sm:grid-cols-2">

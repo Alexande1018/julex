@@ -173,9 +173,9 @@ const GRUPOS = [
       },
       {
         Icon: Users,
-        titulo: 'Diez oficios',
+        titulo: 'Once oficios',
         texto:
-          'De la barbería al lavadero de coches: el oficio cambia el vocabulario y los servicios de partida.',
+          'De la barbería al taller mecánico: el oficio cambia el vocabulario y los servicios de partida.',
       },
       {
         Icon: CreditCard,
@@ -241,7 +241,7 @@ const PREGUNTAS = [
   },
   {
     q: '¿Sirve para mi oficio?',
-    a: 'Está pensado para diez oficios: barbería, peluquería, salón de uñas, estudio de tatuaje, centro de estética, centro de depilación, peluquería canina, centro de bienestar, lavado y estética del automóvil, y otros servicios. Al crear el local eliges el oficio y cambian las palabras y los servicios de partida.',
+    a: 'Está pensado para once oficios: barbería, peluquería, salón de uñas, estudio de tatuaje, centro de estética, centro de depilación, peluquería canina, spa, lavado y estética del automóvil, taller mecánico y otros servicios. Al crear el local eliges el oficio y cambian las palabras y los servicios de partida.',
   },
   {
     q: '¿Qué cuesta?',
@@ -385,7 +385,7 @@ export default function Funciones() {
 
         {/* Oficios */}
         <section className="mt-14 rounded-[4px] border border-line bg-paper px-6 py-7">
-          <Eyebrow>Un mismo JULEX, diez oficios</Eyebrow>
+          <Eyebrow>Un mismo JULEX, once oficios</Eyebrow>
           <p className="mt-2 max-w-[58ch] text-[13px] leading-relaxed text-muted">
             Eliges el oficio al crear el local y cambian las palabras y los servicios de partida. Lo demás
             —fichas, llaveros, citas— es lo mismo.
@@ -399,9 +399,10 @@ export default function Funciones() {
               { n: '05', nombre: 'Centro de estética' },
               { n: '06', nombre: 'Centro de depilación' },
               { n: '07', nombre: 'Peluquería canina' },
-              { n: '08', nombre: 'Centro de bienestar' },
+              { n: '08', nombre: 'Spa' },
               { n: '09', nombre: 'Lavado y estética del auto' },
-              { n: '10', nombre: 'Otros servicios' },
+              { n: '10', nombre: 'Taller mecánico' },
+              { n: '11', nombre: 'Otros servicios' },
             ].map((o) => (
               <li key={o.nombre} className="flex items-baseline gap-3 border-t border-line py-2.5">
                 <span className="num text-[10px] tracking-[0.14em] text-faint">{o.n}</span>
