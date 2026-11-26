@@ -392,23 +392,20 @@ export default function Funciones() {
           </p>
           <ul className="mt-5 grid gap-x-8 sm:grid-cols-2">
             {[
-              { n: '01', nombre: 'Barbería', puesto: 'Sillón' },
-              { n: '02', nombre: 'Peluquería', puesto: 'Puesto' },
-              { n: '03', nombre: 'Salón de uñas', puesto: 'Mesa' },
-              { n: '04', nombre: 'Estudio de tatuaje', puesto: 'Estación' },
-              { n: '05', nombre: 'Centro de estética', puesto: 'Cabina' },
-              { n: '06', nombre: 'Centro de depilación', puesto: 'Cabina' },
-              { n: '07', nombre: 'Peluquería canina', puesto: 'Mesa' },
-              { n: '08', nombre: 'Centro de bienestar', puesto: 'Camilla' },
-              { n: '09', nombre: 'Lavado y estética del auto', puesto: 'Bahía' },
-              { n: '10', nombre: 'Otros servicios', puesto: 'Puesto' },
+              { n: '01', nombre: 'Barbería' },
+              { n: '02', nombre: 'Peluquería' },
+              { n: '03', nombre: 'Salón de uñas' },
+              { n: '04', nombre: 'Estudio de tatuaje' },
+              { n: '05', nombre: 'Centro de estética' },
+              { n: '06', nombre: 'Centro de depilación' },
+              { n: '07', nombre: 'Peluquería canina' },
+              { n: '08', nombre: 'Centro de bienestar' },
+              { n: '09', nombre: 'Lavado y estética del auto' },
+              { n: '10', nombre: 'Otros servicios' },
             ].map((o) => (
               <li key={o.nombre} className="flex items-baseline gap-3 border-t border-line py-2.5">
                 <span className="num text-[10px] tracking-[0.14em] text-faint">{o.n}</span>
                 <span className="font-serif text-[16px] leading-tight text-ink">{o.nombre}</span>
-                <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
-                  {o.puesto}
-                </span>
               </li>
             ))}
           </ul>
